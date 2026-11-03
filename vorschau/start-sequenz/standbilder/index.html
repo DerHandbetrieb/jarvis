@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stilproben Start-Sequenz</title>
+<!-- Stilsuche 03.11.2026: acht ruhende Bilder über alle drei Bildschirme (5760×1080), siehe standbild.js -->
+<style>
+  :root { --bg: #05070a; --text: #d7dde3; --leise: #7f8a94; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1800px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p { color: var(--leise); margin: 0 0 14px; }
+  .knoepfe { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  button { background: #10161d; color: var(--text); border: 1px solid #27313b; border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; }
+  button.an { background: #173640; border-color: #2f8c96; }
+  canvas { width: 100%; display: block; border-radius: 6px; }
+  #text { color: var(--text); min-height: 1.5em; }
+  body.flaeche { overflow: hidden; background: #000; cursor: none; }
+  body.flaeche main { max-width: none; padding: 0; }
+  body.flaeche h1, body.flaeche p, body.flaeche .knoepfe { display: none; }
+  body.flaeche canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; border-radius: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Lokis Start-Sequenz – acht Stilproben (Standbilder)</h1>
+  <p>Ruhende Bilder über alle drei Bildschirme, nur um die Richtung zu finden. Bewegung und Ton kommen erst danach. Alle Werkstatt-Zahlen sind Beispiele.</p>
+  <div class="knoepfe" id="wahl"></div>
+  <p id="text"></p>
+  <canvas id="bild"></canvas>
+</main>
+<script type="module">
+  import { STILE, zeichne } from './standbild.js'
+  const par = new URLSearchParams(location.search), c = document.getElementById('bild'), wahl = document.getElementById('wahl')
+  let nr = Math.max(0, Math.min(STILE.length - 1, (parseInt(par.get('s')) || 1) - 1))
+  function zeigen() {
+    zeichne(c, nr); document.getElementById('text').textContent = `${nr + 1} · ${STILE[nr].name}: ${STILE[nr].text}`
+    ;[...wahl.children].forEach((b, i) => (b.className = i === nr ? 'an' : ''))
+  }
+  STILE.forEach((s, i) => { const b = document.createElement('button'); b.textContent = `${i + 1} ${s.name}`; b.onclick = () => { nr = i; zeigen() }; wahl.append(b) })
+  zeigen()
+  if (par.has('flaeche')) {
+    document.body.classList.add('flaeche')
+    addEventListener('keydown', (ev) => { if (ev.key === 'Escape') window.close(); else if (ev.key >= '1' && ev.key <= String(STILE.length)) { nr = +ev.key - 1; zeigen() } else if (ev.key === 'ArrowRight' || ev.key === ' ') { nr = (nr + 1) % STILE.length; zeigen() } else if (ev.key === 'ArrowLeft') { nr = (nr + STILE.length - 1) % STILE.length; zeigen() } })
+  }
+  window.stilprobe = { zeige: (i) => { nr = i; zeigen() } }
+</script>
+</body>
+</html>
