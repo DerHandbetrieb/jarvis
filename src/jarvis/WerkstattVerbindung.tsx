@@ -52,6 +52,10 @@ export default function WerkstattVerbindung() {
         <div className="space-y-2">
           <p className="text-neutral-600">Einmalig: Diesen QR-Code mit deiner Authenticator-App scannen (neuer Eintrag „Loki“), dann den 6-stelligen Code eingeben.</p>
           {s.qr && <img src={s.qr} alt="QR-Code für die Authenticator-App" className="h-48 w-48 rounded bg-white p-2" />}
+          {s.schluessel && (
+            <p className="text-neutral-600">Klappt das Scannen nicht: in der App „Schlüssel eingeben“ wählen, Name „Loki“, Schlüssel{' '}
+              <span className="select-all rounded bg-neutral-100 px-1.5 py-0.5 font-mono tracking-wider">{s.schluessel.match(/.{1,4}/g)?.join(' ')}</span> (zeitbasiert).</p>
+          )}
         </div>
       )}
       {s.verfuegbar && (s.zustand === 'einrichten' || s.zustand === 'code') && (

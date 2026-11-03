@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createRequire } from 'node:module'
 
-const { erstelleWerkstatt, leseKonfig } = createRequire(import.meta.url)('./werkstatt.cjs')
+const { erstelleWerkstatt, leseKonfig, qrAlsBild } = createRequire(import.meta.url)('./werkstatt.cjs')
 const KONFIG = { url: 'https://x.supabase.co', schluessel: 'oeffentlich' }
 
 /** nachgebaute Gegenstelle: Antworten je Pfad, merkt sich alle Aufrufe */
@@ -32,7 +32,7 @@ describe('Werkstatt-Anbindung', () => {
     const g = gegenstelle({
       '/auth/v1/token?grant_type=password': [200, sitzung(1)],
       '/auth/v1/user': [200, { id: 'loki', factors: [] }],
-      '/auth/v1/factors': [200, { id: 'f1', totp: { qr_code: 'data:image/svg+xml;utf-8,<svg/>' } }],
+      '/auth/v1/factors': [200, { id: 'f1', totp: { qr_code: 'data:image/svg+xml;utf-8,<svg/>', secret: 'ABCDEFGHIJKLMNOP' } }],
       '/auth/v1/factors/f1/challenge': [200, { id: 'ch1' }],
       '/auth/v1/factors/f1/verify': [200, sitzung(2)],
       '/functions/v1/jarvis-lage': [200, LAGE],
@@ -40,13 +40,14 @@ describe('Werkstatt-Anbindung', () => {
     const sp = speicher()
     const w = erstelleWerkstatt({ konfig: KONFIG, speicher: sp, holen: g.holen, takt: 10_000_000 })
     await w.verbinden('loki@x.de', 'geheim')
-    expect(w.status()).toMatchObject({ zustand: 'einrichten', qr: expect.stringContaining('svg') })
+    expect(w.status()).toMatchObject({ zustand: 'einrichten', qr: expect.stringMatching(/^data:image\/svg\+xml;base64,/), schluessel: 'ABCDEFGHIJKLMNOP' })
     // das Passwort geht nur an die Anmeldung, nirgends sonst hin
     expect(g.aufrufe.filter((a) => JSON.stringify(a.body ?? '').includes('geheim')).map((a) => a.pfad)).toEqual(['/auth/v1/token?grant_type=password'])
     await w.code('12 34 56')
     expect(g.aufrufe.find((a) => a.pfad.endsWith('/verify')).body).toEqual({ challenge_id: 'ch1', code: '123456' })
-    expect(w.status().zustand).toBe('verbunden')
+    expect(w.status()).toMatchObject({ zustand: 'verbunden', qr: '', schluessel: '' })
     expect(JSON.parse(sp.wert())).toMatchObject({ access_token: 'zugang2', refresh_token: 'erneuern2' })
+    expect(sp.wert()).not.toContain('ABCDEFGH') // Einrichtungsschlüssel wird nie gespeichert
     expect(sp.wert()).not.toContain('geheim')
     await vi.waitFor(() => expect(w.lage()).toMatchObject({ aufgaben: { offen: 3 } }))
     const lageAufruf = g.aufrufe.find((a) => a.pfad === '/functions/v1/jarvis-lage')
@@ -267,6 +268,17 @@ describe('Werkstatt-Anbindung', () => {
     expect(wert).toBeNull()
     expect(w.status().zustand).toBe('aus')
     expect(g.aufrufe.some((a) => a.pfad === '/functions/v1/jarvis-lage')).toBe(false)
+  })
+
+  it('QR-Code wird als darstellbares Base64-Bild neu verpackt (Supabase liefert unkodiertes SVG)', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path fill="#000" d="M0 0h1v1H0z"/></svg>'
+    const erwartet = 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64')
+    expect(qrAlsBild(`data:image/svg+xml;utf-8,${svg}`)).toBe(erwartet)
+    expect(qrAlsBild(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`)).toBe(erwartet)
+    expect(qrAlsBild(erwartet)).toBe(erwartet)
+    expect(qrAlsBild('data:text/html,<script>')).toBe('')
+    expect(qrAlsBild(undefined)).toBe('')
+    expect(qrAlsBild('data:image/svg+xml<svg/>')).toBe('') // ohne Komma
   })
 
   it('nur https-Adressen werden angenommen', () => {

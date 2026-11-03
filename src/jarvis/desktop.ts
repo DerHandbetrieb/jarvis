@@ -28,7 +28,9 @@ export type JarvisBruecke = {
 }
 
 /** Werkstatt-Anbindung (Anmeldung des Loki-Kontos): einrichten = QR-Code scannen, code = 6-stelligen Code eingeben */
-export type WerkstattStatus = { verfuegbar: boolean; zustand: 'aus' | 'einrichten' | 'code' | 'verbunden' | 'fehler'; fehler: string; qr: string; stand: number | null }
+export type WerkstattStatus = { verfuegbar: boolean; zustand: 'aus' | 'einrichten' | 'code' | 'verbunden' | 'fehler'; fehler: string; qr: string; stand: number | null
+  /** Einrichtungsschlüssel zum Abtippen in die Authenticator-App (nur während „einrichten“) */
+  schluessel?: string }
 export type WerkstattBruecke = {
   status: () => Promise<WerkstattStatus | null>
   verbinden: (email: string, passwort: string) => Promise<WerkstattStatus | null>

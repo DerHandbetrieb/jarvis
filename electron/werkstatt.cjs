@@ -16,7 +16,7 @@ const ZWISCHEN_GILT = 10 * 60_000 // so lange darf man sich mit dem QR-/Code-Sch
 function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date.now(), takt = 5 * 60_000, protokoll = console.error, zeitgrenze = ZEITGRENZE }) {
   let sitzung = null // { access_token, refresh_token, expires_at (ms), user_id }
   let zwischen = null // nach dem Passwort, vor dem Code: { access_token, faktorId, bis }
-  let zustand = { zustand: 'aus', fehler: '', qr: '', stand: null }
+  let zustand = { zustand: 'aus', fehler: '', qr: '', schluessel: '', stand: null }
   let lage = null, erneuern = null, abruf = null, timer = null, beschaeftigt = false
   let durchgang = 0 // steigt bei Verbinden/Trennen – ältere, noch laufende Vorgänge verwerfen dann ihr Ergebnis
   const zuhoerer = new Set()
@@ -85,21 +85,21 @@ function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date
       if (meiner !== durchgang) return
       if (fertig) {
         zwischen = { access_token: d.access_token, faktorId: fertig.id, bis: jetzt() + ZWISCHEN_GILT }
-        return setze({ zustand: 'code', fehler: '', qr: '' })
+        return setze({ zustand: 'code', fehler: '', qr: '', schluessel: '' })
       }
       // halb eingerichtete Geräte aus früheren Versuchen aufräumen (sonst sammeln sie sich an), dann neu einrichten
       for (const f of totp.filter((x) => x.status !== 'verified')) { try { await auth(`/factors/${f.id}`, { methode: 'DELETE', token: d.access_token }) } catch { /* egal */ } }
       const neu = await auth('/factors', { token: d.access_token, body: { factor_type: 'totp', friendly_name: `Loki ${new Date(jetzt()).toISOString().slice(0, 19)}`, issuer: 'Loki' } })
       if (meiner !== durchgang) return
       zwischen = { access_token: d.access_token, faktorId: neu.id, bis: jetzt() + ZWISCHEN_GILT }
-      setze({ zustand: 'einrichten', fehler: '', qr: String(neu?.totp?.qr_code ?? '') })
-    } catch (f) { if (meiner === durchgang) { zwischen = null; setze({ zustand: 'fehler', fehler: klartext(f), qr: '' }) } } finally { beschaeftigt = false }
+      setze({ zustand: 'einrichten', fehler: '', qr: qrAlsBild(neu?.totp?.qr_code), schluessel: String(neu?.totp?.secret ?? '') })
+    } catch (f) { if (meiner === durchgang) { zwischen = null; setze({ zustand: 'fehler', fehler: klartext(f), qr: '', schluessel: '' }) } } finally { beschaeftigt = false }
   }
 
   /** Schritt 2: 6-stelliger Code → Sitzung mit Zwei-Faktor (aal2), verschlüsselt speichern, Lage holen */
   async function code(c) {
     if (beschaeftigt) return
-    if (!zwischen || zwischen.bis < jetzt()) { zwischen = null; return setze({ zustand: 'fehler', fehler: 'Bitte zuerst (wieder) E-Mail und Passwort eingeben.', qr: '' }) }
+    if (!zwischen || zwischen.bis < jetzt()) { zwischen = null; return setze({ zustand: 'fehler', fehler: 'Bitte zuerst (wieder) E-Mail und Passwort eingeben.', qr: '', schluessel: '' }) }
     const ziffern = String(c).replace(/\D/g, '')
     if (ziffern.length !== 6) return setze({ fehler: 'Der Code hat 6 Ziffern.' })
     beschaeftigt = true
@@ -109,7 +109,7 @@ function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date
       const d = await auth(`/factors/${z.faktorId}/verify`, { token: z.access_token, body: { challenge_id: ch.id, code: ziffern } })
       if (meiner !== durchgang) return // inzwischen abgebrochen → nicht verbinden
       sitzung = ausAntwort(d); zwischen = null
-      setze({ zustand: 'verbunden', fehler: '', qr: '' })
+      setze({ zustand: 'verbunden', fehler: '', qr: '', schluessel: '' })
       await speichern(meiner)
       if (meiner === durchgang) starten()
     } catch (f) { if (meiner === durchgang) setze({ fehler: klartext(f, true) }) } finally { beschaeftigt = false }
@@ -119,7 +119,7 @@ function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date
   async function verwerfen(meldung) {
     durchgang++; stoppen(); sitzung = null; lage = null
     try { await speicher.loeschen() } catch { /* egal */ }
-    setze({ zustand: 'fehler', fehler: meldung, stand: null })
+    setze({ zustand: 'fehler', fehler: meldung, stand: null, qr: '', schluessel: '' })
   }
 
   /** gültiges Zugangs-Token; erneuert rechtzeitig (oder erzwungen), nie doppelt gleichzeitig */
@@ -201,7 +201,7 @@ function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date
     durchgang++; stoppen()
     const alt = sitzung; sitzung = null; zwischen = null; lage = null; abruf = null // ein alter Abruf verwirft sein Ergebnis selbst
     try { await speicher.loeschen() } catch { /* egal */ }
-    setze({ zustand: 'aus', fehler: '', qr: '', stand: null })
+    setze({ zustand: 'aus', fehler: '', qr: '', schluessel: '', stand: null })
     if (alt) { try { await auth('/logout?scope=local', { token: alt.access_token }) } catch { /* schon ungültig – egal */ } }
   }
   /** Lage für Anzeige/Morgen-Lage: aus dem Zwischenspeicher, wenn jünger als `hoechstensAlt` ms, sonst frisch */
@@ -214,10 +214,28 @@ function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date
   }
 }
 
+/**
+ * QR-Code von Supabase als sicher darstellbares Bild: Supabase liefert „data:image/svg+xml;utf-8,<svg …>“ mit
+ * unkodiertem SVG-Text – das zeigt Chromium nicht an (kaputtes Bild, Rückmeldung Auftraggeber 03.11.2026). Darum den
+ * SVG-Text herauslösen (auch falls er URL-kodiert oder Base64 ist) und als Base64-Bild neu verpacken.
+ */
+function qrAlsBild(qr) {
+  const roh = String(qr ?? '')
+  if (!roh.startsWith('data:image/svg+xml')) return ''
+  const komma = roh.indexOf(',')
+  if (komma < 0) return ''
+  const kopf = roh.slice(0, komma), inhalt = roh.slice(komma + 1)
+  let svg = inhalt
+  if (/;base64/i.test(kopf)) svg = Buffer.from(inhalt, 'base64').toString('utf8')
+  else if (!inhalt.trimStart().startsWith('<')) { try { svg = decodeURIComponent(inhalt) } catch { svg = inhalt } }
+  if (!/<svg[\s>/]/i.test(svg)) return ''
+  return 'data:image/svg+xml;base64,' + Buffer.from(svg, 'utf8').toString('base64')
+}
+
 /** Zugang aus der Datei .env.werkstatt lesen (WERKSTATT_URL nur https, WERKSTATT_SCHLUESSEL = der öffentliche Schlüssel) */
 function leseKonfig(text) {
   const w = Object.fromEntries(String(text ?? '').split(/\r?\n/).filter((z) => z.includes('=')).map((z) => [z.slice(0, z.indexOf('=')).trim(), z.slice(z.indexOf('=') + 1).trim()]))
   return w.WERKSTATT_URL?.startsWith('https://') && w.WERKSTATT_SCHLUESSEL ? { url: w.WERKSTATT_URL.replace(/\/+$/, ''), schluessel: w.WERKSTATT_SCHLUESSEL } : null
 }
 
-module.exports = { erstelleWerkstatt, leseKonfig }
+module.exports = { erstelleWerkstatt, leseKonfig, qrAlsBild }
