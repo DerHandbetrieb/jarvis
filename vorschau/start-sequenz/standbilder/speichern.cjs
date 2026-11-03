@@ -10,7 +10,7 @@ app.whenReady().then(async () => {
   const f = new BrowserWindow({ show: false, width: 1200, height: 800, webPreferences: { contextIsolation: true, sandbox: true } })
   await f.loadURL('http://localhost:5177/standbilder/?s=1')
   await new Promise((r) => setTimeout(r, 1500))
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 9; i++) {
     const bilder = await f.webContents.executeJavaScript(`(() => {
       window.stilprobe.zeige(${i}); const c = document.getElementById('bild'), aus = [c.toDataURL('image/jpeg', 0.9)]
       for (let s = 0; s < 3; s++) { const t = document.createElement('canvas'); t.width = 1920; t.height = 1080; t.getContext('2d').drawImage(c, s * 1920, 0, 1920, 1080, 0, 0, 1920, 1080); aus.push(t.toDataURL('image/jpeg', 0.9)) }

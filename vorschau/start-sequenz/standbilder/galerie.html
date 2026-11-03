@@ -38,9 +38,11 @@
 <script type="module">
   import { STILE, zeichne } from './standbild.js'
   const liste = document.getElementById('liste'), gross = document.getElementById('gross'), grossBild = document.getElementById('grossBild')
-  STILE.forEach((s, i) => {
+  // neueste Kombination zuerst
+  const reihe = STILE.map((s, i) => [s, i]).sort((a, b) => (b[0].neu ?? 0) - (a[0].neu ?? 0))
+  reihe.forEach(([s, i]) => {
     const sec = document.createElement('section')
-    sec.innerHTML = `<h2>${i + 1} · ${s.name}</h2><div class="text">${s.text}</div>`
+    sec.innerHTML = `<h2>${i + 1} · ${s.name}${s.neu ? ' – neu' : ''}</h2><div class="text">${s.text}</div>`
     const box = document.createElement('div'); box.className = 'bild'
     const c = document.createElement('canvas'); zeichne(c, i)
     const r = document.createElement('div'); r.className = 'raster'; r.innerHTML = ['L', 'M', 'R'].map((x) => `<div><span>${i + 1} ${x}</span></div>`).join('')

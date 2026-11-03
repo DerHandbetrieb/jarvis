@@ -30,6 +30,10 @@ export const STILE = [
   { name: 'Kino-Anamorph', text: 'Schwarz, wenige gestochen scharfe Elemente, starke blaue Lichtstreifen wie im Kino.',
     grund: ['#05101c', '#02070d', '#000000'], haupt: [90, 180, 255], hell: [235, 248, 255], akzent: [255, 140, 50], glas: 0.08, lichtband: 1.6, tiefe: 0.8, aufbau: 'kreise', flare: 1, sparsam: 1 },
 ]
+// Wunsch Auftraggeber 03.11.2026 nach der Galerie: Farbe von 2 Schwarzglas; links = linker Bildschirm von 3 Hologramm-Türkis,
+// Mitte = Schwarzglas, rechts = rechter Bildschirm von 4 Silberlicht
+STILE.push({ ...STILE[1], name: 'Kombination', neu: 1, aufbauL: 'kreise', dicht: 1, aufbauR: 'streuung',
+  text: 'Deine Auswahl: Farben von 2 Schwarzglas, links der linke Bildschirm von 3 Hologramm-Türkis, Mitte von Schwarzglas, rechts der rechte Bildschirm von 4 Silberlicht.' })
 
 // ---------- Werkzeuge ----------
 const fb = (a, al = 1) => `rgba(${a[0]},${a[1]},${a[2]},${al})`
@@ -203,14 +207,14 @@ function mitte(g, S) {
 // ---------- Seiten: drei Aufbauten ----------
 function links(g, S) {
   const f = kf(S)
-  if (S.aufbau === 'kacheln') {
+  if ((S.aufbauL ?? S.aufbau) === 'kacheln') {
     glas(g, S, 40, 60, 540, 560, 'WERKSTATT · LAGE', 'BEISPIEL'); anzeige(g, S, 310, 330, 170, 0.62, '11', 'AUFGABEN OFFEN')
     glas(g, S, 610, 60, 600, 560, 'YGGDRASIL', 'DATENBAUM'); klein(g, S, 'baum', 625, 82, 570, 530)
     glas(g, S, 1240, 60, 640, 560, 'TO-DO', 'BEISPIEL'); klein(g, S, 'aufgaben', 1255, 82, 610, 530)
     glas(g, S, 40, 660, 1100, 200, 'STIMMKANAL', '48 kHz'); audio(g, S, 60, 690, 1060, 150, 3)
     glas(g, S, 1170, 660, 710, 200, 'SYSTEM'); kreisReihe(g, S, 1190, 760, 670, 5, 50)
     if (S.schaltkreis) schaltkreis(g, S, 40, 900, 1840, 140); else { klein(g, S, 'zahlen', 40, 900, 900, 140); klein(g, S, 'status', 980, 900, 900, 140) }
-  } else if (S.aufbau === 'kreise') {
+  } else if ((S.aufbauL ?? S.aufbau) === 'kreise') {
     hinweis(g, S, 40, 40)
     anzeige(g, S, 380, 400, 250, 0.62, '11', 'AUFGABEN OFFEN')
     for (const [x, y, r, w, t] of [[860, 200, 90, 0.8, '2'], [1080, 200, 90, 0.35, '1'], [860, 420, 90, 0.92, 'OK'], [1080, 420, 90, 0.5, '3']]) anzeige(g, S, x, y, r, w, t, ['NEU', 'FREIGABE', 'SELBSTTEST', 'VERKÄUFE'][Math.round(x + y) % 4])
@@ -218,19 +222,19 @@ function links(g, S) {
     if (S.dicht) { for (let i = 0; i < 3; i++) kreisReihe(g, S, 60, 700 + i * 70, 640, 9, 26); klein(g, S, 'aufgaben', 760, 660, 560, 380); klein(g, S, 'zahlen', 1350, 660, 530, 180); spektrum(g, S, 1350, 860, 530, 170) }
     else if (S.sparsam) { audio(g, S, 80, 800, 1760, 160, 3, { balken: 1, luecke: 3 }); txt(g, 'STIMMKANAL · 48 kHz', 80, 990, fb(S.haupt, 0.9), { gr: 12, sp: 3 }) }
     else { audio(g, S, 60, 700, 1100, 160, 3); klein(g, S, 'aufgaben', 1220, 660, 660, 380); klein(g, S, 'status', 60, 900, 1100, 140) }
-  } else if (S.aufbau === 'streuung') { // frei schwebend, Leitlinien statt Kästen
+  } else if ((S.aufbauL ?? S.aufbau) === 'streuung') { // frei schwebend, Leitlinien statt Kästen
     hinweis(g, S, 40, 40)
     anzeige(g, S, 400, 440, 240, 0.62, '11', 'AUFGABEN OFFEN')
     for (const [x, y, w, t, n, lx, ly] of [[880, 200, 0.8, '2', 'NEU SEIT GESTERN', 1060, 120], [980, 420, 0.35, '1', 'FREIGABE OFFEN', 1160, 360], [860, 640, 0.92, 'OK', 'SELBSTTEST NACHT', 1040, 720]]) { anzeige(g, S, x, y, 70, w, t, ''); leit(g, S, x + 72, y - 20, lx, ly, n, t) }
     klein(g, S, 'baum', 1240, 60, 520, 520); chips(g, S, 1790, 80, 9)
     klein(g, S, 'aufgaben', 60, 760, 820, 280); klein(g, S, 'zahlen', 920, 800, 820, 120); audio(g, S, 920, 950, 820, 80, 3, { balken: 1, luecke: 2 })
-  } else if (S.aufbau === 'saeulen') { // hohe Glas-Säulen mit senkrechten Messbalken
+  } else if ((S.aufbauL ?? S.aufbau) === 'saeulen') { // hohe Glas-Säulen mit senkrechten Messbalken
     for (const [i, [n, w, z]] of [['AUFGABEN', 0.62, '11'], ['LAGER', 0.3, '4'], ['FREIGABEN', 0.15, '1']].entries()) saeule(g, S, 40 + i * 200, 60, 170, 980, n, w, z, RN[(i * 7) % RN.length])
     glas(g, S, 640, 60, 600, 640, 'YGGDRASIL', 'DATENBAUM'); klein(g, S, 'baum', 655, 84, 570, 610)
     glas(g, S, 640, 740, 600, 300, 'SYSTEM'); kreisReihe(g, S, 660, 830, 560, 5, 42); kreisReihe(g, S, 660, 960, 560, 5, 42)
     glas(g, S, 1280, 60, 600, 640, 'TO-DO', 'BEISPIEL'); klein(g, S, 'aufgaben', 1295, 84, 570, 610)
     glas(g, S, 1280, 740, 600, 300, 'STIMMKANAL'); spektrum(g, S, 1300, 790, 560, 230)
-  } else if (S.aufbau === 'band') { // waagerechte Bänder mit Flechtband-Trennern
+  } else if ((S.aufbauL ?? S.aufbau) === 'band') { // waagerechte Bänder mit Flechtband-Trennern
     glas(g, S, 40, 50, 1840, 170, 'WERKSTATT · LAGE', 'BEISPIEL'); leuchten(g, S, 16, () => txt(g, '11', 70, 190, fb(S.hell, 1), { gr: 120, gew: 200, sp: 0 })); txt(g, 'AUFGABEN OFFEN', 220, 120, fb(S.hell, 0.9), { gr: 14, sp: 3 }); klein(g, S, 'status', 520, 75, 640, 140); klein(g, S, 'segmentBalken', 1200, 75, 660, 140, 1)
     ornament(g, S, 40, 245, 1840, S.akzent)
     glas(g, S, 40, 270, 600, 300, 'YGGDRASIL'); klein(g, S, 'baum', 55, 292, 570, 270)
@@ -276,32 +280,32 @@ function faecher(g, S, cx, seite) {
 }
 function rechts(g, S) {
   const ox = 2 * B; g.save(); g.translate(ox, 0)
-  if (S.aufbau === 'kacheln') {
+  if ((S.aufbauR ?? S.aufbau) === 'kacheln') {
     glas(g, S, 40, 60, 1100, 380, 'UMSATZ · 14 TAGE', 'BEISPIEL · €'); flaeche(g, S, 70, 110, 1040, 300, DATEN.umsatz14, 160)
     glas(g, S, 1170, 60, 710, 380, 'VERKÄUFE GESTERN', 'BEISPIEL'); leuchten(g, S, 20, () => txt(g, '3', 1260, 330, fb(S.hell, 1), { gr: 230, gew: 200, sp: 0 })); txt(g, '4 ARTIKEL · 123,49 €', 1420, 200, fb(S.hell, 0.95), { gr: 18, sp: 1 }); spektrum(g, S, 1420, 240, 430, 170)
     glas(g, S, 40, 480, 1100, 380, 'SHOPS', 'BEISPIEL'); DATEN.shops.forEach(([n, a, w], i) => anzeige(g, S, 230 + i * 360, 680, 130, w, String(a), n, w < 1 ? S.akzent : S.haupt))
     glas(g, S, 1170, 480, 710, 380, 'BESTELLUNGEN · KARTE'); globus(g, S, 1525, 680, 150)
     glas(g, S, 40, 900, 900, 150, 'LAGER KNAPP', 'BEISPIEL'); klein(g, S, 'lager', 55, 920, 870, 125)
     glas(g, S, 980, 900, 900, 150, 'SYSTEM'); klein(g, S, 'status', 995, 920, 870, 125, 2)
-  } else if (S.aufbau === 'kreise') {
+  } else if ((S.aufbauR ?? S.aufbau) === 'kreise') {
     hinweis(g, S, 40, 40)
     DATEN.shops.forEach(([n, a, w], i) => anzeige(g, S, 240 + i * 420, 300, 170, w, String(a), n, w < 1 ? S.akzent : S.haupt))
     radar(g, S, 1560, 300, 210)
     if (S.sparsam) { flaeche(g, S, 80, 640, 1760, 300, DATEN.umsatz14, 160); txt(g, 'UMSATZ · 14 TAGE · BEISPIEL', 80, 990, fb(S.haupt, 0.9), { gr: 12, sp: 3 }) }
     else { flaeche(g, S, 60, 640, 1000, 260, DATEN.umsatz14, 160); txt(g, 'UMSATZ · 14 TAGE · BEISPIEL', 60, 930, fb(S.haupt, 0.9), { gr: 12, sp: 3 }); spektrum(g, S, 1120, 640, 760, 160); klein(g, S, 'lager', 1120, 830, 760, 200); if (S.dicht) for (let i = 0; i < 2; i++) kreisReihe(g, S, 60, 980 + i * 0, 1000, 12, 22) }
-  } else if (S.aufbau === 'streuung') {
+  } else if ((S.aufbauR ?? S.aufbau) === 'streuung') {
     hinweis(g, S, 40, 40)
     globus(g, S, 420, 420, 230); leit(g, S, 600, 260, 760, 140, 'BESTELLUNGEN', '3 GESTERN')
     DATEN.shops.forEach(([n, a, w], i) => { const x = 900 + i * 230, y = 330; anzeige(g, S, x, y, 80, w, String(a), '', w < 1 ? S.akzent : S.haupt); txt(g, n, x, y + 120, fb(S.hell, 0.9), { gr: 12, aus: 'center', sp: 3 }) })
     radar(g, S, 1560, 640, 140); chips(g, S, 1790, 80, 9)
     flaeche(g, S, 60, 780, 1300, 180, DATEN.umsatz14, 160); txt(g, 'UMSATZ · 14 TAGE · BEISPIEL', 60, 1000, fb(S.haupt, 0.9), { gr: 12, sp: 3 })
     klein(g, S, 'lager', 900, 520, 480, 200)
-  } else if (S.aufbau === 'saeulen') {
+  } else if ((S.aufbauR ?? S.aufbau) === 'saeulen') {
     glas(g, S, 40, 60, 600, 460, 'UMSATZ · 14 TAGE', 'BEISPIEL'); flaeche(g, S, 60, 110, 560, 380, DATEN.umsatz14, 160)
     glas(g, S, 40, 560, 600, 480, 'VERKÄUFE GESTERN', 'BEISPIEL'); leuchten(g, S, 20, () => txt(g, '3', 90, 900, fb(S.hell, 1), { gr: 260, gew: 200, sp: 0 })); txt(g, '4 ARTIKEL', 300, 720, fb(S.hell, 0.95), { gr: 18, sp: 2 }); txt(g, '123,49 €', 300, 760, fb(S.akzent, 1), { gr: 26, sp: 1 }); spektrum(g, S, 300, 800, 320, 200)
     glas(g, S, 680, 60, 400, 980, 'SHOPS', 'BEISPIEL'); DATEN.shops.forEach(([n, a, w], i) => anzeige(g, S, 880, 240 + i * 300, 105, w, String(a), n, w < 1 ? S.akzent : S.haupt))
     for (const [i, [n, w, z]] of [['ETSY', 0.66, '2'], ['AMAZON', 0.33, '1'], ['SHOP', 0.05, '0'], ['NETZ', 0.9, 'OK']].entries()) saeule(g, S, 1120 + i * 190, 60, 160, 980, n, w, z, RN[(i * 5 + 3) % RN.length])
-  } else if (S.aufbau === 'band') {
+  } else if ((S.aufbauR ?? S.aufbau) === 'band') {
     glas(g, S, 40, 50, 1840, 330, 'UMSATZ · 14 TAGE', 'BEISPIEL · €'); flaeche(g, S, 70, 100, 1500, 250, DATEN.umsatz14, 160); leuchten(g, S, 14, () => txt(g, '123,49 €', 1850, 190, fb(S.akzent, 1), { gr: 40, gew: 300, aus: 'right', sp: 0 })); txt(g, 'GESTERN · 3 BESTELLUNGEN', 1850, 220, fb(S.hell, 0.85), { gr: 12, aus: 'right', sp: 2 })
     ornament(g, S, 40, 405, 1840, S.akzent)
     glas(g, S, 40, 430, 1840, 340, 'SHOPS', 'BEISPIEL'); DATEN.shops.forEach(([n, a, w], i) => anzeige(g, S, 220 + i * 380, 610, 120, w, String(a), n, w < 1 ? S.akzent : S.haupt)); spektrum(g, S, 1260, 480, 600, 270)
