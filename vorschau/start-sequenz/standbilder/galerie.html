@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stilproben Galerie</title>
+<!-- Wunsch Auftraggeber 03.11.2026: alle Stilproben untereinander in einem normalen Browserfenster, um Teile aus
+     verschiedenen Bildern zu kombinieren. Jedes Bild = drei Bildschirme nebeneinander; Feldnamen (z. B. „2 L-oben“)
+     erleichtern die Rückmeldung „dies aus 2, das aus 5“. Klick auf ein Bild öffnet es groß. -->
+<style>
+  :root { --bg: #05070a; --text: #d7dde3; --leise: #7f8a94; --linie: #27313b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1900px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p { color: var(--leise); margin: 0 0 14px; }
+  section { margin: 0 0 34px; }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .text { color: var(--leise); margin: 0 0 8px; font-size: 14px; }
+  .bild { position: relative; cursor: zoom-in; }
+  .bild canvas { width: 100%; display: block; border-radius: 6px; }
+  .raster { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); pointer-events: none; }
+  .raster div { border-right: 2px solid #000; position: relative; }
+  .raster div:last-child { border-right: 0; }
+  .raster span { position: absolute; top: 4px; left: 6px; font: 600 12px "Segoe UI", sans-serif; color: #fff; background: rgba(0,0,0,0.55); padding: 0 6px; border-radius: 4px; }
+  .gross { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; overflow: auto; z-index: 5; cursor: zoom-out; }
+  .gross.an { display: block; }
+  .gross img { display: block; width: 5760px; max-width: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Lokis Start-Sequenz – Stilproben im Vergleich</h1>
+  <p>Jedes Bild zeigt die drei Bildschirme nebeneinander (L = links, M = Mitte, R = rechts). Klick auf ein Bild zeigt es in voller Größe (seitlich scrollen, nochmal klicken schließt). Alle Werkstatt-Zahlen sind Beispiele.</p>
+  <div id="liste"></div>
+</main>
+<div class="gross" id="gross"><img id="grossBild" alt=""></div>
+<script type="module">
+  import { STILE, zeichne } from './standbild.js'
+  const liste = document.getElementById('liste'), gross = document.getElementById('gross'), grossBild = document.getElementById('grossBild')
+  STILE.forEach((s, i) => {
+    const sec = document.createElement('section')
+    sec.innerHTML = `<h2>${i + 1} · ${s.name}</h2><div class="text">${s.text}</div>`
+    const box = document.createElement('div'); box.className = 'bild'
+    const c = document.createElement('canvas'); zeichne(c, i)
+    const r = document.createElement('div'); r.className = 'raster'; r.innerHTML = ['L', 'M', 'R'].map((x) => `<div><span>${i + 1} ${x}</span></div>`).join('')
+    box.append(c, r); sec.append(box); liste.append(sec)
+    box.onclick = () => { grossBild.src = c.toDataURL('image/jpeg', 0.92); gross.classList.add('an'); gross.scrollLeft = 1920 }
+  })
+  gross.onclick = () => gross.classList.remove('an')
+</script>
+</body>
+</html>

@@ -323,4 +323,38 @@ export const GERUESTE = [
     },
     nachGruss({ S, ende }) { S.glas(ende + 0.4, D3 * 4, { laut: 0.1, aus: 5 }) },
   },
+  {
+    // Wunsch Auftraggeber 03.11.2026: „mehr Fokus auf Nummer 1 mit ein bisschen von Nummer 4“; der Abschnitt „Dunkel“
+    // von 1 (Abschalt-Geräusch) klang billig → ersetzt durch eine mechanische Verriegelung, die immer schneller einrastet.
+    name: 'Trailer-Wucht + Verwandlung', text: 'Neu nach deinem Wunsch: Nummer 1 als Grundlage, dazu Servos, Hydraulik und Einrasten aus Nummer 4. Der „Dunkel“-Teil ist neu: Druck entweicht, Metall rastet immer schneller ein, Herzschlag-Bass zieht an – dann der Einschlag.',
+    spielen({ spiel, T, Z, S, kante, E }) {
+      spiel('rumpeln', T(0.2), { laut: 0.6, ein: 1.2, bis: kante, hallAnteil: 0 })
+      S.sub(T(0.3), { von: 55, bis: 30, dauer: 3, laut: 0.5 })
+      spiel('braam_metall', T(Z.VISIER), { laut: 0.55 }); spiel('hydraulik', T(Z.VISIER + 0.3), { laut: 0.4, seite: -0.4 })
+      S.pad(T(Z.VISIER), kante, [D2, A2, F3], { laut: 0.08, lp: 300, lpBis: 1600, an: 3 })
+      for (let i = 0; i < 3; i++) spiel(i % 2 ? 'einrasten_2' : 'einrasten_1', T(2.6 + i * 0.55), { laut: 0.45, tempo: 0.8, seite: i % 2 ? 0.5 : -0.5, hallAnteil: 0.2 })
+      // Verwandlung: Trailer-Braam trifft auf Maschinen, die sich zusammensetzen
+      spiel('braam', T(Z.VERWANDLUNG), { laut: 0.7 }); spiel('verwandlung_1', T(Z.VERWANDLUNG), { laut: 0.6 }); S.sub(T(Z.VERWANDLUNG), { laut: 0.6 })
+      spiel('metall_riser', T(Z.VERWANDLUNG + 0.5), { laut: 0.45, bis: kante })
+      for (let i = 0; i < 4; i++) {
+        const t = Z.VERWANDLUNG + 0.6 + i * 0.6, seite = Math.cos(i * 1.7) * 0.6
+        spiel(['servo_1', 'servo_2', 'servo_3'][i % 3], T(t), { laut: 0.4, tempo: 0.8, seite }); spiel(i % 2 ? 'einrasten_2' : 'einrasten_1', T(t + 0.35), { laut: 0.55, tempo: 0.75, seite })
+      }
+      spiel('braam_dystopie', T(7.0), { laut: 0.6 }); spiel('mech_kraft', T(7.0), { laut: 0.6 }); S.sub(T(7.0), { laut: 0.5 })
+      S.riser(T(6.2), kante, { laut: 0.28 })
+      // Dunkel (neu): Druck entweicht, Verriegelung rastet immer schneller ein, Herzschlag-Bass, Sog in den Einschlag
+      spiel('pneumatik', kante, { laut: 0.7 }); spiel('verwandlung_2', kante + 0.1, { laut: 0.55, tempo: 0.7 })
+      let t = 0; for (let i = 0; i < 12; i++) { t += 0.13 - i * 0.007; /* letzter Schlag bei Dunkel + 1,25 s, also vor dem Einschlag */ spiel(i % 2 ? 'einrasten_2' : 'einrasten_1', kante + 0.15 + t, { laut: 0.35 + i * 0.03, tempo: 0.7 + i * 0.02, seite: i % 2 ? 0.6 : -0.6, hallAnteil: 0.1 }) }
+      S.herz(kante + 0.2, { laut: 0.5 }); S.herz(kante + 0.75, { laut: 0.6 })
+      S.riser(kante + 0.2, E, { laut: 0.18, von: 80, bis: 2500 })
+      spiel('einsaugen', T(Z.EINSCHLAG - 1.0), { laut: 0.9, hallAnteil: 0, schlussBei: E })
+      // Einschlag: Trailer-Wucht plus Metall
+      spiel('boom', E, { laut: 1 }); spiel('braam', E, { laut: 0.9 }); spiel('einschlag_episch', E, { laut: 0.85 }); spiel('subdrop', E, { laut: 0.9, hallAnteil: 0 }); spiel('metall_boom', E, { laut: 0.8 }); spiel('amboss', E, { laut: 0.5 }); spiel('tor_metall', E + 0.15, { laut: 0.5 })
+      S.sub(E, { von: 80, bis: 28, dauer: 3, laut: 0.8 })
+      spiel('pneumatik', E + 0.6, { laut: 0.35, seite: -0.4 }); spiel('hydraulik', E + 0.8, { laut: 0.35, seite: 0.4 })
+      S.pad(E + 0.3, T(Z.AUS), [D2, A2, D3, F3], { laut: 0.1, lp: 1200, an: 1.5, aus: 2 })
+      spiel('flaeche', E + 1, { laut: 0.35, schleife: true, bis: T(Z.ENDE) })
+    },
+    nachGruss({ spiel, ende }) { spiel('einrasten_2', ende + 0.8, { laut: 0.6, tempo: 0.7 }); spiel('schluss_hit', ende + 0.9, { laut: 0.8 }) },
+  },
 ]
