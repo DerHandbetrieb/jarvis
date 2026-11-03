@@ -4,11 +4,12 @@
 // (5173 gehört der Werkstatt-App, damit beide gleichzeitig laufen können).
 // Immer bereit (Entscheidung Auftraggeber 03.11.2026): startet mit Windows unsichtbar (Argument --autostart), lebt als
 // Symbol im Infobereich unten rechts; das X versteckt nur das Fenster, beendet wird über das Symbol.
-const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, net, protocol, screen, shell, session } = require('electron')
+const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, net, protocol, safeStorage, screen, shell, session } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const { pathToFileURL } = require('node:url')
 const jarvis = require('./jarvis.cjs')
+const { erstelleWerkstatt, leseKonfig } = require('./werkstatt.cjs')
 
 const istEntwicklung = !app.isPackaged && process.argv.includes('--dev')
 const DEV_URL = 'http://localhost:5174/'
@@ -233,6 +234,39 @@ if (!app.requestSingleInstanceLock()) {
       trayZustand = { zustand: String(z?.zustand ?? 'aus'), mikrofon: !!z?.mikrofon }
       trayAktualisieren()
     })
+    // Werkstatt-Anbindung (Etappe L1): Anmeldung + Lage im Hauptprozess, Sitzung verschlüsselt (safeStorage, asynchron).
+    // Zugang (Adresse + öffentlicher Schlüssel) aus .env.werkstatt (nicht in Git; im Installer als resources/werkstatt.env).
+    const konfigDatei = app.isPackaged ? path.join(process.resourcesPath, 'werkstatt.env') : path.join(__dirname, '..', '.env.werkstatt')
+    const sitzungsDatei = path.join(app.getPath('userData'), 'werkstatt-sitzung.bin')
+    const werkstatt = erstelleWerkstatt({
+      konfig: leseKonfig(fs.existsSync(konfigDatei) ? fs.readFileSync(konfigDatei, 'utf8') : ''),
+      speicher: {
+        lesen: async () => {
+          if (!fs.existsSync(sitzungsDatei) || !(await safeStorage.isAsyncEncryptionAvailable())) return null
+          const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(fs.readFileSync(sitzungsDatei))
+          if (shouldReEncrypt) fs.writeFileSync(sitzungsDatei, await safeStorage.encryptStringAsync(result))
+          return result
+        },
+        schreiben: async (text) => {
+          // ohne Verschlüsselung nie im Klartext speichern (false → Hinweis „nach Neustart neu verbinden“)
+          if (!(await safeStorage.isAsyncEncryptionAvailable())) return false
+          // erst Zwischendatei, dann umbenennen – ein Absturz beim Schreiben hinterlässt keine kaputte Sitzung
+          fs.writeFileSync(sitzungsDatei + '.neu', await safeStorage.encryptStringAsync(text))
+          fs.renameSync(sitzungsDatei + '.neu', sitzungsDatei)
+          return true
+        },
+        loeschen: async () => { fs.rmSync(sitzungsDatei, { force: true }) },
+      },
+    })
+    werkstatt.beiAenderung((s) => { if (!hauptfenster.isDestroyed()) hauptfenster.webContents.send('werkstatt-aenderung', s) })
+    void werkstatt.laden()
+    ipcMain.handle('werkstatt-status', (e) => (vonFenster(e) ? werkstatt.status() : null))
+    ipcMain.handle('werkstatt-verbinden', async (e, d) => { if (!vonFenster(e)) return null; await werkstatt.verbinden(String(d?.email ?? ''), String(d?.passwort ?? '')); return werkstatt.status() })
+    ipcMain.handle('werkstatt-code', async (e, c) => { if (!vonFenster(e)) return null; await werkstatt.code(String(c ?? '')); return werkstatt.status() })
+    ipcMain.handle('werkstatt-trennen', async (e) => { if (!vonFenster(e)) return null; await werkstatt.trennen(); return werkstatt.status() })
+    // höchstens 2 Minuten alt, sonst frisch (Morgen-Lage, Anzeigen); „Jetzt aktualisieren“ holt immer frisch
+    ipcMain.handle('werkstatt-lage', async (e, erzwingen) => (vonFenster(e) ? werkstatt.aktuelleLage(erzwingen ? 0 : 120_000) : null))
+
     // Start-Sequenz: nur das Hauptfenster darf sie starten und ihr Lokis Spruch schicken; Meldungen der Sequenz gehen ans Hauptfenster
     ipcMain.handle('sequenz-starten', (e, lautstaerke) => (vonFenster(e) ? sequenzStarten(lautstaerke) : false))
     ipcMain.on('sequenz-gruss', (e, d) => {

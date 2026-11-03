@@ -1,22 +1,50 @@
 // Jarvis – Daten für die Morgen-Lage (03.11.2026). Jeder Baustein für sich: scheitert einer (z. B. kein Internet
 // fürs Wetter), fehlt nur dieser Satz.
-// Im eigenen Jarvis-Projekt gibt es vorerst nur das Wetter. Die Werkstatt-Daten (Aufgaben, Amazon-Probleme, Lager,
-// Verkäufe, Freigaben) kommen später aus derselben Supabase-Datenbank wie die Werkstatt-App – mit eigener Anmeldung
-// inkl. Zwei-Faktor. Das wird erst geplant und mit dem Auftraggeber abgestimmt (siehe CLAUDE.md, „Werkstatt-Anbindung“).
-// Bis dahin liefern diese Bausteine „null“ und die Morgen-Lage lässt sie einfach weg.
-// Die frühere Fassung mit den Werkstatt-Abfragen steht in der Werkstatt-App unter src/jarvis/daten.ts.
+// Werkstatt-Daten (Aufgaben, Amazon-Probleme, Selbsttest, Lager, Verkäufe gestern, Freigaben) kommen seit Etappe L2
+// (03.11.2026) aus der lesenden Serverfunktion „jarvis-lage“ der Werkstatt-Datenbank – über die Anmeldung des
+// Loki-Kontos im Hauptprozess (electron/werkstatt.cjs). Ohne Verbindung oder mit veralteten Daten (älter als eine
+// Stunde) liefern diese Bausteine „null“ und die Morgen-Lage lässt sie weg – Loki erfindet nichts.
+// Entscheidung Auftraggeber: Loki darf alles laut sagen, auch den Umsatz in Euro.
 import { holeWetter, wetterAusCode, wetterOrt } from './wetter'
 import type { BausteinSchluessel, LageEingabe } from './morgenlage'
+import { werkstattBruecke, type WerkstattLage } from './desktop'
 
 const WETTER_WORT = { klar: 'klarer Himmel', wolkig: 'bewölkt', regen: 'Regen', gewitter: 'Gewitter' } as const
+const HOECHSTENS_ALT = 60 * 60_000
 
 const sicher = async <T,>(f: () => Promise<T>): Promise<T | null> => { try { return await f() } catch { return null } }
+const mitZeitgrenze = <T,>(p: Promise<T>, ms = 20_000): Promise<T> => Promise.race([p, new Promise<T>((_, nein) => setTimeout(() => nein(new Error('Zeitüberschreitung')), ms))])
+
+type WerkstattTeil = Pick<LageEingabe, 'aufgaben' | 'probleme' | 'lager' | 'verkauf' | 'freigaben'>
+/** Antwort der Serverfunktion in die Bausteine der Morgen-Lage umrechnen (getestet) */
+export function ausWerkstatt(l: WerkstattLage | null, jetzt: Date): WerkstattTeil {
+  if (!l || !(jetzt.getTime() - l.geholt < HOECHSTENS_ALT)) return { aufgaben: null, probleme: null, lager: null, verkauf: null, freigaben: null }
+  // Selbsttest zählt nur, wenn er aus den letzten 24 Stunden stammt
+  const testRot = !!l.selbsttest && l.selbsttest.rot > 0 && jetzt.getTime() - new Date(l.selbsttest.am).getTime() < 24 * 3_600_000
+  return {
+    aufgaben: { anzahl: l.aufgaben.offen, neu: l.aufgaben.neu, wichtigste: l.aufgaben.wichtigste.slice(0, 3).map((w) => w.titel) },
+    probleme: { amazon: l.aufgaben.amazonProbleme, selbsttestRot: testRot },
+    lager: { namen: l.lagerKnapp.map((k) => (k.variante ? `${k.name} ${k.variante}` : k.name)) },
+    verkauf: { bestellungen: l.verkauf.gestern.bestellungen, stueck: l.verkauf.gestern.stueck, umsatzCent: l.verkauf.gestern.umsatzCent },
+    freigaben: l.freigaben,
+  }
+}
+
+const WERKSTATT_BAUSTEINE: BausteinSchluessel[] = ['aufgaben', 'probleme', 'lager', 'verkauf', 'freigaben']
 
 export async function ladeLageDaten(bausteine: Set<BausteinSchluessel>): Promise<Omit<LageEingabe, 'jetzt' | 'anrede' | 'humor' | 'bausteine'>> {
-  const wetter = bausteine.has('wetter') ? await sicher(() => holeWetter(wetterOrt())) : null
+  const brauchtWerkstatt = WERKSTATT_BAUSTEINE.some((b) => bausteine.has(b))
+  // höchstens 20 Sekunden warten – die Morgen-Lage darf nie an einer hängenden Verbindung hängen bleiben
+  const [wetter, werkstatt] = await Promise.all([
+    bausteine.has('wetter') ? sicher(() => mitZeitgrenze(holeWetter(wetterOrt()))) : Promise.resolve(null),
+    brauchtWerkstatt ? sicher(async () => (await mitZeitgrenze(werkstattBruecke()?.lage() ?? Promise.resolve(null))) ?? null) : Promise.resolve(null),
+  ])
   const c = wetter?.current
+  // fehlt in der Antwort etwas (andere Fassung der Serverfunktion), entfallen nur die Werkstatt-Sätze
+  let werkstattTeil: WerkstattTeil
+  try { werkstattTeil = ausWerkstatt(werkstatt, new Date()) } catch { werkstattTeil = ausWerkstatt(null, new Date()) }
   return {
-    aufgaben: null, probleme: null, lager: null, verkauf: null, freigaben: null,
+    ...werkstattTeil,
     wetter: c ? { grad: c.temperature_2m ?? null, text: c.weather_code != null ? WETTER_WORT[wetterAusCode(c.weather_code, c.cloud_cover ?? 0)] : null } : null,
   }
 }

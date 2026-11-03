@@ -27,6 +27,33 @@ export type JarvisBruecke = {
   beiFortschritt: (fn: (d: { name: string; anteil: number }) => void) => () => void
 }
 
+/** Werkstatt-Anbindung (Anmeldung des Loki-Kontos): einrichten = QR-Code scannen, code = 6-stelligen Code eingeben */
+export type WerkstattStatus = { verfuegbar: boolean; zustand: 'aus' | 'einrichten' | 'code' | 'verbunden' | 'fehler'; fehler: string; qr: string; stand: number | null }
+export type WerkstattBruecke = {
+  status: () => Promise<WerkstattStatus | null>
+  verbinden: (email: string, passwort: string) => Promise<WerkstattStatus | null>
+  code: (code: string) => Promise<WerkstattStatus | null>
+  trennen: () => Promise<WerkstattStatus | null>
+  /** erzwingen = frisch holen statt aus dem Zwischenspeicher (bis 2 Minuten alt) */
+  lage: (erzwingen?: boolean) => Promise<WerkstattLage | null>
+  beiAenderung: (fn: (s: WerkstattStatus) => void) => () => void
+}
+/** Antwort der Serverfunktion jarvis-lage (Werkstatt-App, supabase/functions/jarvis-lage) */
+export type WerkstattLage = {
+  stand: string
+  geholt: number
+  aufgaben: { offen: number; neu: number; wichtigste: { titel: string; faellig: string | null }[]; amazonProbleme: string[] }
+  lagerKnapp: { name: string; variante: string | null; bestand: number; meldebestand: number }[]
+  verkauf: {
+    gestern: { tag: string; bestellungen: number; stueck: number; umsatzCent: number; kanaele: { kanal: string; bestellungen: number; stueck: number; umsatzCent: number }[] }
+    tage: { tag: string; bestellungen: number; stueck: number; umsatzCent: number }[]
+    kanaele14: { kanal: string; bestellungen: number; stueck: number; umsatzCent: number }[]
+  }
+  freigaben: number
+  selbsttest: { am: string; rot: number } | null
+}
+export const werkstattBruecke = (): WerkstattBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.werkstatt ?? null : null)
+
 /** Start-Sequenz über alle Bildschirme; Meldungen: gruss (Loki hat dort gesprochen), ohne-gruss, abgebrochen, ende */
 export type SequenzBruecke = {
   starten: (lautstaerke: number) => Promise<boolean>

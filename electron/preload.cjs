@@ -11,6 +11,19 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     lesen: () => ipcRenderer.invoke('autostart-lesen'),
     setzen: (an) => ipcRenderer.invoke('autostart-setzen', !!an),
   },
+  /** Werkstatt-Anbindung: Anmeldung (Passwort wird nur weitergereicht, nie gespeichert) und fertige Lage – keine Tokens */
+  werkstatt: {
+    status: () => ipcRenderer.invoke('werkstatt-status'),
+    verbinden: (email, passwort) => ipcRenderer.invoke('werkstatt-verbinden', { email: String(email), passwort: String(passwort) }),
+    code: (code) => ipcRenderer.invoke('werkstatt-code', String(code)),
+    trennen: () => ipcRenderer.invoke('werkstatt-trennen'),
+    lage: (erzwingen) => ipcRenderer.invoke('werkstatt-lage', !!erzwingen),
+    beiAenderung: (fn) => {
+      const h = (_e, s) => fn(s)
+      ipcRenderer.on('werkstatt-aenderung', h)
+      return () => ipcRenderer.removeListener('werkstatt-aenderung', h)
+    },
+  },
   /** Start-Sequenz über alle Bildschirme (Lokis Spruch kommt live aus seiner Stimme ins Finale) */
   sequenz: {
     starten: (lautstaerke) => ipcRenderer.invoke('sequenz-starten', Number(lautstaerke)),

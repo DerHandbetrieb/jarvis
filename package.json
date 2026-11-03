@@ -2,7 +2,7 @@
   "name": "jarvis",
   "productName": "Jarvis",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Jarvis – lokaler Sprachassistent für den PC (später Hausassistent), Der Handbetrieb (Bloßfeld und Jungk GbR)",
   "author": "Bloßfeld und Jungk GbR",
   "type": "module",
@@ -46,6 +46,10 @@
       "node_modules/sherpa-onnx-win-x64/**"
     ],
     "extraResources": [
+      {
+        "from": ".env.werkstatt",
+        "to": "werkstatt.env"
+      },
       {
         "from": "stimme",
         "to": "stimme",
