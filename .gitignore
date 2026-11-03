@@ -20,3 +20,7 @@ modelle/
 Thumbs.db
 .DS_Store
 .claude/settings.local.json
+
+# Python-Zwischendateien
+__pycache__/
+*.pyc
