@@ -17,6 +17,9 @@ const NAMEN = ['start_metall', 'braam_metall', 'rumpeln', 'hud_akzent', 'hud_kli
   'granular', 'braam_dystopie', 'verzerrt_boom']
 
 let ac = null
+let tonOrdner = new URL('../3d/toene/', BASIS).href
+/** Ordner der Sonniss-Töne setzen (im Jarvis-Programm: mitgelieferter Ordner) */
+export function setzeTonOrdner(url) { tonOrdner = String(url).endsWith('/') ? String(url) : String(url) + '/' }
 const puffer = {}
 let rausch = null
 
@@ -24,13 +27,16 @@ export async function vorbereiten(grussNr) {
   if (!ac) ac = new AudioContext({ latencyHint: 'playback' })
   if (ac.state === 'suspended') await ac.resume()
   if (puffer.grussNr !== grussNr) { delete puffer.gruss; puffer.grussNr = grussNr }
-  const fehlt = [...NAMEN.filter((n) => !(n in puffer)), ...('gruss' in puffer ? [] : ['gruss'])]
+  const mitGruss = grussNr != null
+  const fehlt = [...NAMEN.filter((n) => !(n in puffer)), ...(!mitGruss || 'gruss' in puffer ? [] : ['gruss'])]
   await Promise.all(fehlt.map(async (n) => {
-    try { puffer[n] = await ac.decodeAudioData(await (await fetch(new URL(n === 'gruss' ? `../gruss-${grussNr}.wav` : `../3d/toene/${n}.ogg`, BASIS))).arrayBuffer()) } catch { puffer[n] = null }
+    try { puffer[n] = await ac.decodeAudioData(await (await fetch(n === 'gruss' ? new URL(`../gruss-${grussNr}.wav`, BASIS) : `${tonOrdner}${n}.ogg`)).arrayBuffer()) } catch { puffer[n] = null }
   }))
   if (!rausch) { rausch = ac.createBuffer(1, ac.sampleRate * 4, ac.sampleRate); const d = rausch.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1 }
-  return [...NAMEN, 'gruss'].filter((n) => !puffer[n])
+  return [...NAMEN, ...(mitGruss ? ['gruss'] : [])].filter((n) => !puffer[n])
 }
+/** Ton aus Lokis Stimme (Float32-Abtastwerte) in einen abspielbaren Puffer verwandeln */
+export function pufferAus(samples, sampleRate) { const b = ac.createBuffer(1, samples.length, sampleRate); b.copyToChannel(samples instanceof Float32Array ? samples : new Float32Array(samples), 0); return b }
 export const jetzt = () => (ac ? ac.currentTime : 0)
 // wie lange ein Ton braucht, bis er aus dem Lautsprecher kommt (für Bild-Ton-Gleichlauf)
 export const verzoegerung = () => (ac ? ac.outputLatency || ac.baseLatency || 0 : 0)
@@ -41,10 +47,14 @@ function hall(sek = 3.2, abfall = 3) {
   const k = ac.createConvolver(); k.buffer = b; return k
 }
 
-// Startet ein Gerüst; gibt { t0, stopp } zurück
-export function starten(geruest) {
-  const Z = ZEIT, t0 = ac.currentTime + 0.1, T = (s) => t0 + s, quellen = []
-  const summe = ac.createGain(); summe.gain.value = 0.8
+// Startet ein Gerüst; gibt { t0, gesamt, stimme, stopp, gruss, ausblenden } zurück.
+// offen = true (Jarvis-Programm): kein fester Schluss – der Gruß kommt, sobald Lokis Stimme ihn erzeugt hat (gruss()), danach
+// blendet das Programm aus (ausblenden()); Dauertöne laufen bis dahin weiter. lautstaerke = Regler in den Einstellungen.
+export function starten(geruest, { offen = false, lautstaerke = 1 } = {}) {
+  const Z = offen ? { ...ZEIT, AUS: 58, ENDE: 60 } : ZEIT, t0 = ac.currentTime + 0.1, T = (s) => t0 + s, quellen = []
+  // Lautstärke-Regler wirkt nur auf Musik und Effekte – Lokis Stimme bleibt immer hörbar
+  const grundPegel = 0.8, musikRegler = ac.createGain(); musikRegler.gain.value = Math.max(0, Math.min(1, lautstaerke))
+  const summe = ac.createGain(); summe.gain.value = grundPegel
   const begrenzer = ac.createDynamicsCompressor()
   begrenzer.threshold.value = -8; begrenzer.knee.value = 0; begrenzer.ratio.value = 20; begrenzer.attack.value = 0.002; begrenzer.release.value = 0.2
   // Sicherheit gegen Übersteuern: nach dem Kompressor weiche Kappung bei 0,95 (kein hartes Knacken)
@@ -55,11 +65,11 @@ export function starten(geruest) {
   // Messpunkte für die Bild-Anzeigen (Wellenform/Spektrum): alles zusammen und nur die Stimme
   const gesamt = ac.createAnalyser(); gesamt.fftSize = 1024; gesamt.smoothingTimeConstant = 0.7; kappe.connect(gesamt)
   const stimme = ac.createAnalyser(); stimme.fftSize = 1024; stimme.smoothingTimeConstant = 0.6
-  summe.gain.setValueAtTime(0.8, T(Z.AUS)); summe.gain.linearRampToValueAtTime(0, T(Z.ENDE))
+  summe.gain.setValueAtTime(grundPegel, T(Z.AUS)); summe.gain.linearRampToValueAtTime(0, T(Z.ENDE))
   const musik = ac.createGain()
   const senke = ac.createBiquadFilter(); senke.type = 'peaking'; senke.frequency.value = 2400; senke.Q.value = 0.7; senke.gain.value = 0
   const absenken = ac.createGain()
-  musik.connect(senke).connect(absenken).connect(summe)
+  musik.connect(senke).connect(absenken).connect(musikRegler).connect(summe)
   const raum = hall(geruest.hallSek ?? 3.2), raumPegel = ac.createGain(); raumPegel.gain.value = 0.3; raum.connect(raumPegel).connect(musik)
 
   const ausgang = (knoten, { seite = 0, hallAnteil = 0.25 } = {}) => {
@@ -141,9 +151,9 @@ export function starten(geruest) {
   geruest.spielen({ spiel, T, Z, S, kante: T(Z.DUNKEL), E: T(Z.EINSCHLAG) })
 
   // Lokis Begrüßung: Musik runter (≈ −12 dB), Klangsenke im Sprachbereich, Stimme klar und laut
-  const gq = puffer.gruss
-  if (gq) {
-    const s = T(Z.GRUSS), ende = s + gq.duration
+  // gibt das Ende des Grußes (Sekunden ab Start) zurück
+  const gruss = (gq, wann) => {
+    const s = T(wann), ende = s + gq.duration
     absenken.gain.setValueAtTime(1, s - 0.3); absenken.gain.linearRampToValueAtTime(0.25, s - 0.05)
     absenken.gain.setValueAtTime(0.25, ende + 0.1); absenken.gain.linearRampToValueAtTime(1, ende + 0.8)
     senke.gain.setValueAtTime(0, s - 0.3); senke.gain.linearRampToValueAtTime(-9, s - 0.05)
@@ -157,8 +167,11 @@ export function starten(geruest) {
     const kleinerHall = ac.createGain(); kleinerHall.gain.value = 0.12; pegel.connect(kleinerHall).connect(raum)
     q.start(s); quellen.push(q)
     geruest.nachGruss?.({ spiel, S, ende })
+    return ende - t0
   }
-  return { t0, gesamt, stimme, stopp: () => { quellen.forEach((q) => { try { q.stop() } catch { /* schon aus */ } }); try { summe.disconnect() } catch { /* */ } } }
+  if (!offen && puffer.gruss) gruss(puffer.gruss, Z.GRUSS)
+  const ausblenden = (wann, dauer = 2) => { const jetzt0 = ac.currentTime, a = Math.max(jetzt0, T(wann)); summe.gain.cancelScheduledValues(jetzt0); summe.gain.setValueAtTime(summe.gain.value, jetzt0); summe.gain.setValueAtTime(summe.gain.value, a); summe.gain.linearRampToValueAtTime(0, a + dauer) }
+  return { t0, gesamt, stimme, gruss, ausblenden, stopp: () => { quellen.forEach((q) => { try { q.stop() } catch { /* schon aus */ } }); try { summe.disconnect() } catch { /* */ } } }
 }
 
 // Prüfhilfe: ein Gerüst ohne Lautsprecher berechnen (für Pegelmessung), danach normale Wiedergabe wiederherstellen

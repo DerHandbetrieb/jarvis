@@ -27,6 +27,15 @@ export type JarvisBruecke = {
   beiFortschritt: (fn: (d: { name: string; anteil: number }) => void) => () => void
 }
 
+/** Start-Sequenz über alle Bildschirme; Meldungen: gruss (Loki hat dort gesprochen), ohne-gruss, abgebrochen, ende */
+export type SequenzBruecke = {
+  starten: (lautstaerke: number) => Promise<boolean>
+  gruss: (samples: Float32Array, sampleRate: number) => void
+  keinGruss: () => void
+  beiMeldung: (fn: (art: string) => void) => () => void
+}
+export const sequenzBruecke = (): SequenzBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.sequenz ?? null : null)
+
 export const bruecke = (): JarvisBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.jarvis ?? null : null)
 
 export type JarvisEinstellungen = {
@@ -45,10 +54,14 @@ export type JarvisEinstellungen = {
   zuletztLage: string
   /** Nummer der letzten Begrüßung beim Rechnerstart (-1 = noch keine) – damit nie zweimal dieselbe kommt */
   letzteBegruessung: number
+  /** Start-Sequenz über alle Bildschirme beim Rechnerstart (Lokis Spruch im Finale) */
+  startSequenz: boolean
+  /** Lautstärke der Start-Sequenz (0 bis 1) – Lokis Stimme bleibt dabei verständlich */
+  sequenzLautstaerke: number
 }
 
 const STANDARD: JarvisEinstellungen = {
-  an: false, anrede: 'Sir', humor: true, stimme: 'loki', tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen2.5:7b', zuletztLage: '', letzteBegruessung: -1,
+  an: false, anrede: 'Sir', humor: true, stimme: 'loki', tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen2.5:7b', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
 }
 const SCHLUESSEL = 'jarvis.einstellungen'
 const zuhoerer = new Set<() => void>()

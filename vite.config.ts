@@ -1,6 +1,8 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import fs from 'node:fs'
+import path from 'node:path'
 
 /**
  * Schutzregel (Content-Security-Policy) für die fertige Oberfläche: nur eigene Dateien laden und nur mit
@@ -29,8 +31,26 @@ function sicherheitsRegel(): Plugin {
   }
 }
 
-// Port 5174, weil die Werkstatt-App 5173 nutzt
+/**
+ * Töne der Start-Sequenz (Sonniss, nicht in Git – erzeugt mit vorschau/start-sequenz/3d/toene-holen.cjs) beim Bauen nach
+ * dist/toene kopieren. Fehlen sie, läuft die Sequenz ohne diese Geräusche (nur selbst erzeugte Klänge) – Hinweis beim Bauen.
+ */
+function startSequenzToene(): Plugin {
+  return {
+    name: 'start-sequenz-toene',
+    apply: 'build',
+    closeBundle() {
+      const quelle = path.resolve('vorschau/start-sequenz/3d/toene'), ziel = path.resolve('dist/toene')
+      if (!fs.existsSync(quelle)) { console.warn('Hinweis: Töne der Start-Sequenz fehlen (vorschau/start-sequenz/3d/toene) – sie läuft dann ohne diese Geräusche.'); return }
+      fs.mkdirSync(ziel, { recursive: true })
+      for (const f of fs.readdirSync(quelle)) if (f.endsWith('.ogg')) fs.copyFileSync(path.join(quelle, f), path.join(ziel, f))
+    },
+  }
+}
+
+// Port 5174, weil die Werkstatt-App 5173 nutzt. Zwei Seiten: die Oberfläche (index.html) und die Start-Sequenz.
 export default defineConfig({
-  plugins: [react(), tailwindcss(), sicherheitsRegel()],
+  plugins: [react(), tailwindcss(), sicherheitsRegel(), startSequenzToene()],
   server: { port: 5174, strictPort: true },
+  build: { rollupOptions: { input: { main: path.resolve('index.html'), startsequenz: path.resolve('start-sequenz.html') } } },
 })

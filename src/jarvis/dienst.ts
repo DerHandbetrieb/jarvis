@@ -2,12 +2,12 @@
 // Codewort/Befehl → Antwort als Sätze → Stimme (Loki = Qwen3-TTS bzw. Piper als Ersatz, beides lokal) → Lautsprecher. Ein einziger Dienst für die ganze App,
 // die Anzeige liest seinen Zustand über useJarvis(). Während Jarvis spricht, hört er nicht zu (sonst hört er sich selbst).
 import { useSyncExternalStore } from 'react'
-import { bruecke, jarvisEinstellungen, setzeJarvis, type Stimme } from './desktop'
+import { bruecke, jarvisEinstellungen, sequenzBruecke, setzeJarvis, type Stimme } from './desktop'
 import { befehl, codewort, type Befehl } from './befehle'
 import { morgenLage, tagNummer, type BausteinSchluessel } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
-import { begruessung, waehleBegruessung } from './begruessung'
+import { begruessung, sequenzGruss, waehleBegruessung } from './begruessung'
 
 export type Zustand = 'aus' | 'laedt' | 'bereit' | 'spricht' | 'denkt' | 'fehler'
 export type JarvisLage = {
@@ -259,6 +259,47 @@ export async function stimmeWaehlen(stimme: Stimme) {
 const warten = (ms: number) => new Promise((w) => setTimeout(w, ms))
 let gestartet = false
 
+// ---------- Start-Sequenz (03.11.2026) ----------
+// Die Sequenz läuft in einem eigenen Fenster über alle Bildschirme. Lokis Spruch wird hier erzeugt (seine echte Stimme,
+// sonst Piper) und als Ton hinübergeschickt; die Sequenz spielt ihn im Finale. Ergebnis 'gruss' = Loki hat dort
+// gesprochen, 'ohne' = nicht (kein Spruch rechtzeitig, abgebrochen) → dann begrüßt das Hauptfenster selbst.
+type SequenzLauf = { gruss: (text: string) => Promise<void>; keinGruss: () => void; ergebnis: Promise<'gruss' | 'ohne'>; vorbei: () => boolean }
+async function sequenzStarten(): Promise<SequenzLauf | null> {
+  const s = sequenzBruecke()
+  if (!s) return null
+  let gesprochen = false, vorbei = false, fertig: (r: 'gruss' | 'ohne') => void = () => {}
+  const ergebnis = new Promise<'gruss' | 'ohne'>((r) => { fertig = r })
+  const ende = () => { vorbei = true; weg(); fertig(gesprochen ? 'gruss' : 'ohne') }
+  const weg = s.beiMeldung((art) => { if (art === 'gruss') gesprochen = true; if (art === 'ende') ende() })
+  if (!await s.starten(jarvisEinstellungen().sequenzLautstaerke)) { weg(); return null }
+  setTimeout(ende, 80_000) // Sicherheitsnetz, falls keine Meldung mehr kommt (das Fenster schließt spätestens nach 70 s)
+  return {
+    ergebnis,
+    vorbei: () => vorbei,
+    keinGruss: () => s.keinGruss(),
+    gruss: async (text) => {
+      if (vorbei) return // schon abgebrochen/beendet → nicht unnötig erzeugen
+      const b = bruecke(), e = jarvisEinstellungen()
+      let a: Awaited<ReturnType<NonNullable<typeof b>['sprechen']>> = null
+      try { a = b ? await b.sprechen({ text, piperText: fuerStimme(text, leseEigene(e.aussprache)), tempo: e.tempo, stimme: e.stimme }) : null } catch { a = null }
+      if (a && !vorbei) s.gruss(new Float32Array(a.samples), a.sampleRate); else s.keinGruss()
+    },
+  }
+}
+/** Knopf „Start-Sequenz jetzt abspielen“ in den Einstellungen – mit Lokis Spruch, wenn er gerade eingeschaltet ist */
+export async function startSequenzJetzt() {
+  const seq = await sequenzStarten()
+  if (!seq) return
+  const b = bruecke()
+  if (!b || lage.zustand !== 'bereit') { seq.keinGruss(); return }
+  await b.zuhoeren(false) // sonst hört Loki die Musik der Sequenz
+  // sobald die Sequenz vorbei ist (auch nach Abbruch oder Fehler), wieder zuhören
+  void seq.ergebnis.then(() => { if (lage.mikrofon && lage.zustand === 'bereit') void b.zuhoeren(true) })
+  const e = jarvisEinstellungen(), nr = waehleBegruessung(e.letzteBegruessung, Math.random())
+  setzeJarvis({ letzteBegruessung: nr })
+  await seq.gruss(sequenzGruss(nr, e.anrede, e.humor))
+}
+
 /**
  * Windows hat Loki beim Anmelden gestartet (Wunsch Auftraggeber 03.11.2026): ohne Klick einschalten, auf Lokis Stimme
  * warten (höchstens 45 s, sonst spricht Piper), wechselnde Begrüßung, danach die Morgen-Lage – einmal am Tag.
@@ -268,8 +309,11 @@ export async function rechnerStart() {
   const b = bruecke()
   if (!b || gestartet) return
   gestartet = true
+  // Start-Sequenz sofort zeigen – sie läuft, während Loki lädt, und wartet im Finale auf seinen Spruch
+  const seq = jarvisEinstellungen().startSequenz ? await sequenzStarten() : null
+  const ohneGruss = () => { seq?.keinGruss() }
   const st = await b.status()
-  if (!st || Object.values(st.modelle).some((v) => !v)) return
+  if (!st || Object.values(st.modelle).some((v) => !v)) return ohneGruss()
   setzeJarvis({ an: true })
   await einschalten()
   // direkt nach dem Anmelden ist das Mikrofon (USB-Headset, Treiber) manchmal noch nicht bereit → bis zu 5-mal neu
@@ -278,7 +322,12 @@ export async function rechnerStart() {
     await warten(5000)
     await einschalten()
   }
-  if ((lage.zustand as Zustand) !== 'bereit') return
+  if ((lage.zustand as Zustand) !== 'bereit') return ohneGruss()
+  if (seq) {
+    await b.zuhoeren(false) // sonst hört Loki die Musik der Sequenz
+    // sobald die Sequenz vorbei ist (auch nach Abbruch), sofort wieder zuhören – nicht erst nach Lokis Laden
+    void seq.ergebnis.then(() => { if (lage.mikrofon && (lage.zustand as Zustand) === 'bereit') void b.zuhoeren(true) })
+  }
   const meiner = lauf
   if (jarvisEinstellungen().stimme === 'loki') {
     for (let i = 0; i < 45; i++) {
@@ -288,10 +337,16 @@ export async function rechnerStart() {
     }
   }
   // währenddessen aus-/eingeschaltet oder schon angesprochen („Guten Morgen, Loki“) → nicht dazwischenreden
-  if (meiner !== lauf || (lage.zustand as Zustand) !== 'bereit') return
+  if (meiner !== lauf || (lage.zustand as Zustand) !== 'bereit') return ohneGruss()
   const e = jarvisEinstellungen()
   const nr = waehleBegruessung(e.letzteBegruessung, Math.random())
   setzeJarvis({ letzteBegruessung: nr })
-  if (!await sprechen([begruessung(nr, e.anrede, e.humor)])) return
+  let begruesst = false
+  if (seq) {
+    await seq.gruss(sequenzGruss(nr, e.anrede, e.humor))
+    begruesst = (await seq.ergebnis) === 'gruss'
+  }
+  // ohne Sequenz, oder sie hat Loki nicht sprechen lassen (abgebrochen, zu spät) → hier begrüßen
+  if (!begruesst && !await sprechen([begruessung(nr, e.anrede, e.humor)])) return
   if (jarvisEinstellungen().zuletztLage !== heute()) await morgenLageVortragen()
 }

@@ -65,3 +65,12 @@ export function begruessung(nummer: number, anrede: string, humor: boolean): str
   const a = anrede || 'Sir'
   return humor ? BEGRUESSUNGEN[nummer]!(a) : BEGRUESSUNG_SACHLICH(a)
 }
+
+/**
+ * Spruch im Finale der Start-Sequenz: beginnt immer mit „Willkommen zurück, Sir.“ (Wunsch Auftraggeber 03.11.2026),
+ * danach der wechselnde Spruch – fängt der schon so an, nicht doppelt.
+ */
+export function sequenzGruss(nummer: number, anrede: string, humor: boolean): string {
+  const a = anrede || 'Sir', satz = begruessung(nummer, a, humor)
+  return satz.startsWith('Willkommen zurück') ? satz : `Willkommen zurück, ${a}. ${satz}`
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BEGRUESSUNGEN, begruessung, waehleBegruessung } from './begruessung'
+import { BEGRUESSUNGEN, begruessung, sequenzGruss, waehleBegruessung } from './begruessung'
 
 describe('Begrüßung beim Rechnerstart', () => {
   it('nie zweimal hintereinander dieselbe', () => {
@@ -23,6 +23,14 @@ describe('Begrüßung beim Rechnerstart', () => {
   it('Anrede wird eingesetzt, ohne Humor sachlich', () => {
     for (let i = 0; i < BEGRUESSUNGEN.length; i++) expect(begruessung(i, 'Chef', true)).toContain('Chef')
     expect(begruessung(0, '', false)).toBe('Willkommen zurück, Sir. Alle Systeme sind bereit.')
+  })
+  it('Spruch der Start-Sequenz beginnt immer mit „Willkommen zurück“, nie doppelt', () => {
+    for (let i = 0; i < BEGRUESSUNGEN.length; i++) {
+      const s = sequenzGruss(i, 'Sir', true)
+      expect(s.startsWith('Willkommen zurück, Sir.')).toBe(true)
+      expect(s.match(/Willkommen zurück/g)!.length).toBe(1)
+    }
+    expect(sequenzGruss(0, '', false)).toBe('Willkommen zurück, Sir. Alle Systeme sind bereit.')
   })
   it('kurz genug zum Vorlesen (ein bis drei Sätze)', () => {
     for (const b of BEGRUESSUNGEN) expect(b('Sir').length).toBeLessThan(160)
