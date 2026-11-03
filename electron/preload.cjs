@@ -24,6 +24,13 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
       return () => ipcRenderer.removeListener('werkstatt-aenderung', h)
     },
   },
+  /** Kamera (Standbild): Zugangsdaten werden nur weitergereicht, verschlüsselt im Hauptprozess gespeichert, nie zurückgegeben */
+  kamera: {
+    status: () => ipcRenderer.invoke('kamera-status'),
+    einrichten: (d) => ipcRenderer.invoke('kamera-einrichten', { adresse: String(d?.adresse ?? ''), benutzer: String(d?.benutzer ?? ''), passwort: String(d?.passwort ?? ''), name: String(d?.name ?? '') }),
+    bild: () => ipcRenderer.invoke('kamera-bild'),
+    entfernen: () => ipcRenderer.invoke('kamera-entfernen'),
+  },
   /** Dauer-HUD: als lokales Wallpaper in Wallpaper Engine anlegen */
   hud: { einrichten: () => ipcRenderer.invoke('hud-einrichten') },
   /** Start-Sequenz über alle Bildschirme (Lokis Spruch kommt live aus seiner Stimme ins Finale) */
@@ -44,6 +51,12 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
       const h = () => fn()
       ipcRenderer.on('jarvis-tray-mikrofon', h)
       return () => ipcRenderer.removeListener('jarvis-tray-mikrofon', h)
+    },
+    /** roter Knopf im Dauer-HUD: Loki stumm (Mikrofon aus, Sprechen sofort beenden) bzw. wieder an */
+    beiStummKnopf: (fn) => {
+      const h = () => fn()
+      ipcRenderer.on('jarvis-stumm-knopf', h)
+      return () => ipcRenderer.removeListener('jarvis-stumm-knopf', h)
     },
     status: () => ipcRenderer.invoke('jarvis-status'),
     vorbereiten: () => ipcRenderer.invoke('jarvis-vorbereiten'),

@@ -14,6 +14,8 @@ export type JarvisBruecke = {
   meldeZustand: (zustand: string, mikrofon: boolean) => void
   /** Rechtsklick-Menü des Symbols: „Mikrofon aus/an“ */
   beiTrayMikrofon: (fn: () => void) => () => void
+  /** roter Knopf im Dauer-HUD (Wallpaper) */
+  beiStummKnopf: (fn: () => void) => () => void
   status: () => Promise<JarvisStatus | null>
   vorbereiten: () => Promise<JarvisStatus | null>
   /** text = Originalsatz für Loki, piperText = mit Aussprache-Liste für Piper (springt ein, wenn Loki nicht bereit ist) */
@@ -56,6 +58,16 @@ export type WerkstattLage = {
 }
 export const werkstattBruecke = (): WerkstattBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.werkstatt ?? null : null)
 
+/** Kamera (Reolink, Standbild): Benutzer/Passwort gehen nur hinein, kommen nie zurück; vorschau = JPEG als data:-Adresse */
+export type KameraStatus = { eingerichtet: boolean; name: string; adresse: string; fehler: string; stand: number | null; vorschau?: string | null }
+export type KameraBruecke = {
+  status: () => Promise<KameraStatus | null>
+  einrichten: (d: { adresse: string; benutzer: string; passwort: string; name: string }) => Promise<KameraStatus | null>
+  bild: () => Promise<KameraStatus | null>
+  entfernen: () => Promise<KameraStatus | null>
+}
+export const kameraBruecke = (): KameraBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.kamera ?? null : null)
+
 /** Start-Sequenz über alle Bildschirme; Meldungen: gruss (Loki hat dort gesprochen), ohne-gruss, abgebrochen, ende */
 export type SequenzBruecke = {
   starten: (lautstaerke: number) => Promise<boolean>
@@ -90,7 +102,7 @@ export type JarvisEinstellungen = {
 }
 
 const STANDARD: JarvisEinstellungen = {
-  an: false, anrede: 'Sir', humor: true, stimme: 'loki', tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen2.5:7b', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
+  an: false, anrede: 'Sir', humor: true, stimme: 'loki', tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
 }
 const SCHLUESSEL = 'jarvis.einstellungen'
 const zuhoerer = new Set<() => void>()
@@ -98,7 +110,10 @@ const zuhoerer = new Set<() => void>()
 function lesen(): JarvisEinstellungen {
   try {
     const roh = JSON.parse(localStorage.getItem(SCHLUESSEL) ?? 'null') as Partial<JarvisEinstellungen> | null
-    return { ...STANDARD, ...(roh ?? {}) }
+    const e = { ...STANDARD, ...(roh ?? {}) }
+    // altes Standardmodell (war nie installiert) → neues Standardmodell qwen3:8b (03.11.2026)
+    if (e.modell === 'qwen2.5:7b') e.modell = STANDARD.modell
+    return e
   } catch { return { ...STANDARD } }
 }
 let aktuell = lesen()

@@ -30,6 +30,7 @@ describe('Dauer-HUD-Gegenstelle', () => {
     const hole = await starten()
     expect((await hole('/anderes', { headers: { 'x-loki-schluessel': SCHLUESSEL } })).status).toBe(404)
     expect((await hole('/hud', { method: 'POST', headers: { 'x-loki-schluessel': SCHLUESSEL } })).status).toBe(404)
+    expect((await hole('/kamera', { method: 'POST', headers: { 'x-loki-schluessel': SCHLUESSEL } })).status).toBe(404)
     const vorab = await hole('/hud', { method: 'OPTIONS' })
     expect(vorab.status).toBe(204)
     expect(vorab.headers.get('access-control-allow-headers')).toContain('x-loki-schluessel')
@@ -45,6 +46,29 @@ describe('Dauer-HUD-Gegenstelle', () => {
     expect(await status(`boese.example:${port}`)).toBe(403)
     expect(await status(`localhost:${port}`)).toBe(200)
     expect(await status(`127.0.0.1:${port}`)).toBe(200)
+  })
+  it('Kamerabild: nur mit Schlüssel, 204 wenn keins da', async () => {
+    const jpeg = Buffer.from([0xff, 0xd8, 1])
+    let da = true
+    s = erstelleHudServer({ port: 0, schluessel: SCHLUESSEL, daten: async () => ({}), kamera: async () => (da ? jpeg : null), protokoll: () => {} })
+    const port = await s.start()
+    const hole = (opt) => fetch(`http://127.0.0.1:${port}/kamera`, opt)
+    expect((await hole()).status).toBe(403)
+    const r = await hole({ headers: { 'x-loki-schluessel': SCHLUESSEL } })
+    expect(r.headers.get('content-type')).toBe('image/jpeg')
+    expect(Buffer.from(await r.arrayBuffer())).toEqual(jpeg)
+    da = false
+    expect((await hole({ headers: { 'x-loki-schluessel': SCHLUESSEL } })).status).toBe(204)
+  })
+  it('roter Knopf: POST /stumm nur mit Schlüssel', async () => {
+    let n = 0
+    s = erstelleHudServer({ port: 0, schluessel: SCHLUESSEL, daten: async () => ({}), stumm: async () => ({ mikrofon: ++n % 2 === 0 }), protokoll: () => {} })
+    const port = await s.start()
+    const hole = (opt) => fetch(`http://127.0.0.1:${port}/stumm`, { method: 'POST', ...opt })
+    expect((await hole()).status).toBe(403)
+    expect(n).toBe(0)
+    expect(await (await hole({ headers: { 'x-loki-schluessel': SCHLUESSEL } })).json()).toEqual({ mikrofon: false })
+    expect((await fetch(`http://127.0.0.1:${port}/stumm`, { headers: { 'x-loki-schluessel': SCHLUESSEL } })).status).toBe(404)
   })
   it('Fehler beim Datenholen: 500 ohne Interna', async () => {
     const hole = await starten(async () => { throw new Error('geheime Interna') })

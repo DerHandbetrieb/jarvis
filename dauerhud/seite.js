@@ -3,7 +3,7 @@
 // Entwurf A „Leitstand ruhig“. Ruhig: höchstens 30 Bilder/s, aufwendige Teile nur bei neuen Daten. Wallpaper Engine
 // pausiert das Wallpaper bei Spielen/Vollbild selbst (setPaused). Über drei Bildschirme: ganze Fläche 5760×1080;
 // auf einem einzelnen Bildschirm nur der mittlere Teil.
-import { B, H, schildBild, zeichneHinten, zeichneVorne } from './zeichnen.js'
+import { B, H, STUMM_KNOPF, schildBild, zeichneHinten, zeichneVorne } from './zeichnen.js'
 import { datumText, sequenzDaten, wetterText } from '../startsequenz/lageDaten.js'
 import { wetterAusCode } from '../src/jarvis/wetter.ts'
 
@@ -14,30 +14,68 @@ c.width = nurMitte ? B : 3 * B; c.height = H
 const hinten = document.createElement('canvas'); hinten.width = 3 * B; hinten.height = H
 const schild = schildBild(300)
 
-let zustand = { verbunden: false, d: null, datum: datumText(new Date()), wetter: 'ÖHRINGEN' }, kennung = ''
+let zustand = { verbunden: false, d: null, datum: datumText(new Date()), wetter: 'ÖHRINGEN', kam: null, kamBild: false }, kennung = ''
+let kamBild = null // letztes Kamerabild (ImageBitmap), nur im Arbeitsspeicher
+let loki = null // { zustand, mikrofon } – für den roten Knopf
 function hintenNeu() {
   const k = JSON.stringify(zustand)
   if (k === kennung) return
   kennung = k
   zeichneHinten(hinten.getContext('2d'), zustand)
 }
+let klickNr = 0 // Stand von vor einem Klick auf den roten Knopf nicht mehr übernehmen
 async function holen() {
+  const nr = klickNr
   try {
     const r = await fetch(`http://127.0.0.1:${zugang.port}/hud`, { headers: { 'x-loki-schluessel': zugang.schluessel }, signal: AbortSignal.timeout(8000) })
     if (!r.ok) throw new Error(String(r.status))
     const daten = await r.json()
+    if (nr === klickNr) loki = daten.loki ?? null
     const w = daten.wetter
     zustand = {
+      ...zustand,
+      kam: daten.kamera ?? null,
       verbunden: true,
       d: sequenzDaten(daten.werkstatt, new Date()),
       datum: datumText(new Date()),
       wetter: wetterText(w?.ort ?? 'Öhringen', w?.grad, w?.code != null ? wetterAusCode(w.code, w.wolken ?? 0) : null),
     }
   } catch {
-    zustand = { ...zustand, verbunden: false, d: null, datum: datumText(new Date()) }
+    zustand = { ...zustand, verbunden: false, d: null, datum: datumText(new Date()), kam: null }
+    if (nr === klickNr) loki = null
   }
   hintenNeu()
 }
+
+// Kamera: alle 3 Sekunden ein frisches Standbild von Loki (der holt es von der Kamera; nichts wird gespeichert)
+let kamLaeuft = false
+async function kameraHolen() {
+  if (pausiert || kamLaeuft) return
+  kamLaeuft = true
+  try {
+    const r = await fetch(`http://127.0.0.1:${zugang.port}/kamera`, { headers: { 'x-loki-schluessel': zugang.schluessel }, signal: AbortSignal.timeout(8000) })
+    const neu = r.status === 200 ? await createImageBitmap(await r.blob()) : null
+    kamBild?.close?.(); kamBild = neu
+    // 204 = keine Kamera eingetragen bzw. kein Bild; 200 = Kamera da (auch ohne auf holen() zu warten)
+    if (r.status === 200 && !zustand.kam) zustand = { ...zustand, kam: { name: 'Kamera' } }
+  } catch { kamBild?.close?.(); kamBild = null } finally { kamLaeuft = false }
+  if (zustand.kamBild !== !!kamBild) { zustand = { ...zustand, kamBild: !!kamBild }; hintenNeu() }
+}
+
+// Roter Knopf (Wunsch Auftraggeber 03.11.2026): Klick = Loki stumm (Mikrofon aus, hört nichts mehr), nochmal = wieder an.
+// Wallpaper Engine gibt Klicks auf den freien Desktop an das Wallpaper weiter.
+let knopfSperre = 0
+c.addEventListener('click', async (ev) => {
+  const x = (ev.clientX * c.width) / innerWidth + (nurMitte ? B : 0), y = (ev.clientY * c.height) / innerHeight
+  if (Math.hypot(x - STUMM_KNOPF.x, y - STUMM_KNOPF.y) > STUMM_KNOPF.r + 10 || performance.now() < knopfSperre) return
+  knopfSperre = performance.now() + 800 // kein Doppelklick-Flackern
+  klickNr++
+  try {
+    const r = await fetch(`http://127.0.0.1:${zugang.port}/stumm`, { method: 'POST', headers: { 'x-loki-schluessel': zugang.schluessel }, signal: AbortSignal.timeout(5000) })
+    if (r.ok) loki = await r.json()
+  } catch { /* Loki läuft nicht – Knopf zeigt „nicht verbunden“ */ }
+  setTimeout(() => void holen(), 1500) // echten Stand nachholen
+})
 
 // Ton des PCs (Wallpaper-Engine-Schnittstelle: 128 Werte, links 0–63, rechts 64–127)
 let ton = null, letzterTon = 0
@@ -54,11 +92,12 @@ function schleife(ms) {
   const jetzt = new Date()
   const uhrzeit = jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' })
   if (datumText(jetzt) !== zustand.datum) { zustand = { ...zustand, datum: datumText(jetzt) }; hintenNeu() }
-  zeichneVorne(g, { hinten, schild, t: ms / 1000, uhrzeit, ton: performance.now() - letzterTon < 2000 ? ton : null, versatz: nurMitte ? B : 0 })
+  zeichneVorne(g, { hinten, schild, t: ms / 1000, uhrzeit, ton: performance.now() - letzterTon < 2000 ? ton : null, versatz: nurMitte ? B : 0, kamBild, loki })
 }
 
 hintenNeu()
-void holen()
-setInterval(() => void holen(), 60_000)
+void holen().then(kameraHolen)
+setInterval(() => void holen(), 5000) // kurz, damit der rote Knopf den echten Stand zeigt (Daten selbst ändern sich selten)
+setInterval(() => void kameraHolen(), 3000)
 requestAnimationFrame(schleife)
 window.dauerHud = { zustand: () => zustand }

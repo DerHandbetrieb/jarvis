@@ -8,23 +8,26 @@ export const S = STILE.find((s) => s.name === 'Kombination')
 export const B = W.B, H = W.H
 const ohne = '–'
 
-/** Kamerakachel – bis Etappe 5 ohne Bild („Kein Signal“) */
-function kamera(g, x, y, w, h, name) {
-  W.glas(g, S, x, y, w, h, `KAMERA · ${name}`, 'FOLGT')
-  const ix = x + 12, iy = y + 26, iw = w - 24, ih = h - 38
+/** Bildfläche der Kamerakachel (rechter Bildschirm); das Bild selbst zeichnet zeichneVorne, sobald es da ist */
+export const KAMERA_FELD = { x: 2 * B + 52, y: 86, w: 1816, h: 482 }
+/** Kamerakachel: Rahmen hinten; ohne Bild „Kein Signal“ (nicht eingetragen bzw. nicht erreichbar) */
+function kamera(g, name, zustand) {
+  const { x: ix, y: iy, w: iw, h: ih } = KAMERA_FELD
+  W.glas(g, S, ix - 12, iy - 26, iw + 24, ih + 38, `KAMERA · ${name}`, zustand === 'bild' ? 'LIVE' : zustand === 'aus' ? 'FOLGT' : 'STÖRUNG')
   const v = g.createLinearGradient(0, iy, 0, iy + ih); v.addColorStop(0, '#0b1a24'); v.addColorStop(1, '#05090d'); g.fillStyle = v; g.fillRect(ix, iy, iw, ih)
   for (let z = iy; z < iy + ih; z += 3) { g.fillStyle = 'rgba(255,255,255,0.02)'; g.fillRect(ix, z, iw, 1) }
   g.strokeStyle = W.fb(S.hell, 0.7); g.lineWidth = 2
   for (const [ex, ey, sx, sy] of [[ix, iy, 1, 1], [ix + iw, iy, -1, 1], [ix, iy + ih, 1, -1], [ix + iw, iy + ih, -1, -1]]) { g.beginPath(); g.moveTo(ex + sx * 22, ey); g.lineTo(ex, ey); g.lineTo(ex, ey + sy * 22); g.stroke() }
+  if (zustand === 'bild') return
   W.txt(g, 'KEIN SIGNAL', ix + iw / 2, iy + ih / 2, W.fb(S.hell, 0.7), { gr: 22, gew: 600, aus: 'center', sp: 3 })
-  W.txt(g, 'KAMERA WIRD NOCH ANGEBUNDEN', ix + iw / 2, iy + ih / 2 + 30, W.fb(S.haupt, 0.55), { gr: 13, aus: 'center', sp: 2 })
+  W.txt(g, zustand === 'aus' ? 'IN LOKIS EINSTELLUNGEN EINTRAGEN' : 'KAMERA NICHT ERREICHBAR', ix + iw / 2, iy + ih / 2 + 30, W.fb(S.haupt, 0.55), { gr: 13, aus: 'center', sp: 2 })
 }
 
 /**
  * Hintere Ebene zeichnen. d = sequenzDaten(…) aus startsequenz/lageDaten.js oder null; verbunden = Loki antwortet;
  * datum/wetter = fertige Texte.
  */
-export function zeichneHinten(g, { d, verbunden, datum, wetter }) {
+export function zeichneHinten(g, { d, verbunden, datum, wetter, kam = null, kamBild = false }) {
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 3 * B, H)
   W.hintergrund(g, S)
   g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 0, 3 * B, H)
@@ -49,7 +52,7 @@ export function zeichneHinten(g, { d, verbunden, datum, wetter }) {
   W.txt(g, datum, 2 * B - 60, 60, W.fb(S.hell, 0.95), { gr: 16, aus: 'right', sp: 2 })
   W.txt(g, wetter, 2 * B - 60, 82, W.fb(S.haupt, 0.8), { gr: 11, aus: 'right', sp: 2 })
   // ----- rechts: Kameras, Umsatz, Bestellungen je Tag -----
-  kamera(g, 2 * B + 40, 60, 900, 520, 'CARPORT'); kamera(g, 2 * B + 980, 60, 900, 520, 'HOF')
+  kamera(g, kam ? String(kam.name).toUpperCase() : 'CARPORT', !kam ? 'aus' : kamBild ? 'bild' : 'stoerung')
   const reihe = d && d.umsatz14.length >= 2 ? d.umsatz14 : [0, 0]
   W.flaeche(g, S, 2 * B + 60, 660, 1300, 260, reihe, d ? d.umsatzMax : 10)
   W.txt(g, d ? `UMSATZ · 14 TAGE · BIS ${d.umsatzMax} € · GESTERN ${d.gestern.umsatz.toFixed(2).replace('.', ',')} €` : 'UMSATZ · 14 TAGE · KEINE DATEN', 2 * B + 60, 960, W.fb(S.haupt, 0.9), { gr: 12, sp: 3 })
@@ -72,9 +75,37 @@ export function schildBild(R = 300) {
 }
 
 /** Vordere Ebene je Bild: Schild (langsam drehend), Uhr, Spektrum (Ton des PCs über Wallpaper Engine, sonst ruhig) */
-export function zeichneVorne(g, { hinten, schild, t, uhrzeit, ton, versatz = 0 }) {
+/** roter Stumm-Knopf unten mittig auf dem mittleren Bildschirm */
+export const STUMM_KNOPF = { x: B + B / 2, y: H - 120, r: 42 }
+function stummKnopf(g, t, loki) {
+  const { x, y, r } = STUMM_KNOPF
+  const hoert = !!loki?.mikrofon, da = !!loki && loki.zustand !== 'aus'
+  const rot = '#ff3b30', puls = hoert ? 0.75 : 0.55 + 0.4 * Math.abs(Math.sin(t * 2))
+  g.save()
+  g.shadowColor = rot; g.shadowBlur = hoert ? 14 : 28 * puls
+  const v = g.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r)
+  v.addColorStop(0, hoert ? '#ff7a70' : '#c0322a'); v.addColorStop(1, hoert ? '#b3140c' : '#4a0805')
+  g.fillStyle = v; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill()
+  g.shadowBlur = 0; g.strokeStyle = W.fb(rot, puls); g.lineWidth = 2; g.beginPath(); g.arc(x, y, r + 7, 0, Math.PI * 2); g.stroke()
+  for (let i = 0; i < 24; i++) { const a = (i / 24) * Math.PI * 2; g.beginPath(); g.moveTo(x + Math.cos(a) * (r + 11), y + Math.sin(a) * (r + 11)); g.lineTo(x + Math.cos(a) * (r + (i % 6 ? 15 : 20)), y + Math.sin(a) * (r + (i % 6 ? 15 : 20))); g.stroke() }
+  // Mikrofon-Zeichen, durchgestrichen wenn stumm
+  g.strokeStyle = '#fff'; g.fillStyle = '#fff'; g.lineWidth = 3
+  g.beginPath(); g.roundRect(x - 7, y - 20, 14, 24, 7); g.fill()
+  g.beginPath(); g.arc(x, y - 4, 13, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke()
+  g.beginPath(); g.moveTo(x, y + 9); g.lineTo(x, y + 17); g.moveTo(x - 8, y + 17); g.lineTo(x + 8, y + 17); g.stroke()
+  if (!hoert) { g.lineWidth = 4; g.beginPath(); g.moveTo(x - 20, y - 22); g.lineTo(x + 20, y + 20); g.stroke() }
+  g.restore()
+  W.txt(g, !loki ? 'LOKI NICHT VERBUNDEN' : hoert ? 'LOKI HÖRT ZU · KLICK = STUMM' : loki.zustand === 'laedt' ? 'LOKI STARTET …' : da ? 'LOKI STUMM · KLICK = AN' : 'LOKI AUS · KLICK = AN', x, y + r + 40, W.fb(hoert ? S.hell : rot, 0.95), { gr: 12, gew: 600, aus: 'center', sp: 3 })
+}
+
+export function zeichneVorne(g, { hinten, schild, t, uhrzeit, ton, versatz = 0, kamBild = null, loki = null }) {
   g.setTransform(1, 0, 0, 1, -versatz, 0) // versatz = 1920: nur der mittlere Bildschirm
   g.drawImage(hinten, 0, 0)
+  if (kamBild && versatz === 0) {
+    // ganzes Bild einpassen (nichts abschneiden), mittig in der Kachel
+    const f = KAMERA_FELD, m = Math.min(f.w / kamBild.width, f.h / kamBild.height), w = kamBild.width * m, h = kamBild.height * m
+    g.drawImage(kamBild, f.x + (f.w - w) / 2, f.y + (f.h - h) / 2, w, h)
+  }
   g.save(); g.globalAlpha = 0.55; g.translate(B + B / 2, H / 2); g.rotate(t * 0.01); g.drawImage(schild, -schild.width / 2, -schild.height / 2); g.restore()
   W.leuchten(g, S, 10, () => W.txt(g, uhrzeit, B + 60, 76, W.fb(S.hell, 1), { gr: 44, gew: 200, sp: 4 })); W.txt(g, 'ORTSZEIT', B + 62, 96, W.fb(S.haupt, 0.8), { gr: 11, sp: 3 })
   // Spektrum links unten (1000, 880, 880×150)
@@ -85,4 +116,5 @@ export function zeichneVorne(g, { hinten, schild, t, uhrzeit, ton, versatz = 0 }
     for (let k = 0; k < hh; k += 4) { g.fillStyle = W.fb(k > h * 0.75 ? S.akzent : S.haupt, 0.25 + 0.7 * (k / h)); g.fillRect(x0 + i * 6, y0 + h - k - 3, 5, 3) }
   }
   W.txt(g, ton ? 'TON DES PCS' : 'TON (KEINE QUELLE)', x0, y0 - 8, W.fb(S.haupt, 0.7), { gr: 10, sp: 2 })
+  stummKnopf(g, t, loki)
 }

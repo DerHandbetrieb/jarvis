@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { morgenLage, uhrzeit, zahl, euro, type LageEingabe, BAUSTEINE, SPITZEN, spitze, tagNummer } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
-import { befehl, codewort, vereinfachen } from './befehle'
+import { befehl, codewort, istNachfrage, vereinfachen } from './befehle'
 
 const basis = (x: Partial<LageEingabe> = {}): LageEingabe => ({
   jetzt: new Date(2026, 10, 3, 7, 30), anrede: 'Sir', humor: false, bausteine: new Set(BAUSTEINE.map((b) => b.schluessel)), ...x,
@@ -121,5 +121,13 @@ describe('Codewörter und Befehle', () => {
     expect(codewort('Gratis Versand')).toBeNull()
     expect(befehl('Wie viele Tassen haben wir verkauft?')).toEqual({ art: 'frage', text: 'Wie viele Tassen haben wir verkauft?' })
     expect(vereinfachen('Grüße, Öl!')).toBe('gruesse oel')
+  })
+})
+
+describe('Nachfrage ohne Codewort (freies Gespräch)', () => {
+  it('nimmt echte Sätze, verwirft Whisper-Floskeln und Ein-Wort-Fetzen', () => {
+    expect(istNachfrage('Und was hältst du davon?')).toBe(true)
+    expect(istNachfrage('Erzähl mir mehr über Emma.')).toBe(true)
+    for (const f of ['Vielen Dank.', 'Untertitel im Auftrag des ZDF, 2020', 'Danke fürs Zuschauen!', 'Ja.', 'Tschüss', 'Bis zum nächsten Mal.', 'Untertitelung. BR 2018']) expect(istNachfrage(f)).toBe(false)
   })
 })

@@ -11,6 +11,7 @@ const { pathToFileURL } = require('node:url')
 const jarvis = require('./jarvis.cjs')
 const { erstelleWerkstatt, leseKonfig } = require('./werkstatt.cjs')
 const { erstelleHudServer, hudSchluessel } = require('./hudserver.cjs')
+const { erstelleKamera } = require('./kamera.cjs')
 const { findeWallpaperEngine, einrichten } = require('./wallpaper.cjs')
 const { execFileSync } = require('node:child_process')
 const HUD_PORT = 47820 // fest, damit das Wallpaper Loki findet (nur 127.0.0.1)
@@ -259,26 +260,27 @@ if (!app.requestSingleInstanceLock()) {
     // Werkstatt-Anbindung (Etappe L1): Anmeldung + Lage im Hauptprozess, Sitzung verschlüsselt (safeStorage, asynchron).
     // Zugang (Adresse + öffentlicher Schlüssel) aus .env.werkstatt (nicht in Git; im Installer als resources/werkstatt.env).
     const konfigDatei = app.isPackaged ? path.join(process.resourcesPath, 'werkstatt.env') : path.join(__dirname, '..', '.env.werkstatt')
-    const sitzungsDatei = path.join(app.getPath('userData'), 'werkstatt-sitzung.bin')
+    // verschlüsselte Datei in Lokis Datenordner (safeStorage = Windows-Anmeldespeicher), für Werkstatt-Sitzung und Kamera
+    const verschluesselt = (datei) => ({
+      lesen: async () => {
+        if (!fs.existsSync(datei) || !(await safeStorage.isAsyncEncryptionAvailable())) return null
+        const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(fs.readFileSync(datei))
+        if (shouldReEncrypt) fs.writeFileSync(datei, await safeStorage.encryptStringAsync(result))
+        return result
+      },
+      schreiben: async (text) => {
+        // ohne Verschlüsselung nie im Klartext speichern (false → Hinweis „nach Neustart neu eintragen“)
+        if (!(await safeStorage.isAsyncEncryptionAvailable())) return false
+        // erst Zwischendatei, dann umbenennen – ein Absturz beim Schreiben hinterlässt keine kaputte Datei
+        fs.writeFileSync(datei + '.neu', await safeStorage.encryptStringAsync(text))
+        fs.renameSync(datei + '.neu', datei)
+        return true
+      },
+      loeschen: async () => { fs.rmSync(datei, { force: true }) },
+    })
     const werkstatt = erstelleWerkstatt({
       konfig: leseKonfig(fs.existsSync(konfigDatei) ? fs.readFileSync(konfigDatei, 'utf8') : ''),
-      speicher: {
-        lesen: async () => {
-          if (!fs.existsSync(sitzungsDatei) || !(await safeStorage.isAsyncEncryptionAvailable())) return null
-          const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(fs.readFileSync(sitzungsDatei))
-          if (shouldReEncrypt) fs.writeFileSync(sitzungsDatei, await safeStorage.encryptStringAsync(result))
-          return result
-        },
-        schreiben: async (text) => {
-          // ohne Verschlüsselung nie im Klartext speichern (false → Hinweis „nach Neustart neu verbinden“)
-          if (!(await safeStorage.isAsyncEncryptionAvailable())) return false
-          // erst Zwischendatei, dann umbenennen – ein Absturz beim Schreiben hinterlässt keine kaputte Sitzung
-          fs.writeFileSync(sitzungsDatei + '.neu', await safeStorage.encryptStringAsync(text))
-          fs.renameSync(sitzungsDatei + '.neu', sitzungsDatei)
-          return true
-        },
-        loeschen: async () => { fs.rmSync(sitzungsDatei, { force: true }) },
-      },
+      speicher: verschluesselt(path.join(app.getPath('userData'), 'werkstatt-sitzung.bin')),
     })
     werkstatt.beiAenderung((s) => { if (!hauptfenster.isDestroyed()) hauptfenster.webContents.send('werkstatt-aenderung', s) })
     void werkstatt.laden()
@@ -288,6 +290,18 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('werkstatt-trennen', async (e) => { if (!vonFenster(e)) return null; await werkstatt.trennen(); return werkstatt.status() })
     // höchstens 2 Minuten alt, sonst frisch (Morgen-Lage, Anzeigen); „Jetzt aktualisieren“ holt immer frisch
     ipcMain.handle('werkstatt-lage', async (e, erzwingen) => (vonFenster(e) ? werkstatt.aktuelleLage(erzwingen ? 0 : 120_000) : null))
+
+    // Kamera (Etappe 5/6): Standbild der Reolink im Hauptprozess; Zugangsdaten verschlüsselt, die Oberfläche sieht sie nie
+    const kamera = erstelleKamera({ speicher: verschluesselt(path.join(app.getPath('userData'), 'kamera.bin')) })
+    void kamera.laden()
+    ipcMain.handle('kamera-status', (e) => (vonFenster(e) ? kamera.status() : null))
+    ipcMain.handle('kamera-einrichten', async (e, d) => (vonFenster(e) ? kamera.einrichten({ adresse: d?.adresse, benutzer: d?.benutzer, passwort: d?.passwort, name: d?.name }) : null))
+    ipcMain.handle('kamera-bild', async (e) => {
+      if (!vonFenster(e)) return null
+      const b = await kamera.bild()
+      return { ...kamera.status(), vorschau: b ? `data:image/jpeg;base64,${b.toString('base64')}` : null }
+    })
+    ipcMain.handle('kamera-entfernen', async (e) => (vonFenster(e) ? kamera.entfernen() : null))
 
     // Dauer-HUD (Web-Wallpaper in Wallpaper Engine): Gegenstelle nur auf 127.0.0.1 mit Zugriffsschlüssel. Liefert die
     // zwischengespeicherte Werkstatt-Lage (höchstens 1 Stunde alt) und das Wetter (Open-Meteo, alle 15 Minuten).
@@ -305,8 +319,18 @@ if (!app.requestSingleInstanceLock()) {
       port: HUD_PORT, schluessel: hud.schluessel,
       daten: async () => {
         const l = werkstatt.lage()
-        return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter }
+        const k = kamera.status()
+        return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, kamera: k.eingerichtet ? { name: k.name } : null, loki: { ...trayZustand } }
       },
+      // roter Knopf im Wallpaper: wie „Mikrofon aus/an“ im Infobereich, beim Stummschalten verstummt Loki auch sofort
+      stumm: async () => {
+        if (hauptfenster.isDestroyed()) return { ...trayZustand }
+        hauptfenster.webContents.send('jarvis-stumm-knopf')
+        // Vorhersage bis zum nächsten echten Stand: war Loki aus, startet er erst (Mikrofon noch zu)
+        const aus = ['aus', 'fehler', 'laedt'].includes(trayZustand.zustand)
+        return aus ? { zustand: 'laedt', mikrofon: false } : { zustand: trayZustand.zustand, mikrofon: !trayZustand.mikrofon }
+      },
+      kamera: () => kamera.bild(),
     })
     hudServer.start().catch(() => { /* Port belegt – Dauer-HUD zeigt dann „Loki nicht verbunden“ */ })
     app.on('will-quit', () => { void hudServer.stop() })

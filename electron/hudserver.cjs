@@ -11,18 +11,34 @@ function gleich(a, b) {
   return x.length === y.length && crypto.timingSafeEqual(x, y)
 }
 
-/** daten: async () => Objekt für die Anzeige; schluessel: Zugriffsschlüssel; port: fester Port auf 127.0.0.1 */
-function erstelleHudServer({ port, schluessel, daten, protokoll = console.error }) {
+/** daten: async () => Objekt für die Anzeige; kamera: async () => JPEG-Buffer|null (Etappe 6, GET /kamera);
+ *  stumm: async () => Objekt (POST /stumm – roter Knopf im Wallpaper: Loki stumm/wieder an, Wunsch 03.11.2026);
+ *  schluessel: Zugriffsschlüssel; port: fester Port auf 127.0.0.1 */
+function erstelleHudServer({ port, schluessel, daten, kamera = async () => null, stumm = async () => null, protokoll = console.error }) {
   let server = null
-  const kopf = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'x-loki-schluessel', 'Access-Control-Allow-Methods': 'GET', 'Cache-Control': 'no-store' }
+  const kopf = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'x-loki-schluessel', 'Access-Control-Allow-Methods': 'GET, POST', 'Cache-Control': 'no-store' }
   async function antwort(req, res) {
     if (req.method === 'OPTIONS') { res.writeHead(204, kopf); res.end(); return }
     const pfad = String(req.url ?? '').split('?')[0]
-    if (req.method !== 'GET' || pfad !== '/hud') { res.writeHead(404, kopf); res.end(); return }
+    const erlaubt = (req.method === 'GET' && (pfad === '/hud' || pfad === '/kamera')) || (req.method === 'POST' && pfad === '/stumm')
+    if (!erlaubt) { res.writeHead(404, kopf); res.end(); return }
     // nur Aufrufe an 127.0.0.1/localhost annehmen (zusätzlicher Schutz gegen „DNS-Rebinding“ fremder Webseiten)
     if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(String(req.headers.host ?? ''))) { res.writeHead(403, kopf); res.end(); return }
     if (!gleich(req.headers['x-loki-schluessel'], schluessel)) { res.writeHead(403, kopf); res.end(); return }
     try {
+      if (pfad === '/stumm') {
+        req.resume() // Inhalt der Anfrage wird nicht gebraucht
+        res.writeHead(200, { ...kopf, 'Content-Type': 'application/json; charset=utf-8' })
+        res.end(JSON.stringify((await stumm()) ?? {}))
+        return
+      }
+      if (pfad === '/kamera') {
+        const b = await kamera()
+        if (!b) { res.writeHead(204, kopf); res.end(); return }
+        res.writeHead(200, { ...kopf, 'Content-Type': 'image/jpeg' })
+        res.end(b)
+        return
+      }
       const d = await daten()
       res.writeHead(200, { ...kopf, 'Content-Type': 'application/json; charset=utf-8' })
       res.end(JSON.stringify(d))

@@ -5,6 +5,7 @@ import { BAUSTEINE, type BausteinSchluessel } from './morgenlage'
 import { bruecke, sequenzBruecke, setzeJarvis, useJarvisEinstellungen, type Autostart, type JarvisStatus, type Stimme } from './desktop'
 import { sprechen, startSequenzJetzt, stimmeWaehlen, useJarvis } from './dienst'
 import WerkstattVerbindung from './WerkstattVerbindung'
+import KameraVerbindung from './KameraVerbindung'
 
 // Was gerade mit Lokis Stimme los ist (Piper springt ein, solange sie nicht bereit ist)
 const LOKI_TEXT: Record<string, string> = {
@@ -64,6 +65,7 @@ export default function JarvisEinstellungen() {
           </div>
           <WerkstattVerbindung />
           <HudEinrichten />
+          <KameraVerbindung />
           <p className="text-neutral-500">Das X oben rechts versteckt nur das Fenster – Loki hört weiter zu. Ganz beenden: Rechtsklick auf das Loki-Symbol unten rechts → „Beenden“.</p>
           <div className="flex flex-wrap items-end gap-4">
             <label className="block">Anrede<br /><input className="mt-1 w-40 rounded-lg border border-neutral-300 px-2 py-1.5" value={e.anrede} onChange={(x) => setzeJarvis({ anrede: x.target.value })} /></label>

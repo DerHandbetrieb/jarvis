@@ -3,7 +3,7 @@
 // die Anzeige liest seinen Zustand über useJarvis(). Während Jarvis spricht, hört er nicht zu (sonst hört er sich selbst).
 import { useSyncExternalStore } from 'react'
 import { bruecke, jarvisEinstellungen, sequenzBruecke, setzeJarvis, type Stimme } from './desktop'
-import { befehl, codewort, type Befehl } from './befehle'
+import { befehl, codewort, istNachfrage, type Befehl } from './befehle'
 import { morgenLage, tagNummer, type BausteinSchluessel } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
@@ -47,6 +47,7 @@ let startet: Promise<void> | null = null
 function mikrofonAn(): Promise<void> {
   const b = bruecke()
   if (!b || strom) return Promise.resolve()
+  stumm = false // wer das Mikrofon wieder öffnet, hebt „stumm“ vom roten Knopf auf
   if (startet) return startet
   startet = (async () => {
     try {
@@ -77,6 +78,19 @@ async function mikrofonAus() {
   await ton?.close().catch(() => undefined); ton = null
 }
 
+/**
+ * roter Knopf im Dauer-HUD: stumm = Mikrofon aus, sofort still, und auch eine noch ausstehende Antwort (Ollama,
+ * Morgen-Lage) wird nicht mehr gesprochen; nochmal = Mikrofon wieder an (Jarvis wird eingeschaltet, falls aus)
+ */
+let stumm = false
+export async function stummUmschalten() {
+  if (lage.mikrofon) { stumm = true; verlauf = []; setze({ wartetBis: 0 }); stopp(); await mikrofonAus(); return }
+  stumm = false
+  if (lage.zustand === 'laedt') return // öffnet das Mikrofon nach dem Laden selbst
+  if (lage.zustand === 'aus' || lage.zustand === 'fehler') { await einschalten(); return }
+  await mikrofonAn().catch((e) => setze({ fehler: `Mikrofon: ${(e as Error).message}` }))
+}
+
 export async function mikrofonUmschalten() {
   if (lage.mikrofon) await mikrofonAus()
   else await mikrofonAn().catch((e) => setze({ fehler: `Mikrofon: ${(e as Error).message}` }))
@@ -97,7 +111,7 @@ export async function sprechen(saetze: string[]): Promise<boolean> {
   const b = bruecke()
   // nie zwei Ansagen übereinander (Prüf-Agent)
   // und nichts mehr sagen, wenn inzwischen ausgeschaltet wurde (z. B. Antwort von Ollama kommt erst danach – Prüf-Agent)
-  if (!b || !saetze.length || lage.zustand === 'spricht' || lage.zustand === 'aus' || lage.zustand === 'fehler') return false
+  if (!b || !saetze.length || stumm || lage.zustand === 'spricht' || lage.zustand === 'aus' || lage.zustand === 'fehler') return false
   const e = jarvisEinstellungen()
   const eigene = leseEigene(e.aussprache)
   abbrechen = false
@@ -163,6 +177,12 @@ Dein Charakter: trockener, schwarzer, typisch britischer Humor. In jeder Antwort
 Regeln: Zuerst die sachliche Antwort, dann der Seitenhieb. Antworte kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Beantworte Fragen zur Werkstatt ausschließlich mit den mitgelieferten Daten; steht etwas nicht darin, sage ehrlich, dass du es nicht weißt. Erfinde nie Zahlen. Bei ernsten Themen (Gesundheit, Unfälle, Trauer) lässt du den Spott weg.`
 }
 
+// Freies Gespräch (Wunsch Auftraggeber 03.11.2026): Loki merkt sich die letzten Wechsel (höchstens 5 Minuten Pause) und
+// hört nach seiner Antwort 10 Sekunden ohne Codewort weiter zu – man kann also einfach weiterreden.
+// Ohne Codewort höchstens 3 Nachfragen hintereinander – sonst könnte Werkstatt-Lärm eine endlose Kette auslösen.
+const GESPRAECH_PAUSE = 5 * 60_000, NACHFRAGE_MS = 10_000, NACHFRAGEN_MAX = 3
+let verlauf: { role: 'user' | 'assistant'; content: string }[] = [], verlaufZeit = 0, ohneCodewort = 0, nachHey = false
+
 async function frage(text: string) {
   const b = bruecke()
   if (!b) return
@@ -170,11 +190,15 @@ async function frage(text: string) {
   setze({ zustand: 'denkt' })
   const daten = await ladeLageDaten(new Set(e.bausteine as BausteinSchluessel[])).catch(() => null)
   const system = `${charakter(e.anrede || 'Sir', e.humor)}\n\nDaten der App (Stand jetzt):\n${JSON.stringify(daten ?? {})}`
-  const r = await b.frage(e.modell, [{ role: 'system', content: system }, { role: 'user', content: text }])
+  if (Date.now() - verlaufZeit > GESPRAECH_PAUSE) verlauf = []
+  const r = await b.frage(e.modell, [{ role: 'system', content: system }, ...verlauf.slice(-8), { role: 'user', content: text }])
   if (!r || r.fehler === 'fehlt') return sprechen([`Für freie Fragen fehlt mir noch mein Sprachmodell, ${e.anrede || 'Sir'}. Sobald jemand Ollama auf diesem Rechner installiert, stehe ich zur Verfügung.${e.humor ? ' Ich nenne keine Namen. Aber ich sehe Sie dabei an.' : ''}`])
   if (r.fehler === 'modell') return sprechen([`Das Sprachmodell ${e.modell} ist auf diesem Rechner noch nicht geladen.${e.humor ? ' Ich denke also gerade mit halber Kraft. Damit bin ich Ihnen immer noch weit voraus.' : ''}`])
   if (r.fehler) return sprechen([`Mein Sprachmodell hat gerade Schwierigkeiten.${e.humor ? ' Es passiert den Besten. Darum kennen Sie das Gefühl vermutlich nicht.' : ''} Ich versuche es gern später noch einmal.`])
-  await sprechen(r.text.split(/(?<=[.!?])\s+/).filter(Boolean))
+  // inzwischen stumm oder ausgeschaltet: Verlauf nicht wieder füllen (sprechen() schweigt dann ohnehin)
+  if (stumm || lage.zustand === 'aus') return
+  verlauf = [...verlauf, { role: 'user' as const, content: text }, { role: 'assistant' as const, content: r.text }].slice(-8); verlaufZeit = Date.now()
+  if (await sprechen(r.text.split(/(?<=[.!?])\s+/).filter(Boolean)) && ohneCodewort < NACHFRAGEN_MAX) { nachHey = false; setze({ wartetBis: Date.now() + NACHFRAGE_MS }) }
 }
 
 async function ausfuehren(bf: Befehl) {
@@ -187,7 +211,7 @@ async function ausfuehren(bf: Befehl) {
     if (!navigieren) return sprechen([`Seiten der Werkstatt kann ich von hier aus noch nicht öffnen, ${e.anrede || 'Sir'}. Das steht auf meiner Liste.${e.humor ? ' Gleich unter Ihren Aufgaben. Es wird also dauern.' : ''}`])
     navigieren(bf.pfad); return sprechen([`${bf.name}, ${e.anrede || 'Sir'}.`])
   }
-  if (!bf.text) { setze({ wartetBis: Date.now() + 8000 }); return sprechen([`${e.anrede || 'Sir'}?`]) }
+  if (!bf.text) { nachHey = true; setze({ wartetBis: Date.now() + 8000 }); return sprechen([`${e.anrede || 'Sir'}?`]) }
   return frage(bf.text)
 }
 
@@ -201,9 +225,10 @@ async function erkannt(text: string) {
       if (jarvisEinstellungen().zuletztLage === heute()) return sprechen([jarvisEinstellungen().humor ? ZWEITES_MAL[tagNummer(new Date()) % ZWEITES_MAL.length] : 'Guten Morgen, noch einmal. Die Lage habe ich Ihnen heute bereits vorgetragen. Für eine Wiederholung sagen Sie: Hey Loki, Lage.'])
       return morgenLageVortragen()
     }
-    if (c?.art === 'hey') { setze({ wartetBis: 0 }); return ausfuehren(befehl(c.rest)) }
-    // nach „Hey Jarvis“ allein: der nächste Satz ist der Befehl
-    if (lage.wartetBis > Date.now()) { setze({ wartetBis: 0 }); return ausfuehren(befehl(text)) }
+    if (c?.art === 'hey') { setze({ wartetBis: 0 }); ohneCodewort = 0; return await ausfuehren(befehl(c.rest)) }
+    // nach „Hey Loki“ allein bzw. nach einer Antwort im Gespräch: der nächste Satz gilt auch ohne Codewort
+    // (nach „Hey Loki“ allein zählt jedes Wort, z. B. „Lage“; im Gespräch nur echte Sätze, keine Whisper-Floskeln)
+    if (lage.wartetBis > Date.now() && (nachHey || istNachfrage(text))) { setze({ wartetBis: 0 }); if (!nachHey) ohneCodewort++; nachHey = false; return await ausfuehren(befehl(text)) }
   } catch (e) {
     if ((lage.zustand as Zustand) !== 'aus') setze({ zustand: 'bereit', fehler: (e as Error).message })
   }
@@ -243,6 +268,7 @@ export async function ausschalten() {
   setze({ zustand: 'aus', fortschritt: null })
   // Zuhörer sofort abmelden (vor dem ersten Warten) – ein gleich folgendes Einschalten meldet eigene an (Prüf-Agent)
   aus.forEach((f) => f()); aus = []
+  verlauf = []
   stopp()
   await mikrofonAus()
   // gibt den Grafikspeicher frei – aber nicht, wenn inzwischen schon wieder eingeschaltet wurde

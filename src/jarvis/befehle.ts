@@ -112,3 +112,14 @@ export function befehl(rest: string): Befehl {
   }
   return { art: 'frage', text: rest.trim() }
 }
+
+/**
+ * Taugt ein Satz ohne Codewort als Nachfrage im Gespräch? Whisper „hört“ bei Lärm gern Floskeln aus Untertiteln
+ * („Vielen Dank.“, „Untertitel im Auftrag des ZDF“) – die und Ein-Wort-Fetzen werden verworfen (Prüf-Agent 03.11.2026).
+ */
+export function istNachfrage(text: string): boolean {
+  const t = vereinfachen(text)
+  if (t.split(/\s+/).filter(Boolean).length < 2) return false
+  // vereinfachen() macht aus ä/ü/ß ae/ue/ss
+  return !/untertitel|amara|zdf|swr|^vielen dank( fuers zuschauen| fuer ihre aufmerksamkeit)?$|danke fuers zuschauen|bis zum naechsten mal|tschuess|copyright|abonnier/.test(t)
+}

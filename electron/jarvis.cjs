@@ -220,13 +220,14 @@ function einrichten(hauptfenster, erlaubt) {
   // hier im Hauptprozess (Node), damit die Oberfläche keine Sonderrechte für localhost braucht. Nur Text rein, Text raus.
   ipcMain.handle('jarvis-frage', async (e, anfrage) => {
     if (!von(e)) return null
-    const modell = /^[a-z0-9._:-]{1,60}$/i.test(String(anfrage?.modell ?? '')) ? String(anfrage.modell) : 'qwen2.5:7b'
+    const modell = /^[a-z0-9._:-]{1,60}$/i.test(String(anfrage?.modell ?? '')) ? String(anfrage.modell) : 'qwen3:8b'
     const nachrichten = (Array.isArray(anfrage?.nachrichten) ? anfrage.nachrichten : []).slice(-12)
       .map((n) => ({ role: ['system', 'user', 'assistant'].includes(n?.role) ? n.role : 'user', content: String(n?.content ?? '').slice(0, 20000) }))
     try {
       const r = await fetch('http://127.0.0.1:11434/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: modell, messages: nachrichten, stream: false, options: { temperature: 0.5 } }),
+        // think: false – Qwen3 würde sonst erst lange „nachdenken“ (zu langsam fürs Gespräch); keep_alive: Modell 10 Minuten im Grafikspeicher halten
+        body: JSON.stringify({ model: modell, messages: nachrichten, stream: false, think: false, keep_alive: '10m', options: { temperature: 0.6 } }),
         signal: AbortSignal.timeout(60_000),
       })
       if (r.status === 404) return { fehler: 'modell', text: `Das Sprachmodell ${modell} ist noch nicht geladen.` }
