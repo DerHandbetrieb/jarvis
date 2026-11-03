@@ -330,3 +330,6 @@ export function zeichne(c, nr) {
   // Kennzeichnung am Bildrand: Beispiel
   txt(g, `STILPROBE ${nr + 1} · ${S.name.toUpperCase()} · ALLE WERKSTATT-ZAHLEN SIND BEISPIELE`, 3 * B - 30, H - 10, fb(S.hell, 0.75), { gr: 13, aus: 'right', sp: 2 })
 }
+
+// Werkzeuge für die bewegte Fassung (../bewegt/), dort werden die Teile einmal vorgezeichnet und dann nur bewegt
+export const WERKZEUG = { fb, misch, kf, txt, leuchten, ebene, band, segmente, skala, bogen, hof, glas, klein, audio, spektrum, flaeche, anzeige, kreisReihe, globus, radar, lichtstreifen, leit, chips, hinweis, hintergrund, vordergrund, RN, B, H, SCHRIFT, MONO }

@@ -32,6 +32,8 @@ export async function vorbereiten(grussNr) {
   return [...NAMEN, 'gruss'].filter((n) => !puffer[n])
 }
 export const jetzt = () => (ac ? ac.currentTime : 0)
+// wie lange ein Ton braucht, bis er aus dem Lautsprecher kommt (für Bild-Ton-Gleichlauf)
+export const verzoegerung = () => (ac ? ac.outputLatency || ac.baseLatency || 0 : 0)
 
 function hall(sek = 3.2, abfall = 3) {
   const len = Math.floor(ac.sampleRate * sek), b = ac.createBuffer(2, len, ac.sampleRate)
@@ -50,6 +52,9 @@ export function starten(geruest) {
   for (let i = 0; i < 1024; i++) { const x = (i / 1023) * 2 - 1; kurve[i] = Math.abs(x) < 0.8 ? x : Math.sign(x) * (0.8 + 0.15 * Math.tanh((Math.abs(x) - 0.8) / 0.15)) }
   kappe.curve = kurve; kappe.oversample = '4x'
   summe.connect(begrenzer).connect(kappe).connect(ac.destination)
+  // Messpunkte für die Bild-Anzeigen (Wellenform/Spektrum): alles zusammen und nur die Stimme
+  const gesamt = ac.createAnalyser(); gesamt.fftSize = 1024; gesamt.smoothingTimeConstant = 0.7; kappe.connect(gesamt)
+  const stimme = ac.createAnalyser(); stimme.fftSize = 1024; stimme.smoothingTimeConstant = 0.6
   summe.gain.setValueAtTime(0.8, T(Z.AUS)); summe.gain.linearRampToValueAtTime(0, T(Z.ENDE))
   const musik = ac.createGain()
   const senke = ac.createBiquadFilter(); senke.type = 'peaking'; senke.frequency.value = 2400; senke.Q.value = 0.7; senke.gain.value = 0
@@ -148,12 +153,12 @@ export function starten(geruest) {
     const praesenz = ac.createBiquadFilter(); praesenz.type = 'peaking'; praesenz.frequency.value = 3000; praesenz.Q.value = 0.9; praesenz.gain.value = 3
     const dicht = ac.createDynamicsCompressor(); dicht.threshold.value = -26; dicht.ratio.value = 4; dicht.attack.value = 0.005; dicht.release.value = 0.12
     const pegel = ac.createGain(); pegel.gain.value = 1.9
-    q.connect(tief).connect(praesenz).connect(dicht).connect(pegel).connect(summe)
+    q.connect(tief).connect(praesenz).connect(dicht).connect(pegel).connect(summe); pegel.connect(stimme)
     const kleinerHall = ac.createGain(); kleinerHall.gain.value = 0.12; pegel.connect(kleinerHall).connect(raum)
     q.start(s); quellen.push(q)
     geruest.nachGruss?.({ spiel, S, ende })
   }
-  return { t0, stopp: () => { quellen.forEach((q) => { try { q.stop() } catch { /* schon aus */ } }); try { summe.disconnect() } catch { /* */ } } }
+  return { t0, gesamt, stimme, stopp: () => { quellen.forEach((q) => { try { q.stop() } catch { /* schon aus */ } }); try { summe.disconnect() } catch { /* */ } } }
 }
 
 // Prüfhilfe: ein Gerüst ohne Lautsprecher berechnen (für Pegelmessung), danach normale Wiedergabe wiederherstellen
