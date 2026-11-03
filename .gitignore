@@ -1,0 +1,22 @@
+# Geheimnisse – niemals in Git
+.env
+.env.*
+!.env.example
+
+# Abhängigkeiten und Build-Ergebnisse
+node_modules/
+dist/
+release/
+*.log
+
+# Sprachmodelle (groß, werden beim ersten Einschalten geladen) und Hörproben
+modelle/
+*.onnx
+*.wav
+
+# Editor / System / lokale Claude-Einstellungen
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+.claude/settings.local.json

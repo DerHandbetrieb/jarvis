@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+
+/* Vorläufige, schlichte Optik – die eigentliche Gestaltung folgt mit vier Entwürfen zur Wahl */
+@theme {
+  --color-akzent: #179994;
+  --color-akzent-dunkel: #11736f;
+}
+
+body {
+  margin: 0;
+  background: #f4f4f2;
+  color: #262626;
+  font-family: system-ui, 'Segoe UI', sans-serif;
+}

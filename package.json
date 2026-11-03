@@ -1,0 +1,65 @@
+{
+  "name": "jarvis",
+  "productName": "Jarvis",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Jarvis – lokaler Sprachassistent für den PC (später Hausassistent), Der Handbetrieb (Bloßfeld und Jungk GbR)",
+  "author": "Bloßfeld und Jungk GbR",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vitest run --reporter=dot && vite build",
+    "test": "vitest run",
+    "start": "vite build && electron .",
+    "electron:dev": "concurrently -k -n web,app \"vite\" \"wait-on tcp:5174 && electron . --dev\"",
+    "electron:build": "npm run build && electron-builder --win",
+    "selbsttest": "electron electron/jarvis-test.cjs"
+  },
+  "build": {
+    "appId": "de.der-handbetrieb.jarvis",
+    "productName": "Jarvis",
+    "electronDist": "node_modules/electron/dist",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**",
+      "!electron/jarvis-test.cjs",
+      "dist/**"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Jarvis"
+    },
+    "asarUnpack": [
+      "node_modules/sherpa-onnx-node/**",
+      "node_modules/sherpa-onnx-win-x64/**"
+    ]
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "concurrently": "^10.0.6",
+    "electron": "44.9.0",
+    "electron-builder": "^26.15.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5",
+    "wait-on": "^9.5.1"
+  },
+  "dependencies": {
+    "sherpa-onnx-node": "1.13.8"
+  }
+}
