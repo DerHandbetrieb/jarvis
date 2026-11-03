@@ -30,7 +30,7 @@ Jarvis ist ein eigenes Windows-Programm (Electron) mit dem aus der Werkstatt-App
 ## Offen – in dieser Reihenfolge vorgeschlagen
 
 1. ✅ Feste Loki-Stimme bestätigt: R2 (0.6B-Base + `stimme/loki-vorlage.wav`).
-2. ✅ **Qwen beschleunigt (03.11.2026):** faster-qwen3-tts (MIT), 3,7-mal schneller als Echtzeit, erster Ton nach 0,3 s – Probe S, Einzelheiten in `CLAUDE.md` Abschnitt 2. Offen: Hörurteil des Auftraggebers.
+2. ✅ **Qwen beschleunigt (03.11.2026):** faster-qwen3-tts (MIT), 3,7-mal schneller als Echtzeit, erster Ton nach 0,3 s – Probe S, Einzelheiten in `CLAUDE.md` Abschnitt 2. Auftraggeber: „klingt gleich“ wie R2.
 3. **Q1 ins Programm einbauen:** kleiner lokaler Python-Dienst (z. B. nur auf 127.0.0.1), den `electron/jarvis.cjs` statt Piper aufruft; Piper als Rückfall, wenn der Dienst fehlt. Vorher Plan zeigen.
 4. **Loki mit der echten Stimme des Auftraggebers testen** (bisher nur mit der Computerstimme).
 5. Empfindlichkeit des Mikrofons einstellbar (Werkstatt-Lärm), Länge der Morgen-Lage prüfen (bis zu acht Witzsätze).
