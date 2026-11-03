@@ -4,8 +4,12 @@
 // erzeugt ihn und schickt ihn über window.jarvisSequenz). Bis er da ist, läuft die Sequenz nach dem Einschlag weiter
 // (offenes Ende); spätestens nach MAX_WARTEN Sekunden blendet sie ohne Gruß aus. Jede Taste und jeder Klick bricht ab.
 // Meldungen an das Programm: 'gruss' (Loki hat hier gesprochen), 'ohne-gruss', 'abgebrochen', 'ende' (Fenster zu).
-import { aufbauen, zeichne, verbinde, tonDaten, TON } from '../vorschau/start-sequenz/bewegt/szene.js'
+// Seit Etappe L3: echte Werkstatt-Zahlen (über das Hauptprogramm), echtes Datum und Wetter – ohne Verbindung die
+// Beispielwerte mit Hinweis „Beispiel“.
+import { aufbauen, zeichne, verbinde, setzeDaten, tonDaten, TON } from '../vorschau/start-sequenz/bewegt/szene.js'
 import { ZEIT as Z, vorbereiten, starten, jetzt, verzoegerung, setzeTonOrdner, pufferAus } from '../vorschau/start-sequenz/ton/tongerueste.js'
+import { datumText, sequenzDaten, wetterText } from './lageDaten.js'
+import { ORTE, holeWetter, wetterAusCode, wetterOrt } from '../src/jarvis/wetter.ts'
 
 const MAX_WARTEN = 50 // Sekunden ab Start; Lokis Stimme braucht nach dem Hochfahren 10–33 s zum Laden
 const bruecke = window.jarvisSequenz ?? null
@@ -16,7 +20,19 @@ setzeTonOrdner(new URL(import.meta.env.DEV ? '/vorschau/start-sequenz/3d/toene/'
 
 const c = document.getElementById('flaeche')
 verbinde(c, { versatzX: par.get('ausschnitt') === 'mitte' ? 1920 : 0 })
-aufbauen()
+// höchstens so lange auf Werkstatt-Lage und Wetter warten, dann ohne sie weiter (die Anzeigen werden einmal vorgezeichnet)
+const WARTEN_DATEN = 2500
+const mitZeitgrenze = (p) => Promise.race([p, new Promise((w) => setTimeout(() => w(null), WARTEN_DATEN))]).catch(() => null)
+async function datenHolen() {
+  const ort = wetterOrt()
+  const [lage, wetter] = await Promise.all([mitZeitgrenze(bruecke?.lage?.() ?? Promise.resolve(null)), mitZeitgrenze(holeWetter(ort))])
+  const w = wetter?.current
+  setzeDaten({
+    echt: sequenzDaten(lage, new Date()),
+    datum: datumText(new Date()),
+    wetter: wetterText(ORTE[ort].name, w?.temperature_2m, w?.weather_code != null ? wetterAusCode(w.weather_code, w.cloud_cover ?? 0) : null),
+  })
+}
 
 let ton = null, grussDaten = null, grussGeplant = false, keinGruss = false, ausBei = null, ausDauer = 2, abbruch = false
 const gemeldet = new Set()
@@ -56,7 +72,10 @@ function schleife() {
 }
 
 async function los() {
-  await vorbereiten(null) // Töne laden (fehlende werden übersprungen, die Sequenz läuft trotzdem)
+  // Töne laden (fehlende werden übersprungen) und gleichzeitig die echten Werte holen, dann einmal vorzeichnen
+  await Promise.all([vorbereiten(null), datenHolen().catch(() => setzeDaten({ datum: datumText(new Date()) }))])
+  if (frueherAbbruch) { melde('abgebrochen'); melde('ende'); return } // schon abgebrochen → gar nicht erst vorzeichnen
+  aufbauen()
   if (frueherAbbruch) { melde('abgebrochen'); melde('ende'); return }
   ton = starten(TON, { offen: true, lautstaerke })
   tonDaten.gesamt = ton.gesamt; tonDaten.stimme = ton.stimme

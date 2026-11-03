@@ -10,7 +10,7 @@ app.whenReady().then(async () => {
   if (art === 'bilder') {
     const ziel = path.join(__dirname, 'bilder'); fs.mkdirSync(ziel, { recursive: true })
     const f = new BrowserWindow({ show: false, width: 1200, height: 800, webPreferences: { contextIsolation: true, sandbox: true } })
-    await f.loadURL('http://localhost:5177/bewegt/'); await new Promise((r) => setTimeout(r, 2000))
+    await f.loadURL(`http://localhost:5177/bewegt/${process.argv.includes('probe') ? '?probe' : ''}`); await new Promise((r) => setTimeout(r, 2000))
     for (const t of [1.0, 2.5, 4.0, 6.0, 8.5, 9.8, 10.6, 11.2, 14.0, 20.0]) {
       const d = await f.webContents.executeJavaScript(`(() => { window.startSequenz.zeichne(${t}); return document.getElementById('flaeche').toDataURL('image/jpeg', 0.88) })()`)
       fs.writeFileSync(path.join(ziel, `t${String(t).replace('.', '_')}.jpg`), Buffer.from(d.split(',')[1], 'base64')); console.log('Bild', t)

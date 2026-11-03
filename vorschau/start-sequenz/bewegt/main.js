@@ -4,7 +4,8 @@
 // Unschärfe, Verläufe, Schrift) beim Laden EINMAL in eigene Leinwände vorgezeichnet; je Bild werden sie nur noch gedreht,
 // ein- und ausgeblendet. Neu gezeichnet werden nur kleine Teile (Tonwellen, Spektrum, Uhr, Globus-Punkte, Radar).
 // Die Bildrate wird gemessen (window.startSequenz.messung(), Anzeige mit ?fps). Alle Werkstatt-Zahlen sind Beispiele.
-import { aufbauen, zeichne, verbinde, tonDaten, TON } from './szene.js'
+import { aufbauen, zeichne, verbinde, setzeDaten, tonDaten, TON } from './szene.js'
+import { datumText, sequenzDaten } from '../../../startsequenz/lageDaten.js'
 import { ZEIT, vorbereiten, starten, jetzt, verzoegerung } from '../ton/tongerueste.js'
 const Z = ZEIT
 const buehne = document.getElementById('buehne'), c = document.getElementById('flaeche')
@@ -46,6 +47,17 @@ function schleife(jetztMs) {
 }
 knopf.onclick = abspielen
 document.getElementById('voll').onclick = () => buehne.requestFullscreen?.()
+// ?probe: Ansicht mit erfundenen, aber realistischen „echten“ Werten (zum Prüfen der Optik von Etappe L3, nicht die Werkstatt)
+if (par.has('probe')) {
+  const jetzt0 = new Date(), tag = (n) => new Date(jetzt0.getTime() - n * 864e5).toISOString().slice(0, 10)
+  setzeDaten({
+    datum: datumText(jetzt0), wetter: 'ÖHRINGEN · 7 °C · BEWÖLKT',
+    echt: sequenzDaten({ geholt: jetzt0.getTime(), aufgaben: { offen: 7, neu: 2, amazonProbleme: ['Amazon-Problem: Bild'], wichtigste: [{ titel: 'Kerzenständer Beton nachproduzieren', faellig: tag(1) }, { titel: 'Etsy-Fotos Lichtkästen', faellig: tag(0) }, { titel: 'Tassen Emma glasieren', faellig: tag(-3) }, { titel: 'Gießform reinigen', faellig: null }] },
+      lagerKnapp: [{ name: 'Tasse', variante: 'Emma', bestand: 1, meldebestand: 8 }, { name: 'Kerzenständer Beton', variante: null, bestand: 2, meldebestand: 6 }],
+      verkauf: { gestern: { bestellungen: 4, stueck: 6, umsatzCent: 18990 }, tage: Array.from({ length: 14 }, (_, i) => ({ tag: tag(13 - i), bestellungen: 2, stueck: 3, umsatzCent: [4200, 8800, 0, 12000, 9600, 7400, 13300, 5800, 10100, 8700, 14500, 9200, 11000, 18990][i] })), kanaele14: [{ kanal: 'Etsy', bestellungen: 21, umsatzCent: 98000 }, { kanal: 'Amazon', bestellungen: 9, umsatzCent: 31000 }, { kanal: 'Eigener Shop', bestellungen: 4, umsatzCent: 14000 }] },
+      freigaben: 1, selbsttest: { am: jetzt0.toISOString(), rot: 0 } }, jetzt0),
+  })
+}
 verbinde(c); aufbauen(); zeichne(16); requestAnimationFrame(schleife)
 window.startSequenz = { zeichne, messung: auswerten, ZEIT: Z, abspielen, stoppen }
 if (par.has('fps')) fpsAnzeige.hidden = false

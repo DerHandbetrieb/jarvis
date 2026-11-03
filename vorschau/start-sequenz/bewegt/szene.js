@@ -2,7 +2,7 @@
 // benutzt (../../../startsequenz/seite.js). Hintergrund siehe main.js: alles Aufwendige einmal vorgezeichnet, je Bild nur bewegt.
 import { STILE, WERKZEUG as W } from '../standbilder/standbild.js'
 import { KLEIN } from '../hud/kleinteile.js'
-import { LOKI, RUNEN_SCHRIFT, zufall, rauschen } from '../hud/zeichner.js'
+import { DATEN, LOKI, RUNEN_SCHRIFT, zufall, rauschen } from '../hud/zeichner.js'
 import { GERUESTE, ZEIT } from '../ton/tongerueste.js'
 
 const S = STILE.find((s) => s.name === 'Kombination'), B = W.B, H = W.H, F = W.kf(S), TON = GERUESTE.at(-1)
@@ -79,6 +79,22 @@ function spektrumTeil(x, y, w, h, start, versatz) {
   }, versatz)
 }
 
+// ---------- echte Werte (Etappe L3) ----------
+// Vor aufbauen() setzen: echt = Ergebnis von startsequenz/lageDaten.js sequenzDaten() oder null (dann Beispieldaten mit
+// Hinweis „Beispiel“), datum/wetter als fertige Texte. Die Kleinteile (To-do-Liste, Lager) lesen DATEN aus zeichner.js.
+let ECHT = null, DATUM = 'DIENSTAG · 03.11.', WETTER = 'ÖHRINGEN · 9 °C · BEWÖLKT'
+export function setzeDaten({ echt = null, datum, wetter } = {}) {
+  ECHT = echt
+  if (datum) DATUM = datum
+  if (wetter) WETTER = wetter
+  DATEN.echt = !!echt
+  if (echt) {
+    DATEN.aufgaben = { ...DATEN.aufgaben, offen: echt.offen, neu: echt.neu, freigaben: echt.freigaben }
+    DATEN.karten = echt.karten
+    DATEN.lager = echt.lager
+  }
+}
+
 // ---------- Aufbau ----------
 let hinter, vorn, streifen, schild
 function aufbauen() {
@@ -88,9 +104,15 @@ function aufbauen() {
   const s0 = Z.VISIER + 0.2, wl = (x) => s0 + welle(x, true) * 1.8, wr = (x) => s0 + welle(x, false) * 1.8
 
   // ----- links: Aufbau „Kreise, dicht“ (wie Hologramm-Türkis) -----
-  const hw = bild(30, 20, 420, 30, (g) => W.hinweis(g, S, 40, 40)); teil(30, 20, 420, 30, wl(40), (g) => g.drawImage(hw.c, 30, 20), 1)
-  messuhr(380, 400, 250, 0.62, '11', 'AUFGABEN OFFEN', S.haupt, wl(380), welle(380, true))
-  ;[[860, 200, 0.8, '2', 'NEU'], [1080, 200, 0.35, '1', 'FREIGABE'], [860, 420, 0.92, 'OK', 'SELBSTTEST'], [1080, 420, 0.5, '3', 'VERKÄUFE']].forEach(([x, y, w, ti, u]) => messuhr(x, y, 90, w, ti, u, S.haupt, wl(x) + (y > 300 ? 0.15 : 0), welle(x, true)))
+  // Hinweis oben links: echte Werkstatt-Zahlen mit Stand – oder deutlich „Beispieldaten“ (ohne Verbindung)
+  const hinweisText = () => (ECHT ? `WERKSTATT · LIVE · STAND ${ECHT.stand} UHR` : 'WERKSTATT · BEISPIELDATEN')
+  const hw = bild(30, 20, 420, 30, (g) => W.txt(g, hinweisText(), 40, 40, W.fb(S.hell, 0.8), { gr: 12, gew: 600, sp: 3 })); teil(30, 20, 420, 30, wl(40), (g) => g.drawImage(hw.c, 30, 20), 1)
+  const anteil = (n, voll) => Math.max(0.04, Math.min(1, n / voll))
+  messuhr(380, 400, 250, ECHT ? anteil(ECHT.offen, 20) : 0.62, ECHT ? String(ECHT.offen) : '11', 'AUFGABEN OFFEN', S.haupt, wl(380), welle(380, true))
+  const klein4 = ECHT
+    ? [[ECHT.neu, anteil(ECHT.neu, 5), 'NEU', S.haupt], [ECHT.freigaben, anteil(ECHT.freigaben, 5), 'FREIGABE', S.haupt], [ECHT.selbsttest, ECHT.selbsttest === '–' ? 0.04 : ECHT.selbsttestRot ? 0.3 : 1, 'SELBSTTEST', ECHT.selbsttestRot ? S.akzent : S.haupt], [ECHT.gestern.bestellungen, anteil(ECHT.gestern.bestellungen, 10), 'VERKÄUFE', S.haupt]]
+    : [[2, 0.8, 'NEU', S.haupt], [1, 0.35, 'FREIGABE', S.haupt], ['OK', 0.92, 'SELBSTTEST', S.haupt], [3, 0.5, 'VERKÄUFE', S.haupt]]
+  ;[[860, 200], [1080, 200], [860, 420], [1080, 420]].forEach(([x, y], i) => { const [ti, w, u, farbe] = klein4[i]; messuhr(x, y, 90, w, String(ti), u, farbe, wl(x) + (y > 300 ? 0.15 : 0), welle(x, true)) })
   kleinTeil('baum', 1250, 60, 640, 560, wl(1250), welle(1250, true), { bis: 9, tVersatz: 1.6 })
   for (let row = 0; row < 3; row++) { // Reihen kleiner Kreise mit kreisenden Bögen
     const y = 700 + row * 70, r = 26, n = 9, x = 60, w = 640
@@ -106,7 +128,7 @@ function aufbauen() {
 
   // ----- rechts: Aufbau „frei schwebend“ (wie Silberlicht) -----
   const ox = 2 * B
-  const hw2 = bild(ox + 30, 20, 420, 30, (g) => W.hinweis(g, S, ox + 40, 40)); teil(ox + 30, 20, 420, 30, wr(ox + 40), (g) => g.drawImage(hw2.c, ox + 30, 20), 0)
+  const hw2 = bild(ox + 30, 20, 420, 30, (g) => W.txt(g, hinweisText(), ox + 40, 40, W.fb(S.hell, 0.8), { gr: 12, gew: 600, sp: 3 })); teil(ox + 30, 20, 420, 30, wr(ox + 40), (g) => g.drawImage(hw2.c, ox + 30, 20), 0)
   { // Globus: Ringe vorgezeichnet, Punkte drehen sich
     const x = ox + 420, y = 420, r = 230
     const fest = bild(x - r * 1.45, y - r * 1.45, r * 2.9, r * 2.9, (g) => { W.hof(g, S, x, y, r * 1.4, 0.2); W.bogen(g, S, x, y, r + 8, 0, 7, { al: 0.4 }); W.skala(g, S, x, y, r + 30, 120, 4, 0.35) })
@@ -117,11 +139,13 @@ function aufbauen() {
       const dreh = t * 0.25
       for (const [la, lo, land] of punkte) { const a = lo + dreh, pz = Math.cos(la) * Math.cos(a); if (pz < 0) continue; g.fillStyle = land ? W.fb(S.hell, 0.5 + 0.5 * pz) : W.fb(S.haupt, 0.25 * pz); g.fillRect(x + Math.cos(la) * Math.sin(a) * r, y - Math.sin(la) * r, land ? 2 : 1, land ? 2 : 1) }
     }, welle(x, false))
-    const le = bild(x + 170, 100, 380, 200, (g) => W.leit(g, S, x + 180, 260, x + 340, 140, 'BESTELLUNGEN', '3 GESTERN'))
+    const le = bild(x + 170, 100, 380, 200, (g) => W.leit(g, S, x + 180, 260, x + 340, 140, 'BESTELLUNGEN', `${ECHT ? ECHT.gestern.bestellungen : 3} GESTERN`))
     teil(x + 170, 100, 380, 200, wr(x) + 0.6, (g) => g.drawImage(le.c, le.x0, le.y0), welle(x, false))
   }
-  ;[['ETSY', 33, 1], ['AMAZON', 41, 0.92], ['SHOP', 58, 1]].forEach(([n, a, w], i) => {
-    const x = ox + 900 + i * 230, y = 330, farbe = w < 1 ? S.akzent : S.haupt
+  // Kanäle: echt = Bestellungen der letzten 14 Tage, Ring = Anteil am Umsatz; sonst Beispielwerte
+  const kanaele = ECHT ? ECHT.kanaele.map((k) => [`${k.name} · 14 T`, k.bestellungen, Math.max(0.04, k.anteil), S.haupt]) : [['ETSY', 33, 1, S.haupt], ['AMAZON', 41, 0.92, S.akzent], ['SHOP', 58, 1, S.haupt]]
+  kanaele.forEach(([n, a, w, farbe], i) => {
+    const x = ox + 900 + i * 230, y = 330
     messuhr(x, y, 80, w, String(a), '', farbe, wr(x), welle(x, false))
     const tx = bild(x - 80, y + 104, 160, 24, (g) => W.txt(g, n, x, y + 120, W.fb(S.hell, 0.9), { gr: 12, aus: 'center', sp: 3 })); teil(x - 80, y + 104, 160, 24, wr(x) + 0.2, (g) => g.drawImage(tx.c, tx.x0, tx.y0), welle(x, false))
   })
@@ -135,12 +159,16 @@ function aufbauen() {
       ziele.forEach(([w, d], i) => { const ab = ((a - w) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2), hell = Math.max(0, 1 - ab / 2.5); g.fillStyle = W.fb(i === 0 ? S.akzent : S.hell, 0.15 + 0.85 * hell); g.beginPath(); g.arc(x + Math.cos(w) * d, y + Math.sin(w) * d, 3, 0, 7); g.fill() })
     }, welle(x, false))
   }
-  { // Zahlenkästchen am Rand, eins nach dem anderen
-    for (let i = 0; i < 9; i++) { const x = ox + 1790, y = 80 + i * 100, c = bild(x - 2, y - 2, 96, 62, (g) => { g.strokeStyle = W.fb(S.haupt, 0.6); g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, 90, 56); g.fillStyle = W.fb(S.haupt, S.glas + 0.05); g.fillRect(x + 1, y + 1, 89, 18); W.txt(g, String(11 + i * 7).padStart(3, '0'), x + 8, y + 46, W.fb(S.hell, 1), { gr: 22, gew: 300, sp: 1 }); W.txt(g, 'K' + (i + 1), x + 84, y + 14, W.fb(S.hell, 0.8), { gr: 10, aus: 'right', sp: 0 }) }); teil(x - 2, y - 2, 96, 62, wr(x) + i * 0.08, (g) => g.drawImage(c.c, c.x0, c.y0), 1) }
+  { // Zahlenkästchen am Rand, eins nach dem anderen: echt = Bestellungen der letzten 9 Tage (Kopf = Datum), sonst Beispiel
+    const kaestchen = ECHT && ECHT.tage9.length ? ECHT.tage9.map((t) => [String(t.bestellungen).padStart(2, '0'), t.tag]) : Array.from({ length: 9 }, (_, i) => [String(11 + i * 7).padStart(3, '0'), 'BSP'])
+    kaestchen.forEach(([zahl, kopf], i) => { const x = ox + 1790, y = 80 + i * 100, c = bild(x - 2, y - 2, 96, 62, (g) => { g.strokeStyle = W.fb(S.haupt, 0.6); g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, 90, 56); g.fillStyle = W.fb(S.haupt, S.glas + 0.05); g.fillRect(x + 1, y + 1, 89, 18); W.txt(g, zahl, x + 8, y + 46, W.fb(S.hell, 1), { gr: 22, gew: 300, sp: 1 }); W.txt(g, kopf, x + 84, y + 14, W.fb(S.hell, 0.8), { gr: 10, aus: 'right', sp: 0 }); if (ECHT) W.txt(g, 'BEST.', x + 84, y + 46, W.fb(S.haupt, 0.7), { gr: 9, aus: 'right', sp: 1 }) }); teil(x - 2, y - 2, 96, 62, wr(x) + i * 0.08, (g) => g.drawImage(c.c, c.x0, c.y0), 1) })
   }
   { // Umsatzkurve zeichnet sich von links nach rechts
-    const x = ox + 60, y = 780, w = 1300, h = 180, f = bild(x - 6, y - 10, w + 12, h + 16, (g) => W.flaeche(g, S, x, y, w, h, [62, 88, 41, 120, 96, 74, 133, 58, 101, 87, 145, 92, 110, 123], 160))
-    const tx = bild(x, 985, 500, 22, (g) => W.txt(g, 'UMSATZ · 14 TAGE · BEISPIEL', x, 1000, W.fb(S.haupt, 0.9), { gr: 12, sp: 3 }))
+    const reihe = ECHT && ECHT.umsatz14.length >= 2 ? ECHT.umsatz14 : ECHT ? [0, 0] : [62, 88, 41, 120, 96, 74, 133, 58, 101, 87, 145, 92, 110, 123]
+    const x = ox + 60, y = 780, w = 1300, h = 180, f = bild(x - 6, y - 10, w + 12, h + 16, (g) => W.flaeche(g, S, x, y, w, h, reihe, ECHT ? ECHT.umsatzMax : 160))
+    const euro = (v) => v.toFixed(2).replace('.', ',')
+    const unter = ECHT ? `UMSATZ · 14 TAGE · BIS ${ECHT.umsatzMax} € · GESTERN ${euro(ECHT.gestern.umsatz)} €` : 'UMSATZ · 14 TAGE · BEISPIEL'
+    const tx = bild(x, 985, 900, 22, (g) => W.txt(g, unter, x, 1000, W.fb(S.haupt, 0.9), { gr: 12, sp: 3 }))
     const st = wr(x) + 0.3
     teil(x - 6, y - 10, w + 12, h + 230, st, (g, t) => { const p = raus(phase(t, st + 0.2, st + 2.2)); g.save(); g.beginPath(); g.rect(x - 6, y - 10, (w + 12) * p, h + 16); g.clip(); g.drawImage(f.c, f.x0, f.y0); g.restore(); g.drawImage(tx.c, tx.x0, tx.y0) }, 0.1)
   }
@@ -148,7 +176,8 @@ function aufbauen() {
 
   // ----- Mitte: Kennzeichen, Uhr, Datum (der Schild hat seinen eigenen Ablauf) -----
   const x = B + B / 2, y = H / 2
-  ;[[-1, -1, 'KERN', '98,4 %'], [1, -1, 'RUNEN', '24 / 24'], [-1, 1, 'STIMME', 'BEREIT'], [1, 1, 'NETZ', 'LOKAL']].forEach(([sx, sy, t1, t2], i) => {
+  // nur Angaben, die stimmen: Werkstatt-Verbindung, Platten des Schilds, Lokis Stimme, Amazon-Probleme
+  ;[[-1, -1, 'WERKSTATT', ECHT ? 'VERBUNDEN' : 'BEISPIEL'], [1, -1, 'PLATTEN', '12 / 12'], [-1, 1, 'STIMME', 'LOKI'], [1, 1, 'AMAZON-PROBLEME', ECHT ? String(ECHT.amazonProbleme) : 'BEISPIEL']].forEach(([sx, sy, t1, t2], i) => {
     const ax = x + sx * 300, ay = y + sy * 290, bx = x + sx * 620, by = y + sy * 330
     const x0 = Math.min(ax, bx) - 170, y0 = Math.min(ay, by) - 40
     const c = bild(x0, y0, Math.abs(bx - ax) + 340, Math.abs(by - ay) + 80, (g) => {
@@ -157,10 +186,10 @@ function aufbauen() {
     })
     teil(c.x0, c.y0, c.c.width, c.c.height, Z.VERWANDLUNG + 3.6 + i * 0.25, (g) => g.drawImage(c.c, c.x0, c.y0), 0)
   })
-  const datum = bild(B + B - 520, 30, 480, 70, (g) => { W.txt(g, 'DIENSTAG · 03.11.', B + B - 60, 60, W.fb(S.hell, 0.95), { gr: 16, aus: 'right', sp: 2 }); W.txt(g, 'ÖHRINGEN · 9 °C · BEWÖLKT', B + B - 60, 82, W.fb(S.haupt, 0.8), { gr: 11, aus: 'right', sp: 2 }) })
+  const datum = bild(B + B - 520, 30, 480, 70, (g) => { W.txt(g, DATUM, B + B - 60, 60, W.fb(S.hell, 0.95), { gr: 16, aus: 'right', sp: 2 }); W.txt(g, WETTER, B + B - 60, 82, W.fb(S.haupt, 0.8), { gr: 11, aus: 'right', sp: 2 }) })
   teil(datum.x0, 30, 480, 70, Z.VISIER + 1.0, (g) => g.drawImage(datum.c, datum.x0, datum.y0), 0)
   teil(B + 40, 20, 300, 90, Z.VISIER + 0.8, (g) => { // echte Uhrzeit
-    const d = new Date(), hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+    const hhmm = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) // wie Datum: deutsche Zeit
     W.leuchten(g, S, 10, () => W.txt(g, hhmm, B + 60, 76, W.fb(S.hell, 1), { gr: 44, gew: 200, sp: 4 })); W.txt(g, 'ORTSZEIT', B + 62, 96, W.fb(S.haupt, 0.8), { gr: 11, sp: 3 })
   }, 0)
   teil(x - 360, 990, 720, 60, Z.VISIER + 1.2, (g, t) => { // Lokis Stimme als Wellenbalken (echte Tondaten)

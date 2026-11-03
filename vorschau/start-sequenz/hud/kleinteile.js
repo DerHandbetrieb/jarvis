@@ -12,6 +12,14 @@ function t9(g, s, x, y, f, { a = 0.75, gr = 9, farbe, aus = 'left', schrift = SC
 }
 function l1(g, f, a = 0.6, farbe) { g.strokeStyle = css(farbe ?? f.haupt, a); g.lineWidth = 1 }
 const px = (v) => Math.round(v) + 0.5 // auf Pixelmitte → scharfe 1-px-Linien
+/** Text auf eine Breite kürzen (mit „…“) – echte Werkstatt-Titel sind beliebig lang */
+function passend(g, s, max, { gr = 9, gew = 400, sp = 0.8 } = {}) {
+  g.font = `${gew} ${gr}px ${SCHRIFT}`; g.letterSpacing = `${sp}px`
+  let t = String(s)
+  if (g.measureText(t).width > max) { while (t.length > 1 && g.measureText(t + '…').width > max) t = t.slice(0, -1); t += '…' }
+  g.letterSpacing = '0px'
+  return t
+}
 
 // kleiner Kopf: Titel + Kennung + feine Linie
 function kopf(g, w, f, titel, kennung) {
@@ -58,7 +66,7 @@ export const KLEIN = {
   },
   // Zahlenkolonnen (Speicher/Koordinaten), laufen langsam durch
   zahlen(g, w, h, t, f, nr) {
-    kopf(g, w, f, ['SPEICHERABBILD', 'KOORDINATEN', 'PROTOKOLL'][nr % 3], 'LIVE')
+    kopf(g, w, f, ['SPEICHERABBILD', 'KOORDINATEN', 'PROTOKOLL'][nr % 3], 'ZIERDE') // Schmuck-Zahlen, keine Werkstatt-Daten
     g.font = `9px ${MONO}`; g.textAlign = "left"; const zeilen = Math.floor((h - 20) / 11), start = Math.floor(t * 4)
     for (let i = 0; i < zeilen; i++) {
       const z = zufall((start + i) * 31 + nr * 7), y = 28 + i * 11, hell = (start + i) % 7 === 0
@@ -126,20 +134,29 @@ export const KLEIN = {
   },
   // Aufgaben-Karten (klein, dicht)
   aufgaben(g, w, h, t, f, nr) {
-    kopf(g, w, f, 'TO-DO · OBERSTE KARTEN', `BEISPIEL · ${DATEN.aufgaben.offen} OFFEN`)
-    const zeile = (h - 20) / DATEN.karten.length
-    DATEN.karten.forEach(([titel, bereich, fort], i) => {
+    // DATEN.echt (Start-Sequenz mit Werkstatt-Verbindung): echte Karten [Titel, Zusatz, Fortschritt null, Fälligkeit]
+    kopf(g, w, f, 'TO-DO · OBERSTE KARTEN', `${DATEN.echt ? 'LIVE' : 'BEISPIEL'} · ${DATEN.aufgaben.offen} OFFEN`)
+    if (!DATEN.karten.length) { t9(g, 'KEINE OFFENEN AUFGABEN', 10, 44, f, { a: 0.8, gr: 11 }); return }
+    const zeile = (h - 20) / Math.max(3, DATEN.karten.length)
+    DATEN.karten.forEach(([titel, bereich, fort, faellig], i) => {
       const y = 20 + i * zeile, a = raus(klemm((t - 2 - i * 0.18) * 3))
       g.globalAlpha = a
       l1(g, f, i === 0 ? 0.8 : 0.3); g.beginPath(); g.moveTo(px(6), px(y + 2)); g.lineTo(w - 1, px(y + 2)); g.lineTo(w - 1, y + zeile - 3); g.lineTo(0, y + zeile - 3); g.lineTo(0, y + 8); g.closePath(); g.stroke()
       g.fillStyle = css(i < 2 ? f.akzent : f.haupt, 0.95); g.fillRect(3, y + 6, 2, zeile - 12)
-      t9(g, titel.toUpperCase(), 10, y + zeile * 0.45, f, { a: 0.95, gr: 10, gew: 500 }); t9(g, bereich.toUpperCase(), 10, y + zeile * 0.45 + 10, f, { a: 0.45, gr: 8 })
+      t9(g, passend(g, titel.toUpperCase(), w * 0.48 - 16, { gr: 10, gew: 500 }), 10, y + zeile * 0.45, f, { a: 0.95, gr: 10, gew: 500 }); t9(g, bereich.toUpperCase(), 10, y + zeile * 0.45 + 10, f, { a: 0.45, gr: 8 })
       // Kleindetails wie in den Vorbildern: Kartennummer, Fälligkeit, Mini-Teilstriche
-      t9(g, `K-${String(142 + i * 7).padStart(4, '0')}`, w * 0.48, y + zeile * 0.45, f, { a: 0.4, gr: 8, schrift: MONO, sp: 0 })
-      t9(g, i < 2 ? 'FÄLLIG HEUTE' : `FÄLLIG ${4 + i}.11.`, w * 0.48, y + zeile * 0.45 + 10, f, { a: i < 2 ? 0.85 : 0.4, gr: 8, farbe: i < 2 ? f.akzent : f.haupt })
+      if (DATEN.echt) {
+        const dringend = /HEUTE|ÜBER/.test(faellig ?? '')
+        if (faellig) t9(g, faellig, w * 0.48, y + zeile * 0.45 + 10, f, { a: dringend ? 0.95 : 0.5, gr: 8, farbe: dringend ? f.akzent : f.haupt })
+      } else {
+        t9(g, `K-${String(142 + i * 7).padStart(4, '0')}`, w * 0.48, y + zeile * 0.45, f, { a: 0.4, gr: 8, schrift: MONO, sp: 0 })
+        t9(g, i < 2 ? 'FÄLLIG HEUTE' : `FÄLLIG ${4 + i}.11.`, w * 0.48, y + zeile * 0.45 + 10, f, { a: i < 2 ? 0.85 : 0.4, gr: 8, farbe: i < 2 ? f.akzent : f.haupt })
+      }
       l1(g, f, 0.25); for (let k = 0; k < 12; k++) { g.beginPath(); g.moveTo(px(w - 4 - k * 3), y + zeile - 3); g.lineTo(px(w - 4 - k * 3), y + zeile - 6); g.stroke() }
-      const bx = w - 92; for (let s = 0; s < 20; s++) { g.fillStyle = css(f.haupt, s / 20 < fort ? 0.85 : 0.12); g.fillRect(bx + s * 4, y + zeile * 0.32, 3, 5) }
-      t9(g, `${Math.round(fort * 100)}%`, w - 4, y + zeile * 0.45 + 10, f, { a: 0.6, aus: 'right', schrift: MONO, sp: 0, gr: 8 })
+      if (fort != null) { // echte Karten haben keinen Fortschritt → keinen erfundenen Balken zeigen
+        const bx = w - 92; for (let s = 0; s < 20; s++) { g.fillStyle = css(f.haupt, s / 20 < fort ? 0.85 : 0.12); g.fillRect(bx + s * 4, y + zeile * 0.32, 3, 5) }
+        t9(g, `${Math.round(fort * 100)}%`, w - 4, y + zeile * 0.45 + 10, f, { a: 0.6, aus: 'right', schrift: MONO, sp: 0, gr: 8 })
+      }
       g.globalAlpha = 1
     })
   },
@@ -157,12 +174,13 @@ export const KLEIN = {
   },
   // Lager knapp (fein)
   lager(g, w, h, t, f) {
-    kopf(g, w, f, 'LAGER · WIRD KNAPP', 'BEISPIEL')
-    const zeile = (h - 20) / DATEN.lager.length
+    kopf(g, w, f, 'LAGER · WIRD KNAPP', DATEN.echt ? 'LIVE' : 'BEISPIEL')
+    if (!DATEN.lager.length) { t9(g, 'NICHTS KNAPP', 0, 44, f, { a: 0.8, gr: 11 }); return }
+    const zeile = (h - 20) / Math.max(3, DATEN.lager.length)
     DATEN.lager.forEach(([n, ist, soll], i) => {
       const y = 22 + i * zeile + 8, a = klemm((t - 2.2 - i * 0.15) / 1)
-      t9(g, n.toUpperCase(), 0, y, f, { a: 0.85, gr: 9 }); t9(g, `${ist}/${soll}`, w, y, f, { a: 1, aus: 'right', schrift: MONO, sp: 0, farbe: ist <= 2 ? f.akzent : f.haupt })
-      l1(g, f, 0.25); g.strokeRect(px(0), px(y + 3), w - 1, 5); g.fillStyle = css(ist <= 2 ? f.akzent : f.haupt, 0.85); g.fillRect(1, y + 4, (w - 3) * (ist / soll) * a, 3)
+      t9(g, passend(g, n.toUpperCase(), w - 60), 0, y, f, { a: 0.85, gr: 9 }); t9(g, `${ist}/${soll}`, w, y, f, { a: 1, aus: 'right', schrift: MONO, sp: 0, farbe: ist <= 2 ? f.akzent : f.haupt })
+      l1(g, f, 0.25); g.strokeRect(px(0), px(y + 3), w - 1, 5); g.fillStyle = css(ist <= 2 ? f.akzent : f.haupt, 0.85); g.fillRect(1, y + 4, (w - 3) * Math.max(0, Math.min(1, soll > 0 ? ist / soll : 0)) * a, 3)
     })
   },
   // Verkäufe gestern: große, dünne Zahl + Kanäle

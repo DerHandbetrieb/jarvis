@@ -267,6 +267,8 @@ if (!app.requestSingleInstanceLock()) {
     // höchstens 2 Minuten alt, sonst frisch (Morgen-Lage, Anzeigen); „Jetzt aktualisieren“ holt immer frisch
     ipcMain.handle('werkstatt-lage', async (e, erzwingen) => (vonFenster(e) ? werkstatt.aktuelleLage(erzwingen ? 0 : 120_000) : null))
 
+    // Start-Sequenz holt die Werkstatt-Lage für ihre Anzeigen (nur das Sequenzfenster; höchstens 1 Stunde alt, sonst frisch)
+    ipcMain.handle('sequenz-lage', async (e) => (sequenzFenster && !sequenzFenster.isDestroyed() && e.sender === sequenzFenster.webContents ? werkstatt.aktuelleLage(60 * 60_000) : null))
     // Start-Sequenz: nur das Hauptfenster darf sie starten und ihr Lokis Spruch schicken; Meldungen der Sequenz gehen ans Hauptfenster
     ipcMain.handle('sequenz-starten', (e, lautstaerke) => (vonFenster(e) ? sequenzStarten(lautstaerke) : false))
     ipcMain.on('sequenz-gruss', (e, d) => {

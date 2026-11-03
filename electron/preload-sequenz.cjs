@@ -7,4 +7,6 @@ contextBridge.exposeInMainWorld('jarvisSequenz', {
   beiGruss: (fn) => { ipcRenderer.on('sequenz-gruss', (_e, d) => { if (d?.samples instanceof Float32Array) fn(d.samples, Number(d.sampleRate) || 24000) }) },
   beiKeinGruss: (fn) => { ipcRenderer.on('sequenz-kein-gruss', () => fn()) },
   melde: (art) => ipcRenderer.send('sequenz-meldung', String(art)),
+  /** Werkstatt-Lage für die Anzeigen (nur Zahlen und Titel, keine Anmeldedaten) – null ohne Verbindung */
+  lage: () => ipcRenderer.invoke('sequenz-lage'),
 })
