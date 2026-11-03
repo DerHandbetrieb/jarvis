@@ -50,7 +50,11 @@ Der Auftraggeber kann **nicht programmieren**. Du erledigst die gesamte Entwickl
   - Der Auftraggeber findet die Stimme **zu statisch, nicht flüssig**. Von A–D (Thorsten high mit verschiedenen Reglern) gefiel **A (heute: Tempo 0,88, Grundwerte) am besten**, überzeugt aber noch nicht ganz → bleibt vorerst.
   - **Britischer Akzent über britische Piper-Stimmen mit deutscher Lautschrift (E–G) = „schrecklich, geht gar nicht“** – nicht wieder vorschlagen.
   - Thorsten mit Gefühlslagen (J–L, CC0) war verständlich, wurde aber nicht gewählt.
-  - Nächster Schritt: bessere Sprachausgabe-Technik testen – Recherche mit Quellen in `recherche/stimmen-2026-11-03.md` (Kandidaten Chatterbox Multilingual, Qwen3-TTS, Thorsten-Kokoro; braucht Python mit CUDA). Ein Akzent könnte mit Qwen3-TTS natürlich entstehen (Stimmen keine deutschen Muttersprachler) – erst anhören.
+  - Runde 2 (bessere Technik, Recherche mit Quellen in `recherche/stimmen-2026-11-03.md`): Chatterbox mit Thorsten (M1, M2), Chatterbox mit britischem Sprecher (N1), Qwen3-TTS VoiceDesign mit Akzent (Q1) bzw. ohne (Q2). **Entscheidung Auftraggeber: Q1 („ist geil“)** – Qwen3-TTS (Apache-2.0), Stimme per Beschreibung: „A mature British butler with a deep, calm, warm baritone voice. He speaks fluent German with a slight, elegant British accent. Dry, understated, subtly sarcastic delivery, measured pace, natural pauses.“ (`vorschau/hoerproben/python/qwen_proben.py`). Das ist die **neue Zielstimme**; Piper A bleibt, bis Q1 eingebaut ist.
+  - Damit Loki immer gleich klingt (VoiceDesign erzeugt bei jedem Aufruf eine etwas andere Stimme): offizieller Weg „Voice Design then Clone“ – `Q1-frage.wav` ist die Stimmvorlage, das Grundmodell spricht damit jeden Text (`qwen_klon.py`, Proben R1 = 1.7B-Base, R2 = 0.6B-Base). Ob R1/R2 für den Auftraggeber wie Q1 klingen, ist noch nicht bestätigt. **Die Vorlage `Q1-frage.wav` nicht verlieren** (ist nicht in Git – bei Bedarf sichern, z. B. als eigene Datei außerhalb von `*.wav`-Ausschluss nach Rückfrage).
+  - **Problem Tempo:** Qwen braucht heute etwa 1,6-mal so lange wie der Ton dauert (z. B. 39 s für 24 s Morgen-Lage, gleich bei 1.7B und 0.6B; ohne FlashAttention, Rechenweise „sdpa“). Für einen Sprachassistenten zu langsam → vor dem Einbau beschleunigen: Ausgabe in Stücken (Streaming, laut Anleitung ab 97 ms), Satz für Satz vorausrechnen, FlashAttention 2 unter Windows, vLLM-Omni (laut Anleitung nur offline), ggf. Chatterbox (M1, schneller als Echtzeit) als Rückfallstufe.
+  - Thorsten-Kokoro nicht getestet: braucht Pakete aus dem GitHub-Konto einer Privatperson („semidark“), die Installation wurde vom Sicherheitsfilter gestoppt → nur nach ausdrücklicher Freigabe des Auftraggebers.
+  - Chatterbox braucht `setuptools<81` (sonst fehlt `pkg_resources` für das Wasserzeichen-Modul); das PyPI-Paket 0.1.7 kennt nur Multilingual V2, nicht V3.
 
 ## 3. Technik
 
@@ -99,7 +103,7 @@ Der Auftraggeber kann **nicht programmieren**. Du erledigst die gesamte Entwickl
 4. ✅ (03.11.2026) Umzug in dieses eigene Projekt, Grundgerüst
 5. ✅ (03.11.2026) Rufname Loki umgesetzt (Erkennung, Texte) – Test mit der echten Stimme des Auftraggebers steht noch aus
 6. offen: Empfindlichkeit des Mikrofons einstellbar machen (Werkstatt-Lärm)
-7. Stimme und Charakter: Charakter ✅ (bissiger); Stimme offen – bessere Technik per Hörtest (siehe 2)
+7. Stimme und Charakter: Charakter ✅ (bissiger); Stimme gewählt: Qwen3-TTS Q1 (siehe 2) – offen: feste Stimme bestätigen (R1/R2), beschleunigen, als lokalen Dienst ins Programm einbauen
 8. offen: Werkstatt-Anbindung (Plan, siehe 6)
 9. offen: Ollama einrichten
 10. offen: Aktionen per Sprache, **immer mit Bestätigung**, erst klein (Karte anlegen/erledigen, Produziert buchen, Seite öffnen; nie Shop-Texte/Preise)
