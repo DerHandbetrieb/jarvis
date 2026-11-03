@@ -42,7 +42,7 @@ Der Auftraggeber kann **nicht programmieren**. Du erledigst die gesamte Entwickl
 - **Stimme:** Piper **Thorsten high**, Tempo **0,88** (Hörprobe „A“ in der Werkstatt-App, `vorschau/stimmen/hoerproben.html`).
 - **Englische Wörter sauber aussprechen** („Sir“ → „Sörr“, nicht „sier“) über die Aussprache-Liste `src/jarvis/aussprache.ts`; eigene Einträge in den Einstellungen.
 - **Keine Kopie der echten Jarvis-Synchronstimme** (LG Berlin II, 20.08.2025, Az. 2 O 202/24: KI-Klon der Stimme eines Synchronsprechers verletzt sein Persönlichkeitsrecht). Der Stil entsteht nur über Wortwahl und Tempo.
-- **Codewörter:** „Guten Morgen, Jarvis“ = Morgen-Lage, „Hey Jarvis, …“ = Befehle/Fragen. **Name ist noch offen** (siehe 7). Die Morgen-Lage startet, wenn der Auftraggeber nach dem Start „Guten Morgen, Jarvis“ sagt; nur am PC, mit **sichtbarer Mikrofon-Anzeige und Stumm-Schalter** (gebaut: Ring + Knopf „Mikrofon aus“) und **einstellbarer Empfindlichkeit wegen Werkstatt-Lärm** (noch nicht gebaut – die Schwelle der Sprechpausen-Erkennung steht fest auf 0,5 in `electron/jarvis.cjs`).
+- **Codewörter:** „Guten Morgen, Jarvis“ = Morgen-Lage, „Hey Jarvis, …“ = Befehle/Fragen. **Rufname wird „Loki“** (siehe 7), umgesetzt ist noch „Jarvis“. Die Morgen-Lage startet, wenn der Auftraggeber nach dem Start „Guten Morgen, Jarvis“ sagt; nur am PC, mit **sichtbarer Mikrofon-Anzeige und Stumm-Schalter** (gebaut: Ring + Knopf „Mikrofon aus“) und **einstellbarer Empfindlichkeit wegen Werkstatt-Lärm** (noch nicht gebaut – die Schwelle der Sprechpausen-Erkennung steht fest auf 0,5 in `electron/jarvis.cjs`).
 - **Morgen-Lage, Inhalt (etwa eine Minute):** Aufgaben und Neues seit gestern, Probleme in den Shops und nächtlicher Selbsttest, knappe Artikel und Verkäufe von gestern, Wetter und offene Freigaben. Feste Regeln ohne Sprachmodell (darum nichts erfunden); Inhalte als erweiterbare, abschaltbare Bausteine.
 - **Aktionen per Sprache** erst klein und immer mit Bestätigung; Antworten nur aus App-Daten.
 - **Wunsch Auftraggeber 03.11.2026 (offen, eigene Etappe „Stimme und Charakter“):**
@@ -95,7 +95,7 @@ Der Auftraggeber kann **nicht programmieren**. Du erledigst die gesamte Entwickl
 2. ✅ Mikrofon + Whisper + Fragen an Ollama (Ollama beim Auftraggeber noch nicht eingerichtet)
 3. ✅ Codewort
 4. ✅ (03.11.2026) Umzug in dieses eigene Projekt, Grundgerüst
-5. offen: **Name klären** (siehe 7) – mit Hörproben und echter Stimme testen (der Test mit der echten Stimme nach der Anpassung für „Tchaovis“/„Chavez“ steht noch aus)
+5. offen: **Rufname Loki umsetzen** (entschieden, siehe 7) – Varianten mit Hörproben und echter Stimme sammeln
 6. offen: Empfindlichkeit des Mikrofons einstellbar machen (Werkstatt-Lärm)
 7. offen: Stimme und Charakter (flüssiger, leichter britischer Akzent, durchgehend britisch-sarkastisch, siehe 2) – gut zusammen mit den Hörproben zum Namen
 8. offen: Werkstatt-Anbindung (Plan, siehe 6)
@@ -112,12 +112,12 @@ Jarvis liest später Aufgaben, Lager, Verkäufe, Amazon-Probleme und offene Frei
 - welche Tabellen/Abfragen nötig sind (Vorlage: `src/jarvis/daten.ts` in der Werkstatt-App) und ob die Zugriffsregeln (RLS) dafür reichen
 - Schutzregel (CSP) dann um `https://ueadwnyaixbvfymtutbk.supabase.co` erweitern
 
-## 7. Offene Entscheidung: der Name
+## 7. Der Name: Rufname LOKI (Entscheidung Auftraggeber 03.11.2026)
 
-Whisper versteht „Jarvis“ schlecht (gehört u. a. „Tchaovis“, „Chavez“, „Chavis“, „Javi“, „Highjavis“; Selbsttest 03.11.2026 mit Thorsten-Stimme: „Alt+Jawis“). Vorschläge mit Abkürzung:
-- **ALFRED** – Assistent für Lager, Fertigung, Recherche, E-Commerce und Daten (Empfehlung)
-- ODIN, LOKI, HUGIN
-Mehrere Rufnamen gleichzeitig erlauben. Vor der Entscheidung Hörproben machen und mit der echten Stimme des Auftraggebers testen.
+- **Rufname wird „Loki“** – kurz, leicht zu sprechen, sollte von Whisper gut verstanden werden. Codewörter dann „Guten Morgen, Loki“ und „Hey Loki, …“.
+- **Projekt- und Arbeitstitel bleibt „Jarvis“** – als kleines Andenken (Ordner, Repository, Programmname, Code bleiben so).
+- Grund für den Wechsel: Whisper verstand „Jarvis“ schlecht (gehört u. a. „Tchaovis“, „Chavez“, „Chavis“, „Javi“, „Highjavis“; Selbsttest 03.11.2026 mit der Thorsten-Stimme: „Alt+Jawis“). Verworfen: ALFRED, ODIN, HUGIN.
+- **Noch umzusetzen (später, eigene Etappe):** Namenserkennung in `src/jarvis/befehle.ts` auf Loki umstellen, mit Schreibvarianten, wie Whisper sie liefert (erst mit echten Hörproben und der echten Stimme des Auftraggebers sammeln, nicht raten); mehrere Rufnamen gleichzeitig erlauben (Jarvis zunächst als zweiten Rufnamen behalten?, beim Umsetzen fragen); Aussprache von „Loki“ prüfen; Texte (Sprüche, Hinweise, Anweisung an das Sprachmodell) anpassen. Eine Abkürzung für LOKI ist noch nicht festgelegt.
 
 ## 8. Ideen für später (alle vor dem Bau mit offiziellen Quellen prüfen)
 
