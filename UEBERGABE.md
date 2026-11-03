@@ -6,7 +6,7 @@ Diese Datei fasst den Stand der ersten Sitzung zusammen. Sie wurde aus der Werks
 
 ## Stand in einem Satz
 
-Jarvis ist ein eigenes Windows-Programm (Electron) mit dem aus der Werkstatt-App übernommenen Sprachassistenten. Er heißt jetzt **Loki** und hat einen bissigeren Charakter. Die neue Zielstimme (Qwen3-TTS „Q1“) ist gewählt, aber noch **nicht eingebaut** – im Programm spricht noch Piper Thorsten (Probe A).
+Jarvis ist ein eigenes Windows-Programm (Electron) mit dem aus der Werkstatt-App übernommenen Sprachassistenten. Er heißt jetzt **Loki** und hat einen bissigeren Charakter. Die neue Stimme ist **festgelegt (Probe R2)**, aber noch **nicht eingebaut** – im Programm spricht noch Piper Thorsten (Probe A).
 
 ## Getroffene Entscheidungen (Auftraggeber, 03.11.2026)
 
@@ -16,7 +16,8 @@ Jarvis ist ein eigenes Windows-Programm (Electron) mit dem aus der Werkstatt-App
 - **Stimme:**
   - Heute im Programm: Piper Thorsten high, Tempo 0,88 (Probe A) – bleibt vorerst.
   - Piper-Regler (B–D) brachten keine Verbesserung; **britische Piper-Stimmen mit deutscher Lautschrift (E–G) „schrecklich“ – nicht wieder vorschlagen.**
-  - **Neue Zielstimme: Q1** = Qwen3-TTS VoiceDesign (Apache-2.0), „britischer Butler, spricht Deutsch mit leichtem britischen Akzent“. Wortlaut der Beschreibung in `CLAUDE.md` (Abschnitt 2) und `vorschau/hoerproben/python/qwen_proben.py`.
+  - Gewählt wurde zuerst **Q1** = Qwen3-TTS VoiceDesign (Apache-2.0), „britischer Butler, spricht Deutsch mit leichtem britischen Akzent“.
+  - **Endgültig: R2 („genial, so bleibt es“)** = Q1 als feste Vorlage, gesprochen vom kleinen Grundmodell Qwen3-TTS-12Hz-0.6B-Base. Vorlage und alle Angaben: `stimme/loki-vorlage.wav`, `stimme/LIESMICH.md` (in Git).
 
 ## Gebaut und getestet
 
@@ -28,7 +29,7 @@ Jarvis ist ein eigenes Windows-Programm (Electron) mit dem aus der Werkstatt-App
 
 ## Offen – in dieser Reihenfolge vorgeschlagen
 
-1. **Feste Loki-Stimme bestätigen:** Klingen R1 (1.7B-Base) bzw. R2 (0.6B-Base) für den Auftraggeber wie Q1? (VoiceDesign klingt bei jedem Aufruf etwas anders; darum „Voice Design then Clone“ mit `Q1-frage.wav` als Vorlage.) Die Vorlage `vorschau/hoerproben/Q1-frage.wav` ist nicht in Git → vor allem anderen sichern (mit Rückfrage, wo).
+1. ✅ Feste Loki-Stimme bestätigt: R2 (0.6B-Base + `stimme/loki-vorlage.wav`).
 2. **Qwen beschleunigen:** heute ca. 1,6-mal langsamer als Echtzeit (39 s für 24 s Ton). Ideen mit Quellen prüfen: Streaming-Ausgabe, Satz für Satz vorausrechnen, FlashAttention 2 unter Windows, vLLM-Omni; Rückfallstufe Chatterbox M1 (schneller als Echtzeit).
 3. **Q1 ins Programm einbauen:** kleiner lokaler Python-Dienst (z. B. nur auf 127.0.0.1), den `electron/jarvis.cjs` statt Piper aufruft; Piper als Rückfall, wenn der Dienst fehlt. Vorher Plan zeigen.
 4. **Loki mit der echten Stimme des Auftraggebers testen** (bisher nur mit der Computerstimme).

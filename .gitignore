@@ -24,3 +24,6 @@ Thumbs.db
 # Python-Zwischendateien
 __pycache__/
 *.pyc
+
+# Ausnahme: die feste Stimmvorlage von Loki (Entscheidung 03.11.2026) gehört ins Repository
+!stimme/loki-vorlage.wav
