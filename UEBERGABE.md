@@ -14,7 +14,7 @@ Jarvis ist ein eigenes Windows-Programm (Electron) mit dem aus der Werkstatt-App
 - **Rufname „Loki“**, Arbeitstitel/Programmname bleibt „Jarvis“ (Andenken). „Jarvis“ wird als zweiter Rufname weiter erkannt. Grund: Whisper verstand „Jarvis“ schlecht („Tchaovis“, „Chavez“, „Hayawis“), „Loki“ fast immer richtig.
 - **Persönlichkeit:** britischer Butler, Anrede „Sir“, „noch bissiger“: in jeder Antwort ein kleiner Seitenhieb, dem Auftraggeber gegenüber gespielt kritisch und anzweifelnd, nie beleidigend; Fakten immer zuerst. Hund Emma (Labrador) darf in Sprüchen vorkommen. Keine Kopie der echten Jarvis-Synchronstimme (Persönlichkeitsrecht).
 - **Stimme:**
-  - Heute im Programm: Piper Thorsten high, Tempo 0,88 (Probe A) – bleibt vorerst.
+  - Im Programm seit 03.11.2026: Lokis Stimme (Probe S); Piper Thorsten high (Probe A) nur noch als Ersatz.
   - Piper-Regler (B–D) brachten keine Verbesserung; **britische Piper-Stimmen mit deutscher Lautschrift (E–G) „schrecklich“ – nicht wieder vorschlagen.**
   - Gewählt wurde zuerst **Q1** = Qwen3-TTS VoiceDesign (Apache-2.0), „britischer Butler, spricht Deutsch mit leichtem britischen Akzent“.
   - **Endgültig: R2 („genial, so bleibt es“)** = Q1 als feste Vorlage, gesprochen vom kleinen Grundmodell Qwen3-TTS-12Hz-0.6B-Base. Vorlage und alle Angaben: `stimme/loki-vorlage.wav`, `stimme/LIESMICH.md` (in Git).
@@ -31,7 +31,7 @@ Jarvis ist ein eigenes Windows-Programm (Electron) mit dem aus der Werkstatt-App
 
 1. ✅ Feste Loki-Stimme bestätigt: R2 (0.6B-Base + `stimme/loki-vorlage.wav`).
 2. ✅ **Qwen beschleunigt (03.11.2026):** faster-qwen3-tts (MIT), 3,7-mal schneller als Echtzeit, erster Ton nach 0,3 s – Probe S, Einzelheiten in `CLAUDE.md` Abschnitt 2. Auftraggeber: „klingt gleich“ wie R2.
-3. **Q1 ins Programm einbauen:** kleiner lokaler Python-Dienst (z. B. nur auf 127.0.0.1), den `electron/jarvis.cjs` statt Piper aufruft; Piper als Rückfall, wenn der Dienst fehlt. Vorher Plan zeigen.
+3. ✅ **Lokis Stimme eingebaut (03.11.2026):** Hintergrund-Programm ohne Netzwerk-Anschluss, Piper als Ersatz, Einstellung „Stimme“ – Einzelheiten in `CLAUDE.md` Abschnitt 3. Offen: Test durch den Auftraggeber.
 4. **Loki mit der echten Stimme des Auftraggebers testen** (bisher nur mit der Computerstimme).
 5. Empfindlichkeit des Mikrofons einstellbar (Werkstatt-Lärm), Länge der Morgen-Lage prüfen (bis zu acht Witzsätze).
 6. Danach laut `CLAUDE.md`: Werkstatt-Anbindung über Supabase (nur planen, eigene Anmeldung mit Zwei-Faktor), Ollama einrichten, Aktionen mit Bestätigung, Gestaltung (vier Entwürfe), Start-Sequenz, Wallpaper Engine, Alexa, Kameras.
@@ -43,7 +43,7 @@ Jarvis ist ein eigenes Windows-Programm (Electron) mit dem aus der Werkstatt-App
 | Projekt | `C:\Projekte-Claude\Jarvis` |
 | Hörproben-Seite und Skripte | `vorschau/hoerproben/` (Node: `erzeugen.cjs`, `akzent.cjs`, `loki-test.cjs`, `lautschrift.cjs`; Python: `python/*.py`) |
 | Stimmen-Recherche mit Quellen | `recherche/stimmen-2026-11-03.md` |
-| Python-Umgebungen (nicht in Git) | `modelle/tts/chatterbox` (Python 3.11, torch 2.6 cu124), `modelle/tts/qwen` (Python 3.12, torch 2.11 cu128) – angelegt mit `uv` |
+| Python-Umgebungen (nicht in Git) | `modelle/tts/chatterbox` (Python 3.11, torch 2.6 cu124), `modelle/tts/qwen` (Python 3.12, torch 2.11 cu128), `modelle/tts/faster` (Lokis Stimme, wie `stimme/anforderungen.txt`) – angelegt mit `uv` |
 | Teststimmen Piper (nicht in Git) | `modelle/vits-piper-*` |
 | Heruntergeladene KI-Modelle | `C:\Users\PerfectGreen\.cache\huggingface` (ca. 14 GB) |
 | Sprachmodelle des Programms | `%APPDATA%\Jarvis\jarvis` (lädt beim ersten Einschalten, ~760 MB); die Werkstatt-Fassung liegt in `%APPDATA%\Werkstatt\jarvis` (für Tests nur lesend genutzt) |

@@ -1,5 +1,5 @@
 // Brücke zwischen Windows-Programm und Oberfläche (aus der Werkstatt-App übernommen, 03.11.2026).
-// Gibt nur die Versionsnummer und die Jarvis-Funktionen weiter (Stimme, Zuhören, Fragen), sonst nichts.
+// Gibt nur die Versionsnummer und die Jarvis-Funktionen weiter (Stimme, Zuhören, Fragen, Lokis Stimme ein/aus), sonst nichts.
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('jarvisDesktop', {
@@ -7,7 +7,8 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
   jarvis: {
     status: () => ipcRenderer.invoke('jarvis-status'),
     vorbereiten: () => ipcRenderer.invoke('jarvis-vorbereiten'),
-    sprechen: (text, tempo) => ipcRenderer.invoke('jarvis-sprechen', String(text), Number(tempo)),
+    sprechen: (a) => ipcRenderer.invoke('jarvis-sprechen', { text: String(a?.text ?? ''), piperText: String(a?.piperText ?? ''), tempo: Number(a?.tempo), stimme: a?.stimme === 'loki' ? 'loki' : 'piper' }),
+    stimme: (an) => ipcRenderer.invoke('jarvis-stimme', !!an),
     zuhoeren: (an) => ipcRenderer.invoke('jarvis-zuhoeren', !!an),
     frage: (modell, nachrichten) => ipcRenderer.invoke('jarvis-frage', { modell: String(modell), nachrichten }),
     ton: (stueck) => { if (stueck instanceof Float32Array) ipcRenderer.send('jarvis-ton', stueck) },

@@ -4,12 +4,15 @@
 // - Stimme: Piper „Thorsten high“ (Stimme CC0, Programm GPL-3.0 bzw. sherpa-onnx Apache-2.0)
 // - Sprechpausen-Erkennung: Silero VAD (MIT)
 // - Spracherkennung: Whisper small, int8 (MIT)
+// Lokis eigentliche Stimme (Qwen3-TTS, Probe S) läuft als eigenes Python-Programm (loki.cjs); Piper springt ein, solange
+// sie lädt, fehlt oder abstürzt – Loki bleibt nie stumm.
 // Die Oberfläche schickt Mikrofon-Ton (16 kHz) über die Brücke; erkannte Sätze gehen als Text zurück.
 // Die Oberfläche bekommt nur: Status, Laden, Sprechen, Ton senden, Text-Ereignisse – keinen Datei- oder Programmzugriff.
 const { app, ipcMain, net } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const { spawn } = require('node:child_process')
+const { erstelleLoki } = require('./loki.cjs')
 
 const QUELLE = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/'
 const MODELLE = {
@@ -26,6 +29,24 @@ let vad = null
 let laedt = null // laufendes Laden (Promise), damit doppelte Klicks nicht doppelt laden
 let fenster = null
 let zuhoeren = false
+
+// Lokis Stimme: Python-Umgebung zuerst aus stimme/einrichten.ps1 (%APPDATA%\Jarvis\loki-python), beim Entwickeln auch
+// die Test-Umgebung im Projekt (modelle/tts/faster); das Skript liegt im Programm (extraResources) bzw. im Projekt.
+const projekt = path.join(__dirname, '..')
+const loki = erstelleLoki({
+  python: () => [
+    path.join(app.getPath('userData'), 'loki-python', 'Scripts', 'python.exe'),
+    ...(app.isPackaged ? [] : [path.join(projekt, 'modelle', 'tts', 'faster', 'Scripts', 'python.exe')]),
+  ].find((p) => fs.existsSync(p)) ?? null,
+  skript: app.isPackaged ? path.join(process.resourcesPath, 'stimme', 'loki_stimme.py') : path.join(projekt, 'stimme', 'loki_stimme.py'),
+  starten: spawn,
+  // python.exe der uv-Umgebung ist nur ein Starter für das eigentliche Python – ganzen Prozessbaum beenden, sonst bleibt
+  // der Grafikspeicher belegt (Prüf-Agent 03.11.2026)
+  // nur solange das Programm noch läuft – eine frei gewordene Prozessnummer könnte Windows sonst neu vergeben haben
+  toeten: (p) => { if (p.exitCode !== null || p.signalCode !== null) return; if (p.pid) spawn(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'taskkill.exe'), ['/T', '/F', '/PID', String(p.pid)], { windowsHide: true }).on('error', () => p.kill()); else p.kill() },
+  log: (...a) => console.log(...a),
+})
+app.on('will-quit', () => loki.beenden())
 
 function sherpaLaden() {
   if (!sherpa) sherpa = require('sherpa-onnx-node')
@@ -44,6 +65,7 @@ function status() {
     bereit: !!tts && !!erkenner && !!vad,
     zuhoeren,
     groesseMb: Object.values(MODELLE).reduce((s, m) => s + m.mb, 0),
+    loki: loki.status(),
   }
 }
 
@@ -168,12 +190,27 @@ function einrichten(hauptfenster, erlaubt) {
     await laedt
     return status()
   })
-  ipcMain.handle('jarvis-sprechen', async (e, text, tempo) => {
+  // Satz sprechen: mit Lokis Stimme, wenn gewünscht und bereit – sonst (oder bei einem Fehler) mit Piper.
+  // text = Originalsatz (Loki spricht englische Wörter selbst), piperText = mit Aussprache-Liste („Sir“ → „Sörr“) für Piper
+  ipcMain.handle('jarvis-sprechen', async (e, auftrag) => {
     if (!von(e) || !tts) return null
-    const t = String(text ?? '').slice(0, 2000)
-    const speed = Math.min(1.5, Math.max(0.6, Number(tempo) || 0.88))
-    const a = await tts.generateAsync({ text: t, sid: 0, speed, enableExternalBuffer: false })
-    return { samples: a.samples, sampleRate: a.sampleRate }
+    const text = String(auftrag?.text ?? '').slice(0, 2000)
+    if (auftrag?.stimme === 'loki' && loki.status().zustand === 'bereit') {
+      try {
+        return { ...(await loki.sprechen(text)), stimme: 'loki' }
+      } catch (f) {
+        console.error('Loki-Stimme, Piper springt ein:', f.message)
+      }
+    }
+    const speed = Math.min(1.5, Math.max(0.6, Number(auftrag?.tempo) || 0.88))
+    const a = await tts.generateAsync({ text: String(auftrag?.piperText || text).slice(0, 2000), sid: 0, speed, enableExternalBuffer: false })
+    return { samples: a.samples, sampleRate: a.sampleRate, stimme: 'piper' }
+  })
+  // Lokis Stimme ein (lädt im Hintergrund, ca. 12 s, 3,4 GB Grafikspeicher) oder aus (gibt den Speicher frei)
+  ipcMain.handle('jarvis-stimme', (e, an) => {
+    if (!von(e)) return null
+    if (an) loki.starten(); else loki.beenden()
+    return status()
   })
   ipcMain.on('jarvis-ton', (e, stueck) => {
     if (!von(e) || !(stueck instanceof Float32Array)) return
@@ -214,6 +251,7 @@ module.exports = {
   _test: {
     vorbereiten, status,
     sprechen: async (text) => tts.generateAsync({ text, sid: 0, speed: 0.88, enableExternalBuffer: false }),
+    loki,
     erkennen: async (samples, rate) => { const st = erkenner.createStream(); const mit = new Float32Array(samples.length + rate / 2); mit.set(samples); st.acceptWaveform({ samples: mit, sampleRate: rate }); return (await erkenner.decodeAsync(st)).text },
   },
 }

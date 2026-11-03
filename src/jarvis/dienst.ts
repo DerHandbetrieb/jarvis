@@ -1,8 +1,8 @@
 // Jarvis – Ablauf (03.11.2026): Mikrofon → Windows-Programm (Sprechpausen + Whisper, lokal) → erkannter Satz →
-// Codewort/Befehl → Antwort als Sätze → Stimme (Piper, lokal) → Lautsprecher. Ein einziger Dienst für die ganze App,
+// Codewort/Befehl → Antwort als Sätze → Stimme (Loki = Qwen3-TTS bzw. Piper als Ersatz, beides lokal) → Lautsprecher. Ein einziger Dienst für die ganze App,
 // die Anzeige liest seinen Zustand über useJarvis(). Während Jarvis spricht, hört er nicht zu (sonst hört er sich selbst).
 import { useSyncExternalStore } from 'react'
-import { bruecke, jarvisEinstellungen, setzeJarvis } from './desktop'
+import { bruecke, jarvisEinstellungen, setzeJarvis, type Stimme } from './desktop'
 import { befehl, codewort, type Befehl } from './befehle'
 import { morgenLage, tagNummer, type BausteinSchluessel } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
@@ -89,7 +89,8 @@ export function stopp() {
 export async function sprechen(saetze: string[]): Promise<boolean> {
   const b = bruecke()
   // nie zwei Ansagen übereinander (Prüf-Agent)
-  if (!b || !saetze.length || lage.zustand === 'spricht') return false
+  // und nichts mehr sagen, wenn inzwischen ausgeschaltet wurde (z. B. Antwort von Ollama kommt erst danach – Prüf-Agent)
+  if (!b || !saetze.length || lage.zustand === 'spricht' || lage.zustand === 'aus' || lage.zustand === 'fehler') return false
   const e = jarvisEinstellungen()
   const eigene = leseEigene(e.aussprache)
   abbrechen = false
@@ -97,10 +98,12 @@ export async function sprechen(saetze: string[]): Promise<boolean> {
   await b.zuhoeren(false)
   try {
     wiedergabe = wiedergabe ?? new AudioContext()
-    let naechster = b.sprechen(fuerStimme(saetze[0], eigene), e.tempo)
+    // Loki bekommt den Originalsatz, Piper (Ersatz) die Fassung mit Aussprache-Liste
+    const erzeugen = (satz: string) => b.sprechen({ text: satz, piperText: fuerStimme(satz, eigene), tempo: e.tempo, stimme: e.stimme })
+    let naechster = erzeugen(saetze[0])
     for (let i = 0; i < saetze.length && !abbrechen; i++) {
       const a = await naechster
-      if (i + 1 < saetze.length) naechster = b.sprechen(fuerStimme(saetze[i + 1], eigene), e.tempo)
+      if (i + 1 < saetze.length) naechster = erzeugen(saetze[i + 1])
       if (!a || abbrechen) break
       const puffer = wiedergabe.createBuffer(1, a.samples.length, a.sampleRate)
       puffer.copyToChannel(new Float32Array(a.samples), 0)
@@ -112,7 +115,8 @@ export async function sprechen(saetze: string[]): Promise<boolean> {
     }
   } finally {
     laeuft = null
-    setze({ zustand: 'bereit' })
+    // nur zurück auf „bereit“, wenn nicht inzwischen ausgeschaltet wurde
+    if ((lage.zustand as Zustand) === 'spricht') setze({ zustand: 'bereit' })
     // kurze Pause, damit der Nachhall nicht als Sprache erkannt wird
     await new Promise((w) => setTimeout(w, 400))
     if (lage.mikrofon) await b.zuhoeren(true)
@@ -192,31 +196,52 @@ async function erkannt(text: string) {
     // nach „Hey Jarvis“ allein: der nächste Satz ist der Befehl
     if (lage.wartetBis > Date.now()) { setze({ wartetBis: 0 }); return ausfuehren(befehl(text)) }
   } catch (e) {
-    setze({ zustand: 'bereit', fehler: (e as Error).message })
+    if ((lage.zustand as Zustand) !== 'aus') setze({ zustand: 'bereit', fehler: (e as Error).message })
   }
 }
 
 // ---------- Start ----------
 let aus: (() => void)[] = []
+// Laufnummer: nur der neueste Ein-/Ausschaltvorgang darf den Zustand ändern – Aus (und gleich wieder Ein), während
+// noch geladen wird, lässt den alten Lauf sonst „bereit“ setzen und das Mikrofon öffnen (Prüf-Agent)
+let lauf = 0
 export async function einschalten() {
   const b = bruecke()
   if (!b) return
   if (lage.zustand !== 'aus' && lage.zustand !== 'fehler') return
+  const meiner = ++lauf
   setze({ zustand: 'laedt', fehler: '' })
   aus.forEach((f) => f())
   aus = [b.beiFortschritt((f) => setze({ fortschritt: f })), b.beiErkannt((d) => void erkannt(d.text))]
   try {
+    // Lokis Stimme lädt parallel im Hintergrund (ca. 12 s) – bis dahin spricht Piper
+    if (jarvisEinstellungen().stimme === 'loki') void b.stimme(true).catch(() => null)
     await b.vorbereiten()
+    if (meiner !== lauf) return // währenddessen ausgeschaltet
     setze({ zustand: 'bereit', fortschritt: null })
     await mikrofonAn()
+    // während das Mikrofon aufging ausgeschaltet → gleich wieder schließen
+    if (meiner !== lauf) await mikrofonAus()
   } catch (e) {
+    if (meiner !== lauf) return
     setze({ zustand: 'fehler', fortschritt: null, fehler: (e as Error).message })
+    await b.stimme(false).catch(() => null) // Jarvis läuft nicht – Grafikspeicher freigeben (Prüf-Agent)
   }
 }
 
 export async function ausschalten() {
+  const meiner = ++lauf
+  setze({ zustand: 'aus', fortschritt: null })
+  // Zuhörer sofort abmelden (vor dem ersten Warten) – ein gleich folgendes Einschalten meldet eigene an (Prüf-Agent)
+  aus.forEach((f) => f()); aus = []
   stopp()
   await mikrofonAus()
-  aus.forEach((f) => f()); aus = []
-  setze({ zustand: 'aus' })
+  // gibt den Grafikspeicher frei – aber nicht, wenn inzwischen schon wieder eingeschaltet wurde
+  if (meiner === lauf) await bruecke()?.stimme(false)
+}
+
+/** Stimme wählen: Loki gleich laden bzw. beenden, wenn Jarvis gerade an ist */
+export async function stimmeWaehlen(stimme: Stimme) {
+  setzeJarvis({ stimme })
+  if (lage.zustand !== 'aus' && lage.zustand !== 'fehler') await bruecke()?.stimme(stimme === 'loki')
 }

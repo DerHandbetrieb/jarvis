@@ -26,6 +26,7 @@
     "files": [
       "electron/**",
       "!electron/jarvis-test.cjs",
+      "!electron/*.test.js",
       "dist/**"
     ],
     "win": {
@@ -40,6 +41,19 @@
     "asarUnpack": [
       "node_modules/sherpa-onnx-node/**",
       "node_modules/sherpa-onnx-win-x64/**"
+    ],
+    "extraResources": [
+      {
+        "from": "stimme",
+        "to": "stimme",
+        "filter": [
+          "loki_stimme.py",
+          "loki-vorlage.wav",
+          "LIESMICH.md",
+          "einrichten.ps1",
+          "anforderungen.txt"
+        ]
+      }
     ]
   },
   "devDependencies": {
