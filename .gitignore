@@ -33,3 +33,6 @@ videos/
 
 # Kenney-Download (Zip + entpackt) – CC0, ausgewählte Töne liegen versioniert in vorschau/start-sequenz/toene
 sounds/
+
+# Sonniss-Töne (Lizenz: nicht als Geräuschsammlung weitergeben) – werden mit toene-holen.cjs erzeugt
+vorschau/start-sequenz/3d/toene/
