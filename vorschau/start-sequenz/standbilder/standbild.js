@@ -332,4 +332,4 @@ export function zeichne(c, nr) {
 }
 
 // Werkzeuge für die bewegte Fassung (../bewegt/), dort werden die Teile einmal vorgezeichnet und dann nur bewegt
-export const WERKZEUG = { fb, misch, kf, txt, leuchten, ebene, band, segmente, skala, bogen, hof, glas, klein, audio, spektrum, flaeche, anzeige, kreisReihe, globus, radar, lichtstreifen, leit, chips, hinweis, hintergrund, vordergrund, RN, B, H, SCHRIFT, MONO }
+export const WERKZEUG = { schild, fb, misch, kf, txt, leuchten, ebene, band, segmente, skala, bogen, hof, glas, klein, audio, spektrum, flaeche, anzeige, kreisReihe, globus, radar, lichtstreifen, leit, chips, hinweis, hintergrund, vordergrund, RN, B, H, SCHRIFT, MONO }

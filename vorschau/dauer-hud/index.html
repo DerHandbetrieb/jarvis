@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dauer-HUD Entwürfe</title>
+<!-- Vier Entwürfe fürs Dauer-HUD (03.11.2026), siehe entwuerfe.js. Klick auf ein Bild zeigt es groß. -->
+<style>
+  :root { --bg: #05070a; --text: #d7dde3; --leise: #7f8a94; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1900px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p { color: var(--leise); margin: 0 0 14px; }
+  section { margin: 0 0 34px; }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
+  .bild { position: relative; cursor: zoom-in; }
+  .bild canvas { width: 100%; display: block; border-radius: 6px; }
+  .raster { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); pointer-events: none; }
+  .raster div { border-right: 2px solid #000; position: relative; }
+  .raster div:last-child { border-right: 0; }
+  .raster span { position: absolute; top: 4px; left: 6px; font: 600 12px "Segoe UI", sans-serif; color: #fff; background: rgba(0,0,0,0.55); padding: 0 6px; border-radius: 4px; }
+  .gross { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; overflow: auto; z-index: 5; cursor: zoom-out; }
+  .gross.an { display: block; }
+  .gross img { display: block; width: 5760px; max-width: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Dauer-HUD – vier Entwürfe</h1>
+  <p>Hintergrund über alle drei Bildschirme (L = links, M = Mitte, R = rechts), liegt hinter den Fenstern. Kamerabilder sind Platzhalter, Werkstatt-Zahlen Beispiele. Klick auf ein Bild zeigt es in voller Größe.</p>
+  <div id="liste"></div>
+</main>
+<div class="gross" id="gross"><img id="grossBild" alt=""></div>
+<script type="module">
+  import { ENTWUERFE, zeichneEntwurf } from './entwuerfe.js'
+  const liste = document.getElementById('liste'), gross = document.getElementById('gross'), grossBild = document.getElementById('grossBild')
+  ENTWUERFE.forEach((e, i) => {
+    const sec = document.createElement('section')
+    sec.innerHTML = `<h2>${'ABCD'[i]} · ${e.name}</h2><p>${e.text}</p>`
+    const box = document.createElement('div'); box.className = 'bild'
+    const c = document.createElement('canvas'); zeichneEntwurf(c, i)
+    const r = document.createElement('div'); r.className = 'raster'; r.innerHTML = ['L', 'M', 'R'].map((x) => `<div><span>${'ABCD'[i]} ${x}</span></div>`).join('')
+    box.append(c, r); sec.append(box); liste.append(sec)
+    box.onclick = () => { grossBild.src = c.toDataURL('image/jpeg', 0.92); gross.classList.add('an'); gross.scrollLeft = 1920 }
+  })
+  gross.onclick = () => gross.classList.remove('an')
+  window.dauerHud = { zeichneEntwurf, anzahl: ENTWUERFE.length }
+</script>
+</body>
+</html>

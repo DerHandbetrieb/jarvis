@@ -24,6 +24,18 @@
         "--strictPort"
       ],
       "port": 5177
+    },
+    {
+      "name": "dauer-hud",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "vorschau",
+        "--port",
+        "5178",
+        "--strictPort"
+      ],
+      "port": 5178
     }
   ]
 }
