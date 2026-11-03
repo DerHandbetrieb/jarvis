@@ -1,4 +1,4 @@
-// Lokis Start-Sequenz – Runde 4 (03.11.2026), Three.js 0.186.1 (MIT).
+// Lokis Start-Sequenz – Runde 4/5 (03.11.2026), Three.js 0.186.1 (MIT).
 // Rückmeldung zu Runde 3: Ton „Runen-Ritual“ bleibt; Anzeigen wirkten billig/80er → neuer HUD-Stil nach den
 // Vorbild-Bildern (zeichner.js); Reaktor massiver, mehr Runen, mehr Wikinger → Runen-Schild; echte Werkstatt-Inhalte
 // (vorerst Beispieldaten); kein Filmkorn, gestochen scharf, Tiefenschärfe nur für Objekte, die nah herankommen.
@@ -12,6 +12,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { RGBShiftShader } from 'three/addons/shaders/RGBShiftShader.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { ZEICHNER, RUNEN, LOKI, RUNEN_SCHRIFT, klemm, phase, weich, raus, zurueck, rauschen, zufall, css, setzeTonQuelle } from './zeichner.js'
+import { KLEIN } from './kleinteile.js'
 import { tonVorbereiten, tonStarten, tonDaten } from '../3d/ton.js'
 setzeTonQuelle(tonDaten)
 
@@ -20,12 +21,53 @@ const FOV = 30, TAFEL_TIEFE = 9, KERN_Z = -12, REAKTOR_GROESSE = 0.86
 const HAUPT = new THREE.Color('#5ff3ff'), AKZENT = new THREE.Color('#ffa640'), WEISS = new THREE.Color(1, 1, 1)
 const S = { L: 0, M: 1, R: 2 }
 
-// Aufbau je Bildschirm: [Bildschirm, Anzeige, u, v, Breite, Höhe] – u/v/Breite/Höhe als Anteil des Bildschirms
+// Runde 5: Seitenbildschirme aus vielen Kleinteilen (kleinteile.js), drei Varianten zur Wahl (?v=a|b|c).
+// Aufbau als Baum: H = nebeneinander, V = untereinander, je [Anteil, Knoten]; K = ein Baustein (Art, Nummer für Abwandlungen).
+const K = (art, nr = 0) => ({ art, nr }), H = (...k) => ({ r: 'h', k }), V = (...k) => ({ r: 'v', k })
+const VARIANTEN = {
+  a: { name: 'A · Leitstand (dichtes Raster)', L: V(
+    [0.06, K('lineal', 0)],
+    [0.36, H([0.44, K('aufgaben')], [0.28, V([0.5, K('status', 0)], [0.5, K('segmentBalken', 1)])], [0.28, V([0.5, H([0.5, K('ringMini', 0)], [0.5, K('ringMini', 1)])], [0.5, K('oszi', 0)])])],
+    [0.42, H([0.5, K('baum')], [0.25, V([1 / 3, K('mikroGraph', 0)], [1 / 3, K('mikroGraph', 1)], [1 / 3, K('mikroGraph', 2)])], [0.25, V([0.5, K('zahlen', 0)], [0.5, K('inschrift', 0)])])],
+    [0.16, H([0.3, K('strichcode', 0)], [0.4, K('punkte', 0)], [0.3, H([0.5, K('ringMini', 2)], [0.5, K('ringMini', 3)])])]),
+  R: V(
+    [0.06, K('lineal', 1)],
+    [0.34, H([0.6, K('umsatz')], [0.4, V([0.5, K('verkauf')], [0.5, K('torte')])])],
+    [0.30, H([0.5, K('shops')], [0.25, K('lager')], [0.25, K('status', 1)])],
+    [0.30, H([0.25, V([0.5, K('mikroGraph', 3)], [0.5, K('mikroGraph', 4)])], [0.25, K('segmentBalken', 0)], [0.25, K('zahlen', 1)], [0.25, V([0.5, K('oszi', 1)], [0.5, K('status', 2)])])]) },
+  b: { name: 'B · Kreise und Bögen', L: V(
+    [0.55, H([0.6, K('baum')], [0.4, V([0.5, H([1 / 3, K('ringMini', 0)], [1 / 3, K('ringMini', 1)], [1 / 3, K('ringMini', 2)])], [0.5, K('torte')])])],
+    [0.45, H([0.4, K('aufgaben')], [0.3, V([0.5, K('status', 0)], [0.5, K('oszi', 2)])], [0.3, V([0.5, H([0.5, K('ringMini', 3)], [0.5, K('ringMini', 4)])], [0.5, K('segmentBalken', 2)])])]),
+  R: V(
+    [0.40, H([0.55, K('shops')], [0.45, K('umsatz')])],
+    [0.30, H([0.3, K('verkauf')], [0.4, K('punkte', 1)], [0.3, V([0.5, H([0.5, K('ringMini', 5)], [0.5, K('ringMini', 0)])], [0.5, K('mikroGraph', 5)])])],
+    [0.30, H([0.35, K('lager')], [0.35, K('segmentBalken', 0)], [0.3, K('status', 1)])]) },
+  c: { name: 'C · Datenstrom (schmale Spalten)', L: H(
+    [0.18, V([0.12, K('strichcode', 1)], [0.44, K('zahlen', 0)], [0.44, K('inschrift', 1)])],
+    [0.46, V([0.06, K('lineal', 2)], [0.6, K('baum')], [0.34, K('aufgaben')])],
+    [0.36, V([0.2, K('mikroGraph', 0)], [0.2, K('mikroGraph', 6)], [0.2, K('oszi', 0)], [0.2, K('status', 0)], [0.2, K('mikroGraph', 7)])]),
+  R: H(
+    [0.36, V([0.3, K('umsatz')], [0.2, K('verkauf')], [0.25, K('lager')], [0.25, K('segmentBalken', 0)])],
+    [0.46, V([0.35, K('shops')], [0.35, K('punkte', 0)], [0.06, K('lineal', 3)], [0.24, K('torte')])],
+    [0.18, V([0.44, K('zahlen', 2)], [0.12, K('strichcode', 2)], [0.44, K('status', 2)])]) },
+}
+const VARIANTE = Object.hasOwn(VARIANTEN, new URLSearchParams(location.search).get('v') ?? '') ? new URLSearchParams(location.search).get('v') : 'a'
+// Baum → Liste [Bildschirm, 'k:Art', u, v, Breite, Höhe, Nummer]; x läuft links→rechts, y oben→unten
+function auslegen(bild, knoten, x = 0, y = 0, b = 1, h = 1, aus = []) {
+  if (knoten.art) { aus.push([bild, 'k:' + knoten.art, x + b / 2, 1 - (y + h / 2), b, h, knoten.nr]); return aus }
+  let pos = 0
+  for (const [anteil, kind] of knoten.k) {
+    if (knoten.r === 'h') auslegen(bild, kind, x + pos * b, y, anteil * b, h, aus)
+    else auslegen(bild, kind, x, y + pos * h, b, anteil * h, aus)
+    pos += anteil
+  }
+  return aus
+}
+// Mitte unverändert aus Runde 4: Uhr, Stimme, vier Runen-Marken um den Schild
 const TAFELN = [
-  [S.L, 'lage', 0.50, 0.84, 0.92, 0.24], [S.L, 'baum', 0.28, 0.46, 0.50, 0.46], [S.L, 'karten', 0.76, 0.46, 0.42, 0.46], [S.L, 'schaltkreis', 0.50, 0.12, 0.92, 0.2],
-  [S.R, 'umsatz', 0.50, 0.84, 0.92, 0.24], [S.R, 'verkauf', 0.27, 0.51, 0.48, 0.30], [S.R, 'shops', 0.75, 0.51, 0.44, 0.30], [S.R, 'lager', 0.27, 0.17, 0.48, 0.26], [S.R, 'system', 0.75, 0.17, 0.44, 0.26],
+  ...auslegen(S.L, VARIANTEN[VARIANTE].L), ...auslegen(S.R, VARIANTEN[VARIANTE].R),
   [S.M, 'uhr', 0.50, 0.955, 0.72, 0.075], [S.M, 'welle', 0.50, 0.05, 0.62, 0.075],
-  [S.M, 'marke', 0.13, 0.78, 0.24, 0.14], [S.M, 'marke', 0.87, 0.78, 0.24, 0.14], [S.M, 'marke', 0.13, 0.22, 0.24, 0.14], [S.M, 'marke', 0.87, 0.22, 0.24, 0.14],
+  [S.M, 'marke', 0.13, 0.78, 0.24, 0.14, 0], [S.M, 'marke', 0.87, 0.78, 0.24, 0.14, 1], [S.M, 'marke', 0.13, 0.22, 0.24, 0.14, 2], [S.M, 'marke', 0.87, 0.22, 0.24, 0.14, 3],
 ]
 
 function feld(nr, D, sv) { const h = D * Math.tan(THREE.MathUtils.degToRad(FOV / 2)), w = h * sv, b = (2 * w) / 3; return { x0: -w + nr * b, b, h } }
@@ -58,7 +100,7 @@ function bauReaktor(umgebung) {
     for (let i = 0; i < 12; i++) { g.save(); g.rotate((i / 12) * Math.PI * 2); g.fillText(String(i * 30).padStart(3, '0'), 0, -R * 0.8); g.restore() }
   })
   teile.skala = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 6.6), leucht(sk.tex, 0, HAUPT)); teile.skala.position.z = -0.2; r.add(teile.skala)
-  // äußeres Runenband (ganzes älteres Futhark, unbedenkliche Auswahl) – wird nach dem Einschlag Rune für Rune entzündet
+  // äußeres Runenband (unbedenkliche Auswahl aus dem älteren Futhark) – wird nach dem Einschlag Rune für Rune entzündet
   teile.runenAussen = { ...leinwand(1536, 1536) }; teile.runenAussen.mesh = new THREE.Mesh(new THREE.PlaneGeometry(5.8, 5.8), leucht(teile.runenAussen.tex, 0)); teile.runenAussen.mesh.position.z = 0.05; r.add(teile.runenAussen.mesh)
   // Schildrand aus Metall mit Nieten
   const metall = new THREE.MeshStandardMaterial({ color: new THREE.Color('#8fa3b4').multiplyScalar(0.5), metalness: 1, roughness: 0.32, envMap: umgebung, envMapIntensity: 0.1 })
@@ -112,12 +154,13 @@ function bauen() {
   teile = { tafeln: [], platten: [], boegen: [], schweber: [] }
   szene.add(new THREE.AmbientLight(0x1a2a3a, 0.4)); const fl = new THREE.DirectionalLight(0xbfe9ff, 0.6); fl.position.set(-3, 4, 5); szene.add(fl)
   // Anzeigen: Leinwand doppelt so groß wie auf dem echten Bildschirm (1920 px je Bildschirm) → gestochen scharf
-  TAFELN.forEach(([bild, art, u, v, bw, bh], i) => {
+  TAFELN.forEach(([bild, art, u, v, bw, bh, nr = 0], i) => {
     const verh = (bw * (16 / 3)) / (3 * bh), pw = Math.min(4096, Math.round(bw * 1920 * 2)), ph = Math.max(64, Math.round(pw / verh))
     const { c, g, tex } = leinwand(pw, ph)
     const gruppe = new THREE.Group(), flaeche = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), leucht(tex, 0)); gruppe.add(flaeche); szene.add(gruppe)
-    const start = bild === S.M ? ZEIT.VISIER + 2.2 + (i % 4) * 0.12 : ZEIT.VISIER + 0.2 + (i % 9) * 0.28
-    teile.tafeln.push({ bild, art, u, v, bw, bh, gruppe, flaeche, c, g, tex, start, nr: i, markeNr: art === 'marke' ? (i - 11) : 0 })
+    // Seitenbildschirme schalten sich als Welle von der Mitte nach außen ein
+    const start = bild === S.M ? ZEIT.VISIER + 2.2 + (i % 4) * 0.12 : ZEIT.VISIER + 0.2 + (bild === S.L ? 1 - u : u) * 2.2 + (1 - v) * 0.4
+    teile.tafeln.push({ bild, art, u, v, bw, bh, gruppe, flaeche, c, g, tex, start, nr: i, markeNr: nr, massstab: pw / (bw * 1920) })
   })
   bauReaktor(umgebung)
   // Lichtlinie zu Beginn
@@ -152,11 +195,11 @@ function bauen() {
 // Zelle = Platz der Anzeige im Bildschirm (u/v/Breite/Höhe), mit Abstand zum Rand und zu den Nachbarn. Die Anzeige wird
 // so lange in Breite und Höhe getrennt skaliert und verschoben, bis ihr projiziertes Bild genau die Zelle füllt – trotz
 // Neigung und Weitwinkel. Damit kann nichts über den Bildschirmrand oder in eine Nachbaranzeige ragen.
-const GRENZEN = [[-1, -1 / 3], [-1 / 3, 1 / 3], [1 / 3, 1]], RAND_X = 0.025, RAND_Y = 0.045, ABSTAND = 0.012
+const GRENZEN = [[-1, -1 / 3], [-1 / 3, 1 / 3], [1 / 3, 1]], RAND_X = 0.025, RAND_Y = 0.045, ABSTAND_X = 0.004, ABSTAND_Y = 0.008 // Runde 5: engere Fugen für das dichte Raster
 function zelle(ta) {
   const [a, b] = GRENZEN[ta.bild], bw = b - a
-  const x0 = Math.max(a + RAND_X, a + (ta.u - ta.bw / 2) * bw + ABSTAND), x1 = Math.min(b - RAND_X, a + (ta.u + ta.bw / 2) * bw - ABSTAND)
-  const y0 = Math.max(-1 + RAND_Y, -1 + (ta.v - ta.bh / 2) * 2 + ABSTAND * 2), y1 = Math.min(1 - RAND_Y, -1 + (ta.v + ta.bh / 2) * 2 - ABSTAND * 2)
+  const x0 = Math.max(a + RAND_X, a + (ta.u - ta.bw / 2) * bw + ABSTAND_X), x1 = Math.min(b - RAND_X, a + (ta.u + ta.bw / 2) * bw - ABSTAND_X)
+  const y0 = Math.max(-1 + RAND_Y, -1 + (ta.v - ta.bh / 2) * 2 + ABSTAND_Y), y1 = Math.min(1 - RAND_Y, -1 + (ta.v + ta.bh / 2) * 2 - ABSTAND_Y)
   return { x0, x1, y0, y1 }
 }
 function einpassen(ta, f) {
@@ -175,7 +218,8 @@ function platzieren() {
   teile.tafeln.forEach((ta) => {
     const f = feld(ta.bild, TAFEL_TIEFE, kamera.aspect), x = f.x0 + ta.u * f.b, y = -f.h + ta.v * 2 * f.h
     ta.gruppe.position.set(x, y, -TAFEL_TIEFE)
-    ta.gruppe.rotation.set(-y / TAFEL_TIEFE * 0.15, -Math.atan2(x, TAFEL_TIEFE) * 0.3, 0, 'YXZ') // leichte Visier-Neigung
+    // leichte Visier-Neigung; flache Streifen (Lineal) bleiben gerade, sonst passt ihr schräges Bild nicht in die schmale Zelle
+    ta.gruppe.rotation.set(-y / TAFEL_TIEFE * 0.15, ta.bh < 0.1 ? 0 : -Math.atan2(x, TAFEL_TIEFE) * 0.3, 0, 'YXZ')
     ta.gruppe.scale.set(ta.bw * f.b, ta.bh * 2 * f.h, 1)
     einpassen(ta, f)
   })
@@ -207,7 +251,9 @@ function bild(t) {
     if (deck > 0.01 && (dran || !ta.gezeichnet)) {
       ta.gezeichnet = true
       ta.g.setTransform(1, 0, 0, 1, 0, 0); ta.g.clearRect(0, 0, ta.c.width, ta.c.height)
-      ZEICHNER[ta.art](ta.g, ta.c, t, fb, ta.markeNr); ta.tex.needsUpdate = true
+      if (ta.art.startsWith('k:')) { const m = ta.massstab; ta.g.setTransform(m, 0, 0, m, 0, 0); KLEIN[ta.art.slice(2)](ta.g, ta.c.width / m, ta.c.height / m, t, fb, ta.markeNr) }
+      else ZEICHNER[ta.art](ta.g, ta.c, t, fb, ta.markeNr)
+      ta.tex.needsUpdate = true
     }
   })
 
@@ -290,8 +336,10 @@ document.addEventListener('fullscreenchange', () => setTimeout(groesse, 50))
 
 let start = null, laeuft = false, tonAus = null
 const knopf = document.getElementById('spielen'), info = document.getElementById('info')
-document.getElementById('wahl').remove()
-info.textContent = 'Klangwelt „Runen-Ritual“, Begrüßung wechselt bei jedem Abspielen. Werkstatt-Inhalte sind Beispieldaten.'
+// Variantenwahl (Seite wird mit ?v=… neu geladen)
+const wahl = document.getElementById('wahl')
+for (const [k, vr] of Object.entries(VARIANTEN)) { const b = document.createElement('button'); b.textContent = vr.name; b.className = k === VARIANTE ? 'an' : ''; b.onclick = () => { const p = new URLSearchParams(location.search); p.set('v', k); location.search = p.toString() }; wahl.append(b) }
+info.textContent = `Variante ${VARIANTEN[VARIANTE].name}. Klangwelt „Runen-Ritual“, Begrüßung wechselt bei jedem Abspielen. Werkstatt-Inhalte sind Beispieldaten.`
 function standbild() { bild(16); composer.render() }
 function stoppen() { laeuft = false; start = null; tonAus?.(); tonAus = null; knopf.textContent = '▶ Abspielen' }
 let grussNr = Math.floor(Math.random() * 4)
@@ -320,5 +368,5 @@ const par = new URLSearchParams(location.search)
 if (par.has('flaeche')) {
   document.body.classList.add('flaeche')
   setTimeout(() => { groesse(); knopf.click() }, 400)
-  addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { stoppen(); window.close() } else if (ev.key === ' ') { stoppen(); knopf.click() } })
+  addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { stoppen(); window.close() } else if (ev.key === ' ') { stoppen(); knopf.click() } else if (Object.hasOwn(VARIANTEN, ev.key.toLowerCase())) { par.set('v', ev.key.toLowerCase()); location.search = par.toString() } })
 }
