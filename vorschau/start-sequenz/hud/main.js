@@ -59,7 +59,7 @@ function bauReaktor(umgebung) {
   })
   teile.skala = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 6.6), leucht(sk.tex, 0, HAUPT)); teile.skala.position.z = -0.2; r.add(teile.skala)
   // äußeres Runenband (ganzes älteres Futhark, unbedenkliche Auswahl) – wird nach dem Einschlag Rune für Rune entzündet
-  teile.runenAussen = { ...leinwand(2048, 2048) }; teile.runenAussen.mesh = new THREE.Mesh(new THREE.PlaneGeometry(5.8, 5.8), leucht(teile.runenAussen.tex, 0)); teile.runenAussen.mesh.position.z = 0.05; r.add(teile.runenAussen.mesh)
+  teile.runenAussen = { ...leinwand(1536, 1536) }; teile.runenAussen.mesh = new THREE.Mesh(new THREE.PlaneGeometry(5.8, 5.8), leucht(teile.runenAussen.tex, 0)); teile.runenAussen.mesh.position.z = 0.05; r.add(teile.runenAussen.mesh)
   // Schildrand aus Metall mit Nieten
   const metall = new THREE.MeshStandardMaterial({ color: new THREE.Color('#8fa3b4').multiplyScalar(0.5), metalness: 1, roughness: 0.32, envMap: umgebung, envMapIntensity: 0.1 })
   teile.metall = metall
@@ -182,7 +182,10 @@ function platzieren() {
 }
 
 // ---------- Ablauf je Bild ----------
-let wechsel = 0
+// Leistung: große Leinwände nicht jedes Bild neu an die Grafikkarte schicken (das ruckelte). Jede Anzeige wird reihum
+// nur jedes 4. Bild neu gezeichnet (≈ 15-mal je Sekunde), Stimme und Uhr jedes 2. Bild; das Runenband nur, solange es
+// sich verändert (Laden, Entzünden), danach pulsiert es über die Deckkraft.
+let bildNr = 0
 function bild(t) {
   const T = ZEIT, fb = { haupt: HAUPT, akzent: AKZENT }, aus = 1 - phase(t, T.AUS, T.ENDE), dunkel = t >= T.DUNKEL && t < T.EINSCHLAG
   renderer.toneMappingExposure = 1.05 * aus + 0.0001
@@ -192,7 +195,7 @@ function bild(t) {
   teile.linie.scale.x = Math.max(0.001, lp); teile.linie.material.opacity = la; teile.blitz.position.x = -20 + 40 * lp; teile.blitz.material.opacity = la * (lp < 1 ? 1 : 0.4)
 
   // Anzeigen: schalten sich ein (kurzes Flackern, von der Mitte aufziehend), klappen im Dunkel zu, kommen zurück
-  wechsel = (wechsel + 1) % 2
+  bildNr++
   teile.tafeln.forEach((ta, i) => {
     const an1 = phase(t, ta.start, ta.start + 0.5), weg = phase(t, T.DUNKEL - 0.45 + (i % 6) * 0.04, T.DUNKEL + 0.1 + (i % 6) * 0.04)
     const s2 = T.EINSCHLAG + 0.45 + (i % 12) * 0.07, an2 = phase(t, s2, s2 + 0.6), an = t < T.EINSCHLAG ? an1 : an2
@@ -200,7 +203,9 @@ function bild(t) {
     if (an > 0 && an < 1 && Math.random() < 0.3) deck *= 0.25
     if (t >= T.DUNKEL - 0.5 && t < T.EINSCHLAG) { sy *= Math.max(0.01, 1 - weich(weg)); deck *= 1 - weg }
     ta.flaeche.scale.set(sx, sy, 1); ta.flaeche.material.opacity = deck * aus
-    if (deck > 0.01 && (i % 2 === wechsel || ta.art === 'welle' || ta.art === 'uhr')) {
+    const dran = ta.art === 'welle' || ta.art === 'uhr' ? (bildNr + i) % 2 === 0 : (bildNr + i) % 4 === 0
+    if (deck > 0.01 && (dran || !ta.gezeichnet)) {
+      ta.gezeichnet = true
       ta.g.setTransform(1, 0, 0, 1, 0, 0); ta.g.clearRect(0, 0, ta.c.width, ta.c.height)
       ZEICHNER[ta.art](ta.g, ta.c, t, fb, ta.markeNr); ta.tex.needsUpdate = true
     }
@@ -224,19 +229,22 @@ function bild(t) {
   teile.rand.rotation.z = t * 0.02
   teile.vegvisir.material.opacity = (dunkel ? 0 : Math.max(glimm, nach)) * aus; teile.vegvisir.rotation.z = -t * 0.12
   teile.innenRinge.forEach((m, k) => { m.material.opacity = (dunkel ? 0 : (0.25 * glimm + 0.35 * laden + 0.4 * nach)) * aus; m.rotation.z = t * m.userData.tempo * (1 + schlag * 6) })
-  {
-    const { g, c, tex, mesh } = teile.runenAussen, R = c.width / 2
+  const runenAendern = (t > T.VERWANDLUNG && t < T.DUNKEL + 0.1) || (t > T.EINSCHLAG && t < T.EINSCHLAG + 3.4) || !teile.runenAussen.fertig
+  if (runenAendern && bildNr % 2 === 0) {
+    teile.runenAussen.fertig = t > T.EINSCHLAG + 3.4
+    const { g, c, tex } = teile.runenAussen, R = c.width / 2
     g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height); g.translate(R, R)
-    g.font = `120px ${RUNEN_SCHRIFT}`; g.textAlign = 'center'; g.textBaseline = 'middle'
+    g.font = `90px ${RUNEN_SCHRIFT}`; g.textAlign = 'center'; g.textBaseline = 'middle'
     const n = 32
     for (let k = 0; k < n; k++) {
       const rune = k % 8 === 0 ? LOKI[(k / 8) % 4] : RUNEN[(k * 3) % RUNEN.length]
-      const an = t < T.EINSCHLAG ? 0.25 * laden : klemm((t - T.EINSCHLAG - 0.15 - k * 0.06) * 3), puls = t > T.EINSCHLAG + 3 ? 0.72 + 0.28 * Math.sin(t * 2.4 - k * 0.5) : 1
+      const an = t < T.EINSCHLAG ? 0.25 * laden : klemm((t - T.EINSCHLAG - 0.15 - k * 0.06) * 3), puls = 1
       g.save(); g.rotate((k / n) * Math.PI * 2); g.translate(0, -R * 0.84); g.fillStyle = css(k % 8 === 0 ? AKZENT : HAUPT, an * puls); g.fillText(rune, 0, 0); g.restore()
     }
     g.strokeStyle = css(HAUPT, 0.7); g.lineWidth = 3; for (const rr of [0.93, 0.75]) { g.beginPath(); g.arc(0, 0, R * rr, 0, 7); g.stroke() }
-    tex.needsUpdate = true; mesh.material.opacity = (dunkel ? 0 : 1) * aus; mesh.rotation.z = t * 0.06
+    tex.needsUpdate = true
   }
+  teile.runenAussen.mesh.material.opacity = (dunkel ? 0 : t > T.EINSCHLAG + 3.4 ? 0.8 + 0.2 * Math.sin(t * 2.4) : 1) * aus; teile.runenAussen.mesh.rotation.z = t * 0.06
   teile.platten.forEach((p) => {
     const u = p.userData, q = phase(t, u.takt, u.takt + 1.2), qq = zurueck(q)
     const auf = t > T.EINSCHLAG ? Math.sin(phase(t, T.EINSCHLAG, T.EINSCHLAG + 0.8) * Math.PI) * 0.35 : 0

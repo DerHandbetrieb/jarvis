@@ -8,7 +8,8 @@
 // Begrenzer. Lokis Stimme getrennt: Tiefen weg, Präsenz, verdichtet, angehoben (Vorgabe: immer gut verständlich).
 
 // Pfade relativ zu dieser Datei, damit auch andere Seiten (z. B. ../hud/) die Töne nutzen können
-const BASIS = new URL('./', import.meta.url)
+// (als Text gebildet: Vite schreibt new URL('./', import.meta.url) beim Ausliefern um und verliert dabei den Schrägstrich)
+const BASIS = String(import.meta.url).split('?')[0].replace(/[^/]*$/, '')
 let ac = null
 const puffer = {}
 let analyseSumme = null, analyseStimme = null, stimmeAktiv = false, grussGeladen = 0
