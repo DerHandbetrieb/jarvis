@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jarvis Entwürfe</title>
+<style>
+:root{--bg:#14161a;--glas:rgba(30,33,39,.78);--t:#e9e6df;--l:#9aa0a6;--g:#c8a24a;--tu:#179994}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:15px/1.5 system-ui,sans-serif;padding:24px 16px}
+main{max-width:1100px;margin:auto}h1{color:var(--g);font-weight:600}h2{margin:0 0 6px;font-size:18px}
+.raster{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:18px}
+@media(max-width:560px){.raster{grid-template-columns:1fr}}
+.karte{background:#1b1e23;border:1px solid #2a2e35;border-radius:16px;padding:14px}
+.karte p{color:var(--l);margin:0 0 10px;font-size:14px}
+.bild{position:relative;height:300px;border-radius:12px;overflow:hidden;background:linear-gradient(160deg,#2a3238,#171a1e)}
+.kopf{position:absolute;left:0;right:0;top:0;height:46px;background:rgba(20,22,26,.9);border-bottom:2px solid var(--g);display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:0 14px}
+.punkt{width:26px;height:26px;border-radius:50%;border:1px solid #444}
+/* A Runenring */
+.ring{width:30px;height:30px;border-radius:50%;border:2px solid var(--tu);display:grid;place-items:center;animation:puls 1.6s infinite}
+.ring i{width:9px;height:9px;border-radius:50%;background:var(--tu)}
+@keyframes puls{50%{box-shadow:0 0 0 7px rgba(23,153,148,.0),0 0 14px rgba(23,153,148,.7)}}
+.blase{position:absolute;right:12px;top:54px;width:260px;background:var(--glas);border:1px solid #3a3f47;border-radius:12px;padding:10px;font-size:13px;backdrop-filter:blur(6px)}
+/* B Kugel */
+.kugel{position:absolute;right:22px;bottom:22px;width:74px;height:74px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#7fe0db,var(--tu) 45%,#0b3d3b 80%);box-shadow:0 0 30px rgba(23,153,148,.6);animation:atmen 2.4s ease-in-out infinite}
+@keyframes atmen{50%{transform:scale(1.06);box-shadow:0 0 46px rgba(23,153,148,.85)}}
+.wellen{position:absolute;right:108px;bottom:44px;display:flex;gap:4px;align-items:center;height:30px}
+.wellen b{width:4px;background:var(--tu);border-radius:2px;animation:welle 1s infinite ease-in-out}
+.wellen b:nth-child(2){animation-delay:.15s}.wellen b:nth-child(3){animation-delay:.3s}.wellen b:nth-child(4){animation-delay:.45s}.wellen b:nth-child(5){animation-delay:.6s}
+@keyframes welle{0%,100%{height:6px}50%{height:28px}}
+.text-b{position:absolute;right:110px;bottom:84px;max-width:250px;font-size:13px;color:var(--t);text-align:right}
+/* C Untertitel */
+.leiste{position:absolute;left:0;right:0;top:46px;padding:8px 16px;background:linear-gradient(90deg,rgba(23,153,148,.25),rgba(23,153,148,.05));border-bottom:1px solid rgba(23,153,148,.5);font-size:14px;display:flex;gap:10px;align-items:center}
+.leiste em{font-style:normal;color:var(--g);font-weight:600;letter-spacing:.08em}
+.cursor{display:inline-block;width:8px;height:15px;background:var(--tu);animation:blink 1s steps(2) infinite;vertical-align:-2px}
+@keyframes blink{50%{opacity:0}}
+/* D HUD */
+.hud{position:absolute;right:16px;bottom:16px;width:230px;height:230px}
+.hud svg{position:absolute;inset:0}
+.dreh{animation:dreh 14s linear infinite;transform-origin:115px 115px}
+.dreh2{animation:dreh 9s linear infinite reverse;transform-origin:115px 115px}
+@keyframes dreh{to{transform:rotate(360deg)}}
+.hudtext{position:absolute;right:250px;bottom:40px;width:220px;font-size:12.5px;color:#bfeeea;font-family:ui-monospace,Consolas,monospace;border-left:2px solid var(--tu);padding-left:10px}
+</style></head><body><main>
+<h1>Jarvis – vier Entwürfe für die Anzeige</h1>
+<p style="color:#9aa0a6">Alle Entwürfe zeigen denselben Moment: Jarvis spricht gerade die Morgen-Lage. Bedienung (Ein/Aus, Mikrofon, Stopp) bleibt bei allen über den Ring bzw. die Kugel.</p>
+<div class="raster">
+  <div class="karte"><h2>A · Ring in der Kopfzeile</h2><p>Schlicht: kleiner Ring neben dem Zahnrad, leuchtet türkis beim Sprechen. Klick öffnet ein Glasfeld mit dem gesprochenen Text.</p>
+    <div class="bild"><div class="kopf"><span class="ring"><i></i></span><span class="punkt"></span><span class="punkt"></span></div>
+      <div class="blase"><b>Jarvis · spricht</b><br>„Guten Morgen, Sir. Auf Ihrer Liste stehen elf Aufgaben …“</div></div></div>
+  <div class="karte"><h2>B · Schwebende Kugel</h2><p>Eine leuchtende Kugel unten rechts, die atmet, wenn Jarvis zuhört, und mit Klangwellen spricht. Text erscheint daneben.</p>
+    <div class="bild"><div class="kopf"><span class="punkt"></span><span class="punkt"></span></div>
+      <div class="text-b">„Emma wird das vermutlich anders sehen.“</div><div class="wellen"><b></b><b></b><b></b><b></b><b></b></div><div class="kugel"></div></div></div>
+  <div class="karte"><h2>C · Untertitel-Leiste</h2><p>Unter der Kopfzeile läuft eine schmale Leiste mit dem, was Jarvis sagt – wie Untertitel. Sehr ruhig, stört nicht.</p>
+    <div class="bild"><div class="kopf"><span class="ring" style="animation:none"><i></i></span><span class="punkt"></span></div>
+      <div class="leiste"><em>JARVIS</em> Amazon hat die Kuh-Kucks-Uhr freigegeben. Man wird bescheiden.<span class="cursor"></span></div></div></div>
+  <div class="karte"><h2>D · HUD wie im Film</h2><p>Drehende Ringe mit Skala unten rechts im Sci-Fi-Stil, daneben der Text in Konsolenschrift. Am auffälligsten – passt zur späteren Start-Sequenz.</p>
+    <div class="bild"><div class="kopf"><span class="punkt"></span><span class="punkt"></span></div>
+      <div class="hudtext">&gt; MORGEN-LAGE<br>11 Aufgaben · 3 dringend<br>Shops: ruhig<br>Gestern: 4 Tassen</div>
+      <div class="hud"><svg viewBox="0 0 230 230">
+        <g class="dreh"><circle cx="115" cy="115" r="100" fill="none" stroke="#179994" stroke-width="2" stroke-dasharray="40 14" opacity=".8"/></g>
+        <g class="dreh2"><circle cx="115" cy="115" r="78" fill="none" stroke="#c8a24a" stroke-width="1.5" stroke-dasharray="4 8" opacity=".9"/></g>
+        <circle cx="115" cy="115" r="56" fill="none" stroke="#179994" stroke-width="6" opacity=".35"/>
+        <circle cx="115" cy="115" r="30" fill="#179994" opacity=".25"/><circle cx="115" cy="115" r="12" fill="#7fe0db"/>
+      </svg></div></div></div>
+</div></main></body></html>

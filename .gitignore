@@ -27,3 +27,6 @@ __pycache__/
 
 # Ausnahme: die feste Stimmvorlage von Loki (Entscheidung 03.11.2026) gehört ins Repository
 !stimme/loki-vorlage.wav
+
+# Videos zur Analyse (fremde Inhalte, groß) – nicht in Git
+videos/

@@ -2,7 +2,7 @@
 
 Auftraggeber: Der Handbetrieb (Bloßfeld und Jungk GbR, Öhringen). Diese Datei ist das Gedächtnis des Projekts. Lies sie zu Beginn jeder Sitzung vollständig und halte sie aktuell, wenn sich Entscheidungen ändern.
 
-Entstanden am 03.11.2026 als Umzug aus der Werkstatt-App (`C:\Projekte-Claude\Werkstatt-App`, Version 0.119.0). Die Werkstatt-App behält ihre Jarvis-Fassung, **bis dieser eigene Jarvis läuft** – erst dann dort entfernen (vorher fragen).
+Entstanden am 03.11.2026 als Umzug aus der Werkstatt-App (`C:\Projekte-Claude\Werkstatt-App`, Version 0.119.0). Seit Werkstatt-App 0.123.0 (03.11.2026, Wunsch Auftraggeber) ist Jarvis dort **komplett entfernt** – der Sprachassistent lebt nur noch hier. Vorlagen von dort: `vorschau/aus-werkstatt/`.
 
 ---
 
@@ -45,7 +45,7 @@ Der Auftraggeber kann **nicht programmieren**. Du erledigst die gesamte Entwickl
 - **Codewörter:** „Guten Morgen, Loki“ = Morgen-Lage, „Hey Loki, …“ = Befehle/Fragen (Rufname Loki, siehe 7; „Jarvis“ wird weiterhin verstanden). Die Morgen-Lage startet, wenn der Auftraggeber nach dem Start „Guten Morgen, Loki“ sagt; nur am PC, mit **sichtbarer Mikrofon-Anzeige und Stumm-Schalter** (gebaut: Ring + Knopf „Mikrofon aus“) und **einstellbarer Empfindlichkeit wegen Werkstatt-Lärm** (noch nicht gebaut – die Schwelle der Sprechpausen-Erkennung steht fest auf 0,5 in `electron/jarvis.cjs`).
 - **Morgen-Lage, Inhalt (etwa eine Minute):** Aufgaben und Neues seit gestern, Probleme in den Shops und nächtlicher Selbsttest, knappe Artikel und Verkäufe von gestern, Wetter und offene Freigaben. Feste Regeln ohne Sprachmodell (darum nichts erfunden); Inhalte als erweiterbare, abschaltbare Bausteine.
 - **Aktionen per Sprache** erst klein und immer mit Bestätigung; Antworten nur aus App-Daten.
-- **Charakter (Entscheidung 03.11.2026, „noch bissiger“):** Durchgehend trockener, schwarzer, typisch britischer Humor; in jeder Antwort ein kleiner Seitenhieb, dem Auftraggeber gegenüber gespielt kritisch und anzweifelnd, damit Loki wie ein eigenständiger, selbstdenkender Charakter wirkt – nie beleidigend, Fakten immer zuerst und vollständig, bei ernsten Themen kein Spott. Umgesetzt: Seitenhiebe je Baustein der Morgen-Lage (`SPITZEN` in `morgenlage.ts`), die Antworten in `dienst.ts` und die Anweisung an das Sprachmodell (`charakter()` in `dienst.ts`) – alles abschaltbar über „Humor“ in den Einstellungen. Offene Designfrage: Mit allen Bausteinen kommen bis zu acht Witzsätze zusammen – ggf. begrenzen, falls die Lage zu lang wird.
+- **Charakter (Entscheidung 03.11.2026, „noch bissiger“):** Durchgehend trockener, schwarzer, typisch britischer Humor; in jeder Antwort ein kleiner Seitenhieb, dem Auftraggeber gegenüber gespielt kritisch und anzweifelnd, damit Loki wie ein eigenständiger, selbstdenkender Charakter wirkt – Fakten immer zuerst und vollständig, bei ernsten Themen kein Spott. **Korrektur Auftraggeber 03.11.2026:** Loki darf ihm gegenüber „schon ein bisschen beleidigend“ sein (frech, spitz, britisch-böse), solange erkennbar gespielt – keine echten Herabsetzungen (Aussehen, Herkunft o. ä.), nichts gegen Dritte. Beim Start soll Loki **immer wieder etwas anderes** sagen (wechselnde Sprüche). Umgesetzt: Seitenhiebe je Baustein der Morgen-Lage (`SPITZEN` in `morgenlage.ts`), die Antworten in `dienst.ts` und die Anweisung an das Sprachmodell (`charakter()` in `dienst.ts`) – alles abschaltbar über „Humor“ in den Einstellungen. Offene Designfrage: Mit allen Bausteinen kommen bis zu acht Witzsätze zusammen – ggf. begrenzen, falls die Lage zu lang wird.
 - **Stimme (Hörproben 03.11.2026, `vorschau/hoerproben/`, Seite starten mit dem Vorschau-Server „hoerproben“):**
   - Der Auftraggeber findet die Stimme **zu statisch, nicht flüssig**. Von A–D (Thorsten high mit verschiedenen Reglern) gefiel **A (heute: Tempo 0,88, Grundwerte) am besten**, überzeugt aber noch nicht ganz → bleibt vorerst.
   - **Britischer Akzent über britische Piper-Stimmen mit deutscher Lautschrift (E–G) = „schrecklich, geht gar nicht“** – nicht wieder vorschlagen.
@@ -109,14 +109,15 @@ Der Auftraggeber kann **nicht programmieren**. Du erledigst die gesamte Entwickl
 2. ✅ Mikrofon + Whisper + Fragen an Ollama (Ollama beim Auftraggeber noch nicht eingerichtet)
 3. ✅ Codewort
 4. ✅ (03.11.2026) Umzug in dieses eigene Projekt, Grundgerüst
-5. ✅ (03.11.2026) Rufname Loki umgesetzt (Erkennung, Texte) – Test mit der echten Stimme des Auftraggebers steht noch aus
+5. ✅ (03.11.2026) Rufname Loki umgesetzt (Erkennung, Texte) – Test mit der echten Stimme des Auftraggebers ✅ (03.11.2026: „Guten Morgen“ und Befehle erkannt, neue Stimme richtig)
 6. offen: Empfindlichkeit des Mikrofons einstellbar machen (Werkstatt-Lärm)
 7. Stimme und Charakter: Charakter ✅ (bissiger); Stimme festgelegt: Qwen3-TTS 0.6B-Base mit Vorlage Q1 = Probe R2 (siehe 2, `stimme/LIESMICH.md`) – Tempo gelöst mit faster-qwen3-tts (Probe S, vom Auftraggeber bestätigt), ✅ eingebaut (03.11.2026) – offen: Test durch den Auftraggeber im Programm, ggf. Ton schon während des Rechnens abspielen (Strom), Weitergabe an andere PCs
 8. offen: Werkstatt-Anbindung (Plan, siehe 6)
 9. offen: Ollama einrichten
 10. offen: Aktionen per Sprache, **immer mit Bestätigung**, erst klein (Karte anlegen/erledigen, Produziert buchen, Seite öffnen; nie Shop-Texte/Preise)
 11. offen: Gestaltung – vier Entwürfe (Vorlage aus der Werkstatt: `vorschau/jarvis-vier.html`)
-12. später: Autostart, Start-Sequenz, Wallpaper Engine, Alexa, Kameras, Home-Automation, Handy (siehe 8)
+12. **in Planung (03.11.2026): Installer + Autostart.** Interview-Entscheidungen: nach dem Hochfahren **unsichtbar mit Symbol unten rechts** (Infobereich), Klick öffnet das Fenster; **X versteckt nur** (Beenden über Rechtsklick aufs Symbol); beim Rechnerstart **Begrüßung mit wechselndem bissigem Spruch + Morgen-Lage** (einmal am Tag) ohne Zutun. Plan noch nicht freigegeben.
+13. später: Start-Sequenz über drei Bildschirme, Wallpaper-Engine-HUD mit Kameras, Alexa, Home-Automation, Handy (siehe 8)
 
 ## 6. Werkstatt-Anbindung (nur geplant – nicht ohne Rückfrage bauen)
 
@@ -135,7 +136,8 @@ Jarvis liest später Aufgaben, Lager, Verkäufe, Amazon-Probleme und offene Frei
 
 ## 8. Ideen für später (alle vor dem Bau mit offiziellen Quellen prüfen)
 
-- **Autostart mit Windows und Sci-Fi-Start-Sequenz** im Vollbild auf allen drei Bildschirmen mit Ton und Effekten, danach Begrüßung (Vorbilder: https://www.youtube.com/watch?v=RjF_j6QZpxc und https://www.youtube.com/watch?v=LuuOpozKbvE).
+- **Autostart mit Windows und Sci-Fi-Start-Sequenz** im Vollbild auf allen drei Bildschirmen mit Ton und Effekten, danach Begrüßung (Vorbilder: https://www.youtube.com/watch?v=RjF_j6QZpxc und https://www.youtube.com/watch?v=LuuOpozKbvE; Auswertung der Handy-Videos: `recherche/start-sequenz-videos-2026-11-03.md`). **Vorgaben Auftraggeber 03.11.2026:** Die Start-Sequenz läuft **unbedingt über alle drei Bildschirme als eine Fläche** (wie Video 1) – „ganz wichtig“; „Premium“: echtes Vollbild **auch über der Windows-Taskleiste** (je Bildschirm ein randloses Fenster ganz oben). Viele Sci-Fi-Geräusche (technisch, Laden, Einschläge), Loki begrüßt danach mit wechselndem bissigem Spruch und Statusinhalt („Systeme werden hochgefahren … trinken Sie erst einmal einen Kaffee“ – eigener Text, nicht übersetzt).
+- **Danach: Dauer-HUD über Wallpaper Engine (Wunsch 03.11.2026):** nach der Start-Sequenz alle Informationen der App – Statistiken, To-do-Karten, **Live-Bilder der zwei Videokameras** des Auftraggebers – im **Sci-Fi-HUD-Stil (dreidimensional, Overlay)** auf den drei Bildschirmen einblenden. Vorher prüfen: Wallpaper-Engine-Schnittstellen (Web-Hintergründe), Kamera-Modelle/Protokolle (Reolink? Ordner `Videos\reolink` vorhanden – RTSP/HTTP, nur lokal, Datenschutz), Leistung neben Spielen.
 - **Wallpaper Engine** (Steam) läuft beim Auftraggeber auf allen drei Bildschirmen mit einem animierten Objekt über alle drei – prüfen, ob sie sich für die Start-Sequenz bzw. als Jarvis-Anzeige nutzen lässt (Web-Hintergründe/Schnittstellen).
 - **Drei Bildschirme als Arbeitsfläche:** dauerhaft die Lage zeigen (Aufgaben, Lager, Shops, Verkäufe, Jarvis) und damit arbeiten – prüfen, wie weit man mit einem Hintergrundbild interagieren kann (Klicks nur bei freiem Desktop) oder ob randlose Vollbild-Fenster je Bildschirm besser sind.
 - **Alexa** (mehrere Geräte im Haus): eigener Skill („Alexa, frag Loki …“), der Fragen weitergibt; Stimme dort wäre die Alexa-Stimme; Kosten und Datenschutz vorher klären.
