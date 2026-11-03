@@ -11,6 +11,7 @@ declare global {
       jarvis: JarvisBruecke
       sequenz?: SequenzBruecke
       werkstatt?: WerkstattBruecke
+      hud?: { einrichten: () => Promise<{ ok: boolean; meldung: string } | null> }
     }
   }
 }

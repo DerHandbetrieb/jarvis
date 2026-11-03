@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
       return () => ipcRenderer.removeListener('werkstatt-aenderung', h)
     },
   },
+  /** Dauer-HUD: als lokales Wallpaper in Wallpaper Engine anlegen */
+  hud: { einrichten: () => ipcRenderer.invoke('hud-einrichten') },
   /** Start-Sequenz über alle Bildschirme (Lokis Spruch kommt live aus seiner Stimme ins Finale) */
   sequenz: {
     starten: (lautstaerke) => ipcRenderer.invoke('sequenz-starten', Number(lautstaerke)),

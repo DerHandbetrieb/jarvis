@@ -6,6 +6,7 @@
 # Abhängigkeiten und Build-Ergebnisse
 node_modules/
 dist/
+dist-hud/
 release/
 *.log
 

@@ -23,10 +23,10 @@ describe('Start-Sequenz: echte Werte', () => {
     expect(d.umsatz14).toHaveLength(14)
     expect(d.umsatz14[13]).toBe(130.5)
     expect(d.umsatzMax).toBe(150)
-    expect(d.karten[0]).toEqual(['Tassen schließen', 'ÜBERFÄLLIG', null, 'ÜBERFÄLLIG'])
+    expect(d.karten[0]).toEqual(['Tassen schließen', 'AUFGABE', null, 'ÜBERFÄLLIG'])
     expect(d.karten[1][3]).toBe('FÄLLIG HEUTE')
     expect(d.karten[2][3]).toBe('FÄLLIG 05.11.')
-    expect(d.karten[3]).toEqual(['Ohne Datum', 'WERKSTATT', null, ''])
+    expect(d.karten[3]).toEqual(['Ohne Datum', 'AUFGABE', null, ''])
     expect(d.lager).toEqual([['Tasse Emma', 1, 10], ['Lampe', 0, 2]])
   })
   it('ohne Verbindung, veraltet oder unvollständig: null (dann Beispieldaten mit Hinweis)', () => {

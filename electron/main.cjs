@@ -10,6 +10,28 @@ const fs = require('node:fs')
 const { pathToFileURL } = require('node:url')
 const jarvis = require('./jarvis.cjs')
 const { erstelleWerkstatt, leseKonfig } = require('./werkstatt.cjs')
+const { erstelleHudServer, hudSchluessel } = require('./hudserver.cjs')
+const { findeWallpaperEngine, einrichten } = require('./wallpaper.cjs')
+const { execFileSync } = require('node:child_process')
+const HUD_PORT = 47820 // fest, damit das Wallpaper Loki findet (nur 127.0.0.1)
+const hud = { schluessel: null }
+/** nur, was das Dauer-HUD anzeigt (Auswahlliste) – von den Amazon-Problemen nur die Anzahl, kein Freitext (Prüf-Agent) */
+function hudAuswahl(l) {
+  const zahl = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
+  return {
+    geholt: l.geholt,
+    aufgaben: { offen: zahl(l.aufgaben?.offen), neu: zahl(l.aufgaben?.neu), amazonAnzahl: (l.aufgaben?.amazonProbleme ?? []).length,
+      wichtigste: (l.aufgaben?.wichtigste ?? []).slice(0, 5).map((w) => ({ titel: String(w.titel ?? '').slice(0, 120), faellig: w.faellig ?? null })) },
+    lagerKnapp: (l.lagerKnapp ?? []).slice(0, 4).map((k) => ({ name: String(k.name ?? ''), variante: k.variante ?? null, bestand: zahl(k.bestand), meldebestand: zahl(k.meldebestand) })),
+    verkauf: {
+      gestern: { bestellungen: zahl(l.verkauf?.gestern?.bestellungen), stueck: zahl(l.verkauf?.gestern?.stueck), umsatzCent: zahl(l.verkauf?.gestern?.umsatzCent) },
+      tage: (l.verkauf?.tage ?? []).map((t) => ({ tag: String(t.tag ?? ''), bestellungen: zahl(t.bestellungen), umsatzCent: zahl(t.umsatzCent) })),
+      kanaele14: (l.verkauf?.kanaele14 ?? []).slice(0, 3).map((k) => ({ kanal: String(k.kanal ?? ''), bestellungen: zahl(k.bestellungen), umsatzCent: zahl(k.umsatzCent) })),
+    },
+    freigaben: zahl(l.freigaben),
+    selbsttest: l.selbsttest ? { am: l.selbsttest.am, rot: zahl(l.selbsttest.rot) } : null,
+  }
+}
 
 const istEntwicklung = !app.isPackaged && process.argv.includes('--dev')
 const DEV_URL = 'http://localhost:5174/'
@@ -266,6 +288,43 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('werkstatt-trennen', async (e) => { if (!vonFenster(e)) return null; await werkstatt.trennen(); return werkstatt.status() })
     // höchstens 2 Minuten alt, sonst frisch (Morgen-Lage, Anzeigen); „Jetzt aktualisieren“ holt immer frisch
     ipcMain.handle('werkstatt-lage', async (e, erzwingen) => (vonFenster(e) ? werkstatt.aktuelleLage(erzwingen ? 0 : 120_000) : null))
+
+    // Dauer-HUD (Web-Wallpaper in Wallpaper Engine): Gegenstelle nur auf 127.0.0.1 mit Zugriffsschlüssel. Liefert die
+    // zwischengespeicherte Werkstatt-Lage (höchstens 1 Stunde alt) und das Wetter (Open-Meteo, alle 15 Minuten).
+    let hudWetter = null
+    const wetterHolen = async () => {
+      try {
+        const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=49.2&longitude=9.5&current=temperature_2m,weather_code,cloud_cover&timezone=Europe%2FBerlin', { signal: AbortSignal.timeout(15_000) })
+        const c = r.ok ? (await r.json())?.current : null
+        if (c) hudWetter = { ort: 'Öhringen', grad: c.temperature_2m ?? null, code: c.weather_code ?? null, wolken: c.cloud_cover ?? 0, geholt: Date.now() }
+      } catch { /* nächster Versuch in 15 Minuten */ }
+    }
+    void wetterHolen(); setInterval(() => void wetterHolen(), 15 * 60_000)
+    try { hud.schluessel = hudSchluessel(fs, path.join(app.getPath('userData'), 'hud-schluessel')) } catch (f) { console.error('Dauer-HUD-Schlüssel:', f?.message); hud.schluessel = require('node:crypto').randomBytes(32).toString('hex') }
+    const hudServer = erstelleHudServer({
+      port: HUD_PORT, schluessel: hud.schluessel,
+      daten: async () => {
+        const l = werkstatt.lage()
+        return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter }
+      },
+    })
+    hudServer.start().catch(() => { /* Port belegt – Dauer-HUD zeigt dann „Loki nicht verbunden“ */ })
+    app.on('will-quit', () => { void hudServer.stop() })
+    // Knopf „Dauer-HUD in Wallpaper Engine einrichten“: legt das Wallpaper als lokales Projekt an (ändert nicht das aktive)
+    ipcMain.handle('hud-einrichten', (e) => {
+      if (!vonFenster(e)) return null
+      const leseSteamPfad = () => {
+        try { return /SteamPath\s+REG_SZ\s+(.+)/.exec(execFileSync(path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'reg.exe'), ['query', 'HKCU\\Software\\Valve\\Steam', '/v', 'SteamPath'], { encoding: 'utf8' }))?.[1]?.trim().replace(/\//g, '\\') ?? null } catch { return null }
+      }
+      const we = findeWallpaperEngine({ fs, leseSteamPfad })
+      if (!we) return { ok: false, meldung: 'Wallpaper Engine wurde auf diesem PC nicht gefunden (Steam).' }
+      const quelle = app.isPackaged ? path.join(process.resourcesPath, 'dauer-hud') : path.join(__dirname, '..', 'dist-hud')
+      if (!fs.existsSync(path.join(quelle, 'dauer-hud.html'))) return { ok: false, meldung: 'Das Dauer-HUD fehlt in diesem Programm (nicht mitgebaut).' }
+      try {
+        einrichten({ fs, we, quelle, port: HUD_PORT, schluessel: hud.schluessel })
+        return { ok: true, meldung: 'Eingerichtet. In Wallpaper Engine unter „Installiert“ das Wallpaper „Loki Dauer-HUD“ auswählen (über alle Bildschirme).' }
+      } catch (f) { console.error('Dauer-HUD einrichten:', f); return { ok: false, meldung: 'Einrichten hat nicht geklappt (Details im Protokoll).' } }
+    })
 
     // Start-Sequenz holt die Werkstatt-Lage für ihre Anzeigen (nur das Sequenzfenster; höchstens 1 Stunde alt, sonst frisch)
     ipcMain.handle('sequenz-lage', async (e) => (sequenzFenster && !sequenzFenster.isDestroyed() && e.sender === sequenzFenster.webContents ? werkstatt.aktuelleLage(60 * 60_000) : null))

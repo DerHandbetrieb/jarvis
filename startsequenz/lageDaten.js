@@ -44,7 +44,7 @@ export function sequenzDaten(lage, jetzt) {
     offen: lage.aufgaben.offen,
     neu: lage.aufgaben.neu,
     freigaben: lage.freigaben,
-    amazonProbleme: lage.aufgaben.amazonProbleme?.length ?? 0,
+    amazonProbleme: lage.aufgaben.amazonProbleme?.length ?? lage.aufgaben.amazonAnzahl ?? 0, // Dauer-HUD bekommt nur die Anzahl
     selbsttest: rot === null ? '–' : rot === 0 ? 'OK' : String(rot),
     selbsttestRot: !!rot,
     gestern: { bestellungen: g.bestellungen, stueck: g.stueck, umsatz: Math.round(g.umsatzCent) / 100 },
@@ -55,7 +55,7 @@ export function sequenzDaten(lage, jetzt) {
     tage9: tage.slice(-9).map((t) => ({ tag: /^\d{4}-\d{2}-\d{2}/.test(String(t.tag)) ? `${t.tag.slice(8, 10)}.${t.tag.slice(5, 7)}` : '', bestellungen: zahl(t.bestellungen) })),
     umsatzMax: Math.max(10, Math.ceil(Math.max(0, ...umsatz14) / 50) * 50),
     // To-do-Karten: [Titel, Zusatzzeile, Fortschritt (null = keiner), Fälligkeit]
-    karten: (lage.aufgaben.wichtigste ?? []).slice(0, 5).map((w) => [w.titel, faelligText(w.faellig, heute) || 'WERKSTATT', null, faelligText(w.faellig, heute)]),
+    karten: (lage.aufgaben.wichtigste ?? []).slice(0, 5).map((w) => [w.titel, 'AUFGABE', null, faelligText(w.faellig, heute)]),
     lager: (lage.lagerKnapp ?? []).slice(0, 4).map((k) => [k.variante ? `${k.name} ${k.variante}` : k.name, zahl(k.bestand), zahl(k.meldebestand)]),
   }
 }

@@ -1,0 +1,49 @@
+// Gegenstelle für das Dauer-HUD (03.11.2026, Entscheidung: Web-Wallpaper in Wallpaper Engine, Test A bestanden – das
+// Wallpaper darf http://127.0.0.1 abfragen). Loki liefert hier nur fertige Anzeige-Daten: Werkstatt-Lage (Zahlen und
+// Titel, keine Anmeldedaten), Wetter, Uhrzeit. Sicherheit: lauscht NUR auf 127.0.0.1 (nicht im Netzwerk erreichbar),
+// jede Anfrage braucht den Zugriffsschlüssel im Kopf „x-loki-schluessel“ (zufällig, liegt nur im Wallpaper-Ordner und in
+// Lokis Datenordner), nur GET /hud, kleine Antworten, kein Zugriff auf Dateien oder Befehle.
+const http = require('node:http')
+const crypto = require('node:crypto')
+
+function gleich(a, b) {
+  const x = Buffer.from(String(a ?? '')), y = Buffer.from(String(b ?? ''))
+  return x.length === y.length && crypto.timingSafeEqual(x, y)
+}
+
+/** daten: async () => Objekt für die Anzeige; schluessel: Zugriffsschlüssel; port: fester Port auf 127.0.0.1 */
+function erstelleHudServer({ port, schluessel, daten, protokoll = console.error }) {
+  let server = null
+  const kopf = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'x-loki-schluessel', 'Access-Control-Allow-Methods': 'GET', 'Cache-Control': 'no-store' }
+  async function antwort(req, res) {
+    if (req.method === 'OPTIONS') { res.writeHead(204, kopf); res.end(); return }
+    const pfad = String(req.url ?? '').split('?')[0]
+    if (req.method !== 'GET' || pfad !== '/hud') { res.writeHead(404, kopf); res.end(); return }
+    // nur Aufrufe an 127.0.0.1/localhost annehmen (zusätzlicher Schutz gegen „DNS-Rebinding“ fremder Webseiten)
+    if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(String(req.headers.host ?? ''))) { res.writeHead(403, kopf); res.end(); return }
+    if (!gleich(req.headers['x-loki-schluessel'], schluessel)) { res.writeHead(403, kopf); res.end(); return }
+    try {
+      const d = await daten()
+      res.writeHead(200, { ...kopf, 'Content-Type': 'application/json; charset=utf-8' })
+      res.end(JSON.stringify(d))
+    } catch (f) { protokoll('Dauer-HUD:', f?.message); res.writeHead(500, kopf); res.end() }
+  }
+  return {
+    start: () => new Promise((fertig, fehler) => {
+      server = http.createServer((req, res) => { void antwort(req, res) })
+      server.on('error', (f) => { protokoll('Dauer-HUD-Gegenstelle:', f?.message); fehler(f) })
+      server.listen(port, '127.0.0.1', () => fertig(server.address().port))
+    }),
+    stop: () => new Promise((fertig) => { if (!server) return fertig(); server.close(() => fertig()); server = null }),
+  }
+}
+
+/** Zugriffsschlüssel: einmal zufällig erzeugen und merken (Datei in Lokis Datenordner) */
+function hudSchluessel(fs, datei) {
+  try { const s = fs.readFileSync(datei, 'utf8').trim(); if (/^[0-9a-f]{64}$/.test(s)) return s } catch { /* neu anlegen */ }
+  const s = crypto.randomBytes(32).toString('hex')
+  fs.writeFileSync(datei, s)
+  return s
+}
+
+module.exports = { erstelleHudServer, hudSchluessel }

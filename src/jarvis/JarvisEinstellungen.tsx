@@ -63,6 +63,7 @@ export default function JarvisEinstellungen() {
             <button type="button" className="rounded-lg border border-neutral-300 px-3 py-1.5" disabled={!sequenzBruecke()} onClick={() => void startSequenzJetzt()}>Start-Sequenz jetzt abspielen</button>
           </div>
           <WerkstattVerbindung />
+          <HudEinrichten />
           <p className="text-neutral-500">Das X oben rechts versteckt nur das Fenster – Loki hört weiter zu. Ganz beenden: Rechtsklick auf das Loki-Symbol unten rechts → „Beenden“.</p>
           <div className="flex flex-wrap items-end gap-4">
             <label className="block">Anrede<br /><input className="mt-1 w-40 rounded-lg border border-neutral-300 px-2 py-1.5" value={e.anrede} onChange={(x) => setzeJarvis({ anrede: x.target.value })} /></label>
@@ -99,5 +100,22 @@ export default function JarvisEinstellungen() {
         </div>
       )}
     </Abschnitt>
+  )
+}
+
+/** Dauer-HUD (03.11.2026): Wallpaper in Wallpaper Engine anlegen – das aktive Wallpaper bleibt, bis man das neue auswählt */
+function HudEinrichten() {
+  const [meldung, setMeldung] = useState<{ ok: boolean; meldung: string } | null>(null)
+  const da = typeof window !== 'undefined' && !!window.jarvisDesktop?.hud
+  if (!da) return null
+  return (
+    <div className="space-y-1 rounded-lg border border-neutral-200 p-3">
+      <p className="font-medium text-neutral-700">Dauer-HUD (Hintergrund über alle drei Bildschirme, Wallpaper Engine)</p>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" className="rounded-lg border border-neutral-300 px-3 py-1.5" onClick={() => void window.jarvisDesktop?.hud?.einrichten().then(setMeldung)}>In Wallpaper Engine einrichten</button>
+        <span className="text-neutral-500">Legt das Wallpaper „Loki Dauer-HUD“ an bzw. aktualisiert es. Loki muss laufen, damit es Daten zeigt.</span>
+      </div>
+      {meldung && <p className={meldung.ok ? 'text-emerald-700' : 'text-red-700'}>{meldung.meldung}</p>}
+    </div>
   )
 }
