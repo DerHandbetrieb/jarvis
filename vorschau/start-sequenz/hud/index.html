@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Start-Sequenz HUD</title>
+<!--
+  Runde 4 der Start-Sequenz (03.11.2026): neuer HUD-Stil nach den Vorbild-Bildern des Auftraggebers (feine Linien,
+  segmentierte Ringe, abgeschrägte Ecken), Werkstatt-Inhalte als Beispieldaten, Reaktor als Wikinger-Runenschild,
+  Klangwelt Runen-Ritual, kein Filmkorn. Darstellung: alle drei Bildschirme verkleinert nebeneinander (16:3).
+-->
+<style>
+  :root { --bg: #05070a; --text: #d7dde3; --leise: #7f8a94; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1800px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p { color: var(--leise); margin: 0 0 14px; }
+  .buehne { position: relative; width: 100%; aspect-ratio: 16 / 3; background: #000; border-radius: 6px; overflow: hidden; }
+  .buehne canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .rahmen { position: absolute; top: 0; bottom: 0; width: 0.5%; background: #0b0d10; pointer-events: none; }
+  .knoepfe { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 6px; }
+  button { background: #10161d; color: var(--text); border: 1px solid #27313b; border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; }
+  button:hover { border-color: #4a5865; }
+  button.an { background: #173640; border-color: #2f8c96; }
+  #info { min-height: 1.5em; }
+  .buehne:fullscreen { aspect-ratio: auto; border-radius: 0; }
+  /* Testmodus über alle drei Bildschirme (drei-bildschirme.cjs): nur die Bühne, keine Rahmen-Streifen */
+  body.flaeche { overflow: hidden; background: #000; cursor: none; }
+  body.flaeche main { max-width: none; padding: 0; }
+  body.flaeche h1, body.flaeche p, body.flaeche .knoepfe, body.flaeche .rahmen { display: none; }
+  body.flaeche .buehne { position: fixed; inset: 0; aspect-ratio: auto; border-radius: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Lokis Start-Sequenz – Runde 4 (neuer HUD-Stil, Runen-Schild)</h1>
+  <p>Alle drei Bildschirme verkleinert nebeneinander (dunkle Streifen = Rahmen). Ton an, „Abspielen“. Die Werkstatt-Inhalte sind Beispieldaten. Am besten im Vollbild. Zahlen sind Beispielwerte, die Uhrzeit ist echt.</p>
+  <div class="knoepfe" id="wahl"></div>
+  <div class="buehne" id="buehne">
+    <div class="rahmen" style="left: calc(33.333% - 0.25%)"></div>
+    <div class="rahmen" style="left: calc(66.666% - 0.25%)"></div>
+  </div>
+  <div class="knoepfe">
+    <button id="spielen">▶ Abspielen</button>
+    <button id="voll">Vollbild</button>
+  </div>
+  <p id="info"></p>
+</main>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

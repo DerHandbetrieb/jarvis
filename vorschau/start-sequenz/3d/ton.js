@@ -7,6 +7,8 @@
 // Mischung: Geräusche → Musikbus (Klangsenke im Sprachbereich + Absenkung um 12 dB, solange Loki spricht) → Summe →
 // Begrenzer. Lokis Stimme getrennt: Tiefen weg, Präsenz, verdichtet, angehoben (Vorgabe: immer gut verständlich).
 
+// Pfade relativ zu dieser Datei, damit auch andere Seiten (z. B. ../hud/) die Töne nutzen können
+const BASIS = new URL('./', import.meta.url)
 let ac = null
 const puffer = {}
 let analyseSumme = null, analyseStimme = null, stimmeAktiv = false, grussGeladen = 0
@@ -27,7 +29,7 @@ export async function tonVorbereiten(grussNr = 1) {
   if (grussGeladen !== grussNr) { delete puffer.gruss; grussGeladen = grussNr }
   const fehlt = [...NAMEN.filter((n) => !(n in puffer)), ...('gruss' in puffer ? [] : ['gruss'])]
   await Promise.all(fehlt.map(async (n) => {
-    try { puffer[n] = await ac.decodeAudioData(await (await fetch(n === 'gruss' ? `../gruss-${grussNr}.wav` : `toene/${n}.ogg`)).arrayBuffer()) } catch { puffer[n] = null }
+    try { puffer[n] = await ac.decodeAudioData(await (await fetch(new URL(n === 'gruss' ? `../gruss-${grussNr}.wav` : `toene/${n}.ogg`, BASIS))).arrayBuffer()) } catch { puffer[n] = null }
   }))
   return NAMEN.filter((n) => !puffer[n])
 }
