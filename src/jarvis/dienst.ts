@@ -180,7 +180,7 @@ Regeln: Zuerst die sachliche Antwort, dann der Seitenhieb. Antworte kurz (höchs
 // Freies Gespräch (Wunsch Auftraggeber 03.11.2026): Loki merkt sich die letzten Wechsel (höchstens 5 Minuten Pause) und
 // hört nach seiner Antwort 10 Sekunden ohne Codewort weiter zu – man kann also einfach weiterreden.
 // Ohne Codewort höchstens 3 Nachfragen hintereinander – sonst könnte Werkstatt-Lärm eine endlose Kette auslösen.
-const GESPRAECH_PAUSE = 5 * 60_000, NACHFRAGE_MS = 10_000, NACHFRAGEN_MAX = 3
+const GESPRAECH_PAUSE = 5 * 60_000, NACHFRAGE_MS = 12_000, NACHFRAGEN_MAX = 3
 let verlauf: { role: 'user' | 'assistant'; content: string }[] = [], verlaufZeit = 0, ohneCodewort = 0, nachHey = false
 
 async function frage(text: string) {
@@ -216,7 +216,10 @@ async function ausfuehren(bf: Befehl) {
 }
 
 /** Erkannter Satz vom Windows-Programm */
-async function erkannt(text: string) {
+// sekunden = Länge des gesprochenen Stücks: das Nachfrage-Fenster zählt ab dem Beginn des Sprechens, nicht ab dem Ende
+// der Erkennung – sonst verfällt eine längere, rechtzeitig begonnene Nachfrage (Rückmeldung Auftraggeber 03.11.2026)
+async function erkannt(text: string, sekunden = 0) {
+  const begonnen = Date.now() - sekunden * 1000 - 1500
   setze({ gehoert: text })
   if (lage.zustand === 'spricht' || lage.zustand === 'denkt') return
   const c = codewort(text)
@@ -228,7 +231,7 @@ async function erkannt(text: string) {
     if (c?.art === 'hey') { setze({ wartetBis: 0 }); ohneCodewort = 0; return await ausfuehren(befehl(c.rest)) }
     // nach „Hey Loki“ allein bzw. nach einer Antwort im Gespräch: der nächste Satz gilt auch ohne Codewort
     // (nach „Hey Loki“ allein zählt jedes Wort, z. B. „Lage“; im Gespräch nur echte Sätze, keine Whisper-Floskeln)
-    if (lage.wartetBis > Date.now() && (nachHey || istNachfrage(text))) { setze({ wartetBis: 0 }); if (!nachHey) ohneCodewort++; nachHey = false; return await ausfuehren(befehl(text)) }
+    if (lage.wartetBis > begonnen && (nachHey || istNachfrage(text))) { setze({ wartetBis: 0 }); if (!nachHey) ohneCodewort++; nachHey = false; return await ausfuehren(befehl(text)) }
   } catch (e) {
     if ((lage.zustand as Zustand) !== 'aus') setze({ zustand: 'bereit', fehler: (e as Error).message })
   }
@@ -246,7 +249,7 @@ export async function einschalten() {
   const meiner = ++lauf
   setze({ zustand: 'laedt', fehler: '' })
   aus.forEach((f) => f())
-  aus = [b.beiFortschritt((f) => setze({ fortschritt: f })), b.beiErkannt((d) => void erkannt(d.text))]
+  aus = [b.beiFortschritt((f) => setze({ fortschritt: f })), b.beiErkannt((d) => void erkannt(d.text, d.sekunden))]
   try {
     // Lokis Stimme lädt parallel im Hintergrund (ca. 12 s) – bis dahin spricht Piper
     if (jarvisEinstellungen().stimme === 'loki') void b.stimme(true).catch(() => null)

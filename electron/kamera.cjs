@@ -66,7 +66,7 @@ function erstelleKamera({ speicher, holen = holeHttps, jetzt = () => Date.now(),
     if (f?.name === 'TimeoutError' || /timeout|Zeitüberschreitung/i.test(String(f?.message))) return 'Die Kamera antwortet nicht (Zeitüberschreitung). Ist Loki im VPN ausgenommen?'
     if (/ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|ECONNRESET/i.test(String(f?.code ?? f?.message))) return 'Die Kamera ist nicht erreichbar (Adresse? NordVPN-Ausnahme für Loki?).'
     if (f?.fremd) return 'Unter dieser Adresse meldet sich ein anderes Gerät als beim Einrichten – Abruf abgebrochen. Bei Bedarf Kamera neu eintragen.'
-    if (antwort && /"rspCode"\s*:\s*-?\d+/.test(antwort)) return /login|password|-6|-7/i.test(antwort) ? 'Benutzer oder Passwort der Kamera stimmt nicht.' : 'Die Kamera hat den Abruf abgelehnt.'
+    if (antwort && /"rspCode"\s*:\s*-?\d+/.test(antwort)) return /login|password|invalid user|"rspCode"\s*:\s*-(6|7|27)\b/i.test(antwort) ? 'Benutzer oder Passwort der Kamera stimmt nicht.' : 'Die Kamera hat den Abruf abgelehnt.'
     protokoll('Kamera:', f?.message ?? f)
     return 'Kamerabild konnte nicht geholt werden (Details im Protokoll).'
   }
