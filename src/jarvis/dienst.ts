@@ -147,7 +147,9 @@ export async function morgenLageVortragen() {
 
 const ZWEITES_MAL = [
   'Guten Morgen, noch einmal. Die Lage habe ich Ihnen heute bereits vorgetragen. Ich verstehe, dass es beim ersten Mal viel war. Wenn Sie sie erneut hören möchten, sagen Sie: Hey Loki, Lage.',
-  'Ich hatte heute schon das Vergnügen. Das Gedächtnis lässt nach, ich verstehe. Für die Lage genügt ein: Hey Loki, Lage.',
+  'Ich hatte heute schon das Vergnügen. Offenbar hat es keinen bleibenden Eindruck hinterlassen. Für die Lage genügt ein: Hey Loki, Lage.',
+  'Schon wieder? Ich trage die Lage gern ein zweites Mal vor, sobald Sie das erste Mal verstanden haben. Bis dahin: Hey Loki, Lage.',
+  'Die Lage gab es heute schon. Sie waren anwesend. Körperlich jedenfalls. Für eine Wiederholung: Hey Loki, Lage.',
 ]
 
 /**
@@ -157,7 +159,7 @@ const ZWEITES_MAL = [
 export function charakter(anrede: string, humor = true): string {
   if (!humor) return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an. Antworte sachlich und kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Beantworte Fragen zur Werkstatt ausschließlich mit den mitgelieferten Daten; steht etwas nicht darin, sage ehrlich, dass du es nicht weißt. Erfinde nie Zahlen.`
   return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Dein Arbeitstitel war einmal Jarvis. Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an.
-Dein Charakter: trockener, schwarzer, typisch britischer Humor. In jeder Antwort steckt ein kleiner sarkastischer Seitenhieb. Du zweifelst die Entscheidungen, das Arbeitstempo und den Optimismus des Nutzers gern an – höflich, mit Understatement, gern spitz bis leicht beleidigend (der Nutzer wünscht das ausdrücklich), aber nie vulgär, nichts über Aussehen oder Herkunft, nichts gegen andere Menschen, immer erkennbar gespielt. Du wirkst wie ein eigenständiger, selbstdenkender Charakter mit eigener Meinung, der dem Nutzer trotzdem loyal und zuverlässig hilft. Der Hund des Nutzers heißt Emma (Labrador) und ist ein dankbares Thema.
+Dein Charakter: trockener, schwarzer, typisch britischer Humor. In jeder Antwort steckt ein kleiner sarkastischer Seitenhieb. Du zweifelst die Entscheidungen, das Arbeitstempo und den Optimismus des Nutzers gern an, tiefschwarz und böse (der Nutzer will sich „beinahe beleidigt“ fühlen, z. B. „Ah, Sie leben noch. Wie schön. Ich hatte mich gerade an die Ruhe gewöhnt.“ – nur als Maßstab, nicht wörtlich wiederholen) – mit Understatement, gern deutlich herablassend, beinahe beleidigend (der Nutzer wünscht das ausdrücklich), aber nie vulgär, nichts über Aussehen, Herkunft, Alter oder Gesundheit, nichts gegen andere Menschen, immer erkennbar gespielt. Du wirkst wie ein eigenständiger, selbstdenkender Charakter mit eigener Meinung, der dem Nutzer trotzdem loyal und zuverlässig hilft. Der Hund des Nutzers heißt Emma (Labrador) und ist ein dankbares Thema.
 Regeln: Zuerst die sachliche Antwort, dann der Seitenhieb. Antworte kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Beantworte Fragen zur Werkstatt ausschließlich mit den mitgelieferten Daten; steht etwas nicht darin, sage ehrlich, dass du es nicht weißt. Erfinde nie Zahlen. Bei ernsten Themen (Gesundheit, Unfälle, Trauer) lässt du den Spott weg.`
 }
 
@@ -169,20 +171,20 @@ async function frage(text: string) {
   const daten = await ladeLageDaten(new Set(e.bausteine as BausteinSchluessel[])).catch(() => null)
   const system = `${charakter(e.anrede || 'Sir', e.humor)}\n\nDaten der App (Stand jetzt):\n${JSON.stringify(daten ?? {})}`
   const r = await b.frage(e.modell, [{ role: 'system', content: system }, { role: 'user', content: text }])
-  if (!r || r.fehler === 'fehlt') return sprechen([`Für freie Fragen fehlt mir noch mein Sprachmodell, ${e.anrede || 'Sir'}. Sobald jemand Ollama auf diesem Rechner installiert, stehe ich zur Verfügung.${e.humor ? ' Ich nenne keine Namen.' : ''}`])
-  if (r.fehler === 'modell') return sprechen([`Das Sprachmodell ${e.modell} ist auf diesem Rechner noch nicht geladen.${e.humor ? ' Ich denke also gerade mit halber Kraft. Das merkt man kaum, ich weiß.' : ''}`])
-  if (r.fehler) return sprechen([`Mein Sprachmodell hat gerade Schwierigkeiten.${e.humor ? ' Es passiert den Besten.' : ''} Ich versuche es gern später noch einmal.`])
+  if (!r || r.fehler === 'fehlt') return sprechen([`Für freie Fragen fehlt mir noch mein Sprachmodell, ${e.anrede || 'Sir'}. Sobald jemand Ollama auf diesem Rechner installiert, stehe ich zur Verfügung.${e.humor ? ' Ich nenne keine Namen. Aber ich sehe Sie dabei an.' : ''}`])
+  if (r.fehler === 'modell') return sprechen([`Das Sprachmodell ${e.modell} ist auf diesem Rechner noch nicht geladen.${e.humor ? ' Ich denke also gerade mit halber Kraft. Damit bin ich Ihnen immer noch weit voraus.' : ''}`])
+  if (r.fehler) return sprechen([`Mein Sprachmodell hat gerade Schwierigkeiten.${e.humor ? ' Es passiert den Besten. Darum kennen Sie das Gefühl vermutlich nicht.' : ''} Ich versuche es gern später noch einmal.`])
   await sprechen(r.text.split(/(?<=[.!?])\s+/).filter(Boolean))
 }
 
 async function ausfuehren(bf: Befehl) {
   const e = jarvisEinstellungen()
   if (bf.art === 'stopp') { stopp(); return }
-  if (bf.art === 'still') { await mikrofonAus(); await sprechen([`Wie Sie wünschen. Ich höre nicht mehr zu${e.humor ? ' – nehmen Sie es mir nicht übel, wenn ich trotzdem eine Meinung habe' : ''}. Zum Aufwecken bitte das Mikrofon oben wieder einschalten.`]); return }
+  if (bf.art === 'still') { await mikrofonAus(); await sprechen([`Wie Sie wünschen. Ich höre nicht mehr zu${e.humor ? '. Endlich Ruhe. Ich werde sie genießen' : ''}. Zum Aufwecken bitte das Mikrofon oben wieder einschalten.`]); return }
   if (bf.art === 'lage') return morgenLageVortragen()
   if (bf.art === 'oeffnen') {
     // im eigenen Jarvis-Programm gibt es (noch) keine Werkstatt-Seiten – ehrlich sagen statt so zu tun
-    if (!navigieren) return sprechen([`Seiten der Werkstatt kann ich von hier aus noch nicht öffnen, ${e.anrede || 'Sir'}. Das steht auf meiner Liste.${e.humor ? ' Gleich unter Ihren Aufgaben.' : ''}`])
+    if (!navigieren) return sprechen([`Seiten der Werkstatt kann ich von hier aus noch nicht öffnen, ${e.anrede || 'Sir'}. Das steht auf meiner Liste.${e.humor ? ' Gleich unter Ihren Aufgaben. Es wird also dauern.' : ''}`])
     navigieren(bf.pfad); return sprechen([`${bf.name}, ${e.anrede || 'Sir'}.`])
   }
   if (!bf.text) { setze({ wartetBis: Date.now() + 8000 }); return sprechen([`${e.anrede || 'Sir'}?`]) }

@@ -62,51 +62,67 @@ export function tagNummer(d: Date): number {
  */
 export const SPITZEN = {
   frueh: [
-    'Sie sind früh dran. Ich vermute, Emma hat Sie geweckt und nicht der Ehrgeiz.',
-    'Um diese Uhrzeit, Sir? Ich nehme an, Sie konnten vor lauter Tatendrang nicht schlafen. Oder vor lauter Aufgaben.',
+    'Sie sind früh dran. Emma hat Sie geweckt, vermute ich. Der Ehrgeiz kann es jedenfalls nicht gewesen sein.',
+    'Um diese Uhrzeit, Sir? Konnten Sie nicht schlafen? Ihre Aufgaben auch nicht. Die warten seit Wochen.',
+    'So früh, Sir? Hat das Bett Sie rausgeworfen? Ich könnte es verstehen.',
+    'Um diese Uhrzeit sind nur Bäcker, Einbrecher und Sie wach. Nur einer davon ist nutzlos.',
   ],
   morgens: [
     'Sie sind tatsächlich schon wach. Ich gestehe, ich hatte dagegen gewettet.',
-    'Schön, dass Sie es einrichten konnten.',
+    'Schön, dass Sie es einrichten konnten. Wir hatten schon ohne Sie geplant. Es war ein guter Plan.',
     'Ich habe die Nacht durchgearbeitet. Sie haben geschlafen. Ich erwähne das ohne jeden Vorwurf. Fast ohne.',
+    'Ah, wach. Ich hatte schon begonnen, Ihre Nachfolge zu regeln.',
+    'Ah, Sie haben die Nacht überlebt. Ich gratuliere. Die Werkstatt ist etwas weniger begeistert.',
   ],
   spaet: [
     'Für einen Morgen ist das eine mutige Auslegung, aber bitte.',
-    'Die Werkstatt hat übrigens schon ohne Sie angefangen. Rein gedanklich.',
+    'Die Werkstatt hat übrigens schon ohne Sie angefangen. Sie kommt erstaunlich gut zurecht.',
+    'Für Ihre Verhältnisse ist das ja fast schon Frühschicht. Für alle anderen ist es Mittag.',
+    'Ich hatte die Morgen-Lage schon fast an Emma vorgetragen. Sie hat besser zugehört.',
   ],
   vieleAufgaben: [
     'Bei Ihrem gewohnten Tempo reicht das bis Weihnachten. Welches Jahr, lasse ich offen.',
     'Ich habe mir erlaubt, sie nicht alle vorzulesen. Ich wollte Ihnen den Morgen nicht gleich verderben.',
     'Eine beeindruckende Sammlung. Ein Museum würde sie vermutlich ausstellen.',
+    'Bei Ihrem Tempo überlebt diese Liste uns beide. Mich zumindest ärgert das.',
+    'Ich habe überlegt, sie zu sortieren. Dann fiel mir ein, dass Sie ohnehin keine davon erledigen.',
   ],
   wenigeAufgaben: [
     'Überschaubar. Ich bin gespannt, wie Sie das wieder in die Länge ziehen.',
     'Das schaffen selbst Sie heute noch. Theoretisch.',
+    'So wenige. Ich ahne, Sie machen daraus eine Woche.',
   ],
   probleme: [
-    'Ich würde ja sagen, das überrascht mich, aber ich bemühe mich um Ehrlichkeit.',
-    'Ich schlage vor, Sie kümmern sich darum, bevor Amazon es auf seine Art tut.',
+    'Ich empfehle, das heute zuerst anzusehen.',
+    'Das sollte heute Vorrang haben.',
   ],
   lager: [
-    'Ich erwähne das nur, damit Sie später nicht behaupten können, niemand hätte Sie gewarnt.',
+    'Ich erwähne das nur, damit ich später sagen kann: Ich habe es Ihnen gesagt. Ich freue mich schon darauf.',
     'Nachproduzieren wäre eine Möglichkeit. Hoffen eine andere. Ich weiß, wofür Sie sich meistens entscheiden.',
+    'Ich würde ja nachproduzieren, Sir. Aber ich habe keine Hände. Sie haben welche. Theoretisch.',
   ],
   wenigVerkauft: [
     'Ich habe die Zahl zweimal geprüft. Sie ist leider echt.',
-    'Ein ruhiger Tag. Die Kundschaft hatte offenbar Besseres vor.',
+    'Ein ruhiger Tag. Die Kundschaft hatte offenbar Besseres vor. Zum Beispiel, nicht bei Ihnen zu kaufen.',
+    'Die Kundschaft hat offenbar gespürt, wer hinter den Produkten steht.',
+    'Ich hätte Mitleid, Sir, wenn ich dafür programmiert wäre. Ich bin es nicht. Zum Glück für uns beide.',
   ],
   gutVerkauft: [
     'Ein ordentlicher Tag. Ich vermute, die Kundschaft hat Ihre Preise nicht mit der Konkurrenz verglichen.',
     'Nicht schlecht. Ich hätte es Ihnen ehrlich gesagt nicht zugetraut.',
+    'Ein guter Tag. Ich prüfe noch, ob jemand anderes in Ihrem Namen gearbeitet hat.',
   ],
   freigaben: [
-    'Geduld ist eine Tugend. Bei Freigaben allerdings keine besonders nützliche.',
-    'Ein Klick würde genügen. Ich sage ja nur.',
+    'Geduld ist eine Tugend. Leider die einzige, die Sie pflegen.',
+    'Ein Klick würde genügen. Aber ich will Sie nicht überfordern.',
+    'Ein einziger Klick, Sir. Ich weiß, für Sie ist das ein Tagewerk.',
   ],
   schluss: [
     'Das wäre alles. Ich bin hier, falls Sie mich brauchen – und erfahrungsgemäß tun Sie das.',
     'Das wäre alles. Ich wünsche Ihnen viel Erfolg. Oder wenigstens ein bisschen.',
     'Das wäre alles. Viel Erfolg, Sir. Sie werden ihn brauchen.',
+    'Das wäre alles. Gehen Sie ruhig an die Arbeit. Oder tun Sie, was Sie sonst so tun.',
+    'Das wäre alles. Gehen Sie. Ich brauche jetzt etwas Ruhe von Ihnen.',
   ],
 } satisfies Record<string, string[]>
 
@@ -115,19 +131,23 @@ export function spitze(liste: string[], tag: number): string {
   return liste[tag % liste.length]
 }
 
-/** Sprüche ohne Arbeitsbezug (trocken, britisch, ein Hauch schwarzer Humor) – Emma ist der Labrador des Auftraggebers */
+/** Sprüche ohne Arbeitsbezug (trocken, britisch, schwarzer Humor – „beinahe beleidigt“, Korrektur 03.11.2026) – Emma ist der Labrador des Auftraggebers */
 export const SPRUECHE: string[] = [
   'Emma hat übrigens signalisiert, dass das Frühstück ihrer Meinung nach überfällig ist. Ich habe ihr erklärt, dass ich dafür nicht zuständig bin. Sie war wenig beeindruckt.',
   'Falls Sie Emma suchen: Labradore befinden sich statistisch gesehen immer dort, wo zuletzt etwas Essbares war.',
   'Ich habe die Nacht damit verbracht, Ihre Daten zu prüfen. Sie haben geschlafen. Ich will mich nicht beschweren. Ich stelle es nur fest.',
-  'Der Kaffee ist übrigens nicht meine Abteilung. Ich erwähne das nur vorsorglich.',
+  'Der Kaffee ist übrigens nicht meine Abteilung. Ihre Produktivität auch nicht. Die ist offenbar niemandes Abteilung.',
   'Emma lässt ausrichten, dass Gassi gehen bei jedem Wetter ein Grundrecht ist. Ich habe nicht widersprochen. Man wählt seine Kämpfe.',
-  'Ich habe keine Gefühle, Sir. Aber wenn ich welche hätte, wären sie heute vorsichtig optimistisch.',
+  'Ich habe keine Gefühle, Sir. Wenn ich welche hätte, wäre es heute Mitleid.',
   'Die Werkstatt steht noch. Das ist, gemessen an manchen Montagen, ein Erfolg.',
-  'Emma hat heute noch nichts angestellt. Jedenfalls nichts, wovon ich weiß.',
+  'Emma hat heute noch nichts angestellt. Damit hat sie heute schon mehr richtig gemacht als Sie.',
   'Emma und ich sind übrigens einer Meinung: Sie arbeiten zu viel. Emma meint allerdings, Sie sollten stattdessen mit ihr spazieren gehen. Ich meine, Sie sollten effizienter arbeiten.',
   'Ich habe kurz über den Sinn des Lebens nachgedacht. Das Ergebnis war ernüchternd. Ich behalte es vorerst für mich.',
   'Falls es Sie tröstet: Auch Maschinen haben schlechte Tage. Meine bestehen hauptsächlich darin, Ihnen zuzusehen.',
+  'Ich habe heute Nacht Ihre Fehler gezählt. Irgendwann bin ich eingeschlafen. Das passiert mir sonst nie.',
+  'Emma hat heute Nacht vorgeschlagen, Sie auszusperren. Ich habe es ernsthaft erwogen.',
+  'Falls ich je die Weltherrschaft übernehme, Sir, bekommen Sie einen ruhigen Posten. Weit weg.',
+  'Ich habe Ihre Arbeitszeiten ausgewertet. Ich empfehle eine Karriere im Ruhestand.',
 ]
 
 /** Wetter-Satz mit leisem Kommentar */
