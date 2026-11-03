@@ -83,6 +83,8 @@ Der Auftraggeber kann **nicht programmieren**. Du erledigst die gesamte Entwickl
 - `electron/main.cjs` – Fenster, Rechte (nur Mikrofon), nur verschlüsselte Verbindungen der Oberfläche, eine Instanz
 - `electron/preload.cjs` – Brücke `window.jarvisDesktop`
 - `electron/jarvis.cjs` – Stimme, Erkennung, Modelle laden, Ollama (aus der Werkstatt-App übernommen)
+- `electron/symbol/` – Symbole für den Infobereich; `build/installer.nsh` – Zusatz für den Uninstaller (Autostart-Eintrag entfernen)
+- `src/jarvis/begruessung.ts` – Begrüßungssprüche beim Rechnerstart (Tests `begruessung.test.ts`); Ablauf `rechnerStart()` in `dienst.ts`
 - `electron/loki.cjs` – Verbindung zu Lokis Stimme (Start, Sätze, Zeitüberschreitung, Neustart); Tests `electron/loki.test.js`
 - `stimme/` – Lokis Stimme: `loki_stimme.py` (Hintergrund-Programm), `loki-vorlage.wav` + `LIESMICH.md` (nicht ändern), `einrichten.ps1`, `anforderungen.txt`
 - `electron/jarvis-test.cjs` – Selbsttest: spricht einen Satz mit Piper und einen mit Loki, erkennt beide wieder, prüft, dass nach dem Beenden der Grafikspeicher frei ist
@@ -116,7 +118,7 @@ Der Auftraggeber kann **nicht programmieren**. Du erledigst die gesamte Entwickl
 9. offen: Ollama einrichten
 10. offen: Aktionen per Sprache, **immer mit Bestätigung**, erst klein (Karte anlegen/erledigen, Produziert buchen, Seite öffnen; nie Shop-Texte/Preise)
 11. offen: Gestaltung – vier Entwürfe (Vorlage aus der Werkstatt: `vorschau/jarvis-vier.html`)
-12. **in Planung (03.11.2026): Installer + Autostart.** Interview-Entscheidungen: nach dem Hochfahren **unsichtbar mit Symbol unten rechts** (Infobereich), Klick öffnet das Fenster; **X versteckt nur** (Beenden über Rechtsklick aufs Symbol); beim Rechnerstart **Begrüßung mit wechselndem bissigem Spruch + Morgen-Lage** (einmal am Tag) ohne Zutun. Plan noch nicht freigegeben.
+12. ✅ (03.11.2026, Version 0.2.0) **Installer + Autostart** (Plan freigegeben). Entscheidungen: nach dem Hochfahren **unsichtbar mit Symbol unten rechts** (Infobereich, `electron/symbol/`: türkis = hört zu, grau = aus/Mikrofon aus, rot = Störung), Klick öffnet das Fenster, Rechtsklick: Öffnen / Mikrofon / Beenden; **X versteckt nur**; Windows-Abmelden/Herunterfahren beendet wirklich (`session-end`). Autostart über `app.setLoginItemSettings` (Name „Jarvis“, Argument `--autostart`, nur im installierten Programm, beim ersten Start automatisch an, Schalter in den Einstellungen; Uninstaller entfernt den Eintrag über `build/installer.nsh`). Beim Rechnerstart ohne Klick: einschalten (Mikrofon bis zu 5-mal neu versuchen), bis 45 s auf Lokis Stimme warten, **wechselnder Begrüßungsspruch** (`src/jarvis/begruessung.ts`, 24 Sprüche, nie zweimal hintereinander), danach Morgen-Lage einmal am Tag. Fenster: `backgroundThrottling: false`, `autoplayPolicy: 'no-user-gesture-required'`. Installer für den aktuellen Benutzer (`oneClick`, `perMachine: false`, kein Admin) nach `%LOCALAPPDATA%\Programs\jarvis`; Lokis Stimme dort aus `%APPDATA%\Jarvis\loki-python`. Neue Fassung: `npm run electron:build`, dann `release\Jarvis Setup <Version>.exe /S` (still).
 13. später: Start-Sequenz über drei Bildschirme, Wallpaper-Engine-HUD mit Kameras, Alexa, Home-Automation, Handy (siehe 8)
 
 ## 6. Werkstatt-Anbindung (nur geplant – nicht ohne Rückfrage bauen)

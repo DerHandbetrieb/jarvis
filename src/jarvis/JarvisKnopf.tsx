@@ -4,7 +4,7 @@
 // Im eigenen Jarvis-Projekt (03.11.2026) ohne Seiten-Navigation – „öffne …“ für Werkstatt-Seiten folgt später.
 import { useEffect, useRef, useState } from 'react'
 import { bruecke, setzeJarvis, useJarvisEinstellungen } from './desktop'
-import { ausschalten, einschalten, mikrofonUmschalten, morgenLageVortragen, stopp, useJarvis } from './dienst'
+import { ausschalten, einschalten, mikrofonUmschalten, morgenLageVortragen, rechnerStart, stopp, useJarvis } from './dienst'
 import { nachfragen } from '../ui/Nachfrage'
 
 const TEXT: Record<string, string> = { aus: 'aus', laedt: 'wird vorbereitet …', bereit: 'hört zu', spricht: 'spricht', denkt: 'denkt nach', fehler: 'Störung' }
@@ -16,8 +16,15 @@ export default function JarvisKnopf({ klasse }: { klasse: string }) {
   const feld = useRef<HTMLDivElement>(null)
   const da = !!bruecke()
 
-  // eingeschaltet → beim Start der App gleich zuhören (für „Guten Morgen, Loki“)
-  useEffect(() => { if (da && e.an) void einschalten() }, [da, e.an])
+  // von Windows beim Anmelden gestartet → ohne Klick einschalten, begrüßen, Morgen-Lage; sonst: eingeschaltet → gleich
+  // zuhören (für „Guten Morgen, Loki“)
+  useEffect(() => {
+    if (!da) return
+    if (window.jarvisDesktop?.beimStart) void rechnerStart()
+    else if (e.an) void einschalten()
+  }, [da, e.an])
+  // Rechtsklick auf das Symbol unten rechts → „Mikrofon aus/an“
+  useEffect(() => (da ? bruecke()!.beiTrayMikrofon(() => void mikrofonUmschalten()) : undefined), [da])
   useEffect(() => {
     if (!offen) return
     const zu = (ev: MouseEvent) => { if (feld.current && !feld.current.contains(ev.target as Node)) setOffen(false) }

@@ -2,7 +2,7 @@
 import { Abschnitt } from '../ui/Abschnitt'
 import { useEffect, useState } from 'react'
 import { BAUSTEINE, type BausteinSchluessel } from './morgenlage'
-import { bruecke, setzeJarvis, useJarvisEinstellungen, type JarvisStatus, type Stimme } from './desktop'
+import { bruecke, setzeJarvis, useJarvisEinstellungen, type Autostart, type JarvisStatus, type Stimme } from './desktop'
 import { sprechen, stimmeWaehlen, useJarvis } from './dienst'
 
 // Was gerade mit Lokis Stimme los ist (Piper springt ein, solange sie nicht bereit ist)
@@ -32,6 +32,9 @@ export default function JarvisEinstellungen() {
     return () => { weg = true; clearInterval(t) }
   }, [])
   const lz = st?.loki?.zustand ?? 'aus'
+  // Autostart mit Windows (nur im installierten Programm)
+  const [autostart, setAutostart] = useState<Autostart | null>(null)
+  useEffect(() => { void window.jarvisDesktop?.autostart.lesen().then(setAutostart) }, [])
   const umschalten = (b: BausteinSchluessel) => setzeJarvis({ bausteine: e.bausteine.includes(b) ? e.bausteine.filter((x) => x !== b) : [...e.bausteine, b] })
   return (
     <Abschnitt titel="Loki (Sprachassistent)">
@@ -40,6 +43,15 @@ export default function JarvisEinstellungen() {
       ) : (
         <div className="space-y-4 text-sm">
           <p className="text-neutral-600">Ein- und ausschalten über den runden Knopf oben rechts. Danach genügt „Guten Morgen, Loki“ für die Morgen-Lage oder „Hey Loki, …“ für Befehle und Fragen („Jarvis“ geht auch).</p>
+          {autostart?.verfuegbar ? (
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={autostart.an} onChange={(x) => void window.jarvisDesktop?.autostart.setzen(x.target.checked).then(setAutostart)} />
+              Mit Windows starten – Loki wartet dann unsichtbar (Symbol unten rechts neben der Uhr), begrüßt Sie und trägt einmal am Tag die Morgen-Lage vor
+            </label>
+          ) : (
+            <p className="text-neutral-500">Mit Windows starten: nur im installierten Programm möglich.</p>
+          )}
+          <p className="text-neutral-500">Das X oben rechts versteckt nur das Fenster – Loki hört weiter zu. Ganz beenden: Rechtsklick auf das Loki-Symbol unten rechts → „Beenden“.</p>
           <div className="flex flex-wrap items-end gap-4">
             <label className="block">Anrede<br /><input className="mt-1 w-40 rounded-lg border border-neutral-300 px-2 py-1.5" value={e.anrede} onChange={(x) => setzeJarvis({ anrede: x.target.value })} /></label>
             <label className="block">Stimme<br />

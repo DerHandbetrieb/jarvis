@@ -1,10 +1,24 @@
 // Brücke zwischen Windows-Programm und Oberfläche (aus der Werkstatt-App übernommen, 03.11.2026).
-// Gibt nur die Versionsnummer und die Jarvis-Funktionen weiter (Stimme, Zuhören, Fragen, Lokis Stimme ein/aus), sonst nichts.
+// Gibt nur die Versionsnummer und die Jarvis-Funktionen weiter (Stimme, Zuhören, Fragen, Lokis Stimme ein/aus,
+// Autostart mit Windows, Zustand fürs Symbol im Infobereich), sonst nichts.
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('jarvisDesktop', {
   version: ipcRenderer.sendSync('programm-version'),
+  /** true, wenn Windows das Programm beim Anmelden gestartet hat (Begrüßung + Morgen-Lage ohne Klick) */
+  beimStart: !!ipcRenderer.sendSync('programm-beim-start'),
+  autostart: {
+    lesen: () => ipcRenderer.invoke('autostart-lesen'),
+    setzen: (an) => ipcRenderer.invoke('autostart-setzen', !!an),
+  },
   jarvis: {
+    /** Zustand an das Symbol im Infobereich melden */
+    meldeZustand: (zustand, mikrofon) => ipcRenderer.send('jarvis-zustand', { zustand: String(zustand), mikrofon: !!mikrofon }),
+    beiTrayMikrofon: (fn) => {
+      const h = () => fn()
+      ipcRenderer.on('jarvis-tray-mikrofon', h)
+      return () => ipcRenderer.removeListener('jarvis-tray-mikrofon', h)
+    },
     status: () => ipcRenderer.invoke('jarvis-status'),
     vorbereiten: () => ipcRenderer.invoke('jarvis-vorbereiten'),
     sprechen: (a) => ipcRenderer.invoke('jarvis-sprechen', { text: String(a?.text ?? ''), piperText: String(a?.piperText ?? ''), tempo: Number(a?.tempo), stimme: a?.stimme === 'loki' ? 'loki' : 'piper' }),

@@ -7,6 +7,7 @@ import { befehl, codewort, type Befehl } from './befehle'
 import { morgenLage, tagNummer, type BausteinSchluessel } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
+import { begruessung, waehleBegruessung } from './begruessung'
 
 export type Zustand = 'aus' | 'laedt' | 'bereit' | 'spricht' | 'denkt' | 'fehler'
 export type JarvisLage = {
@@ -22,7 +23,13 @@ export type JarvisLage = {
 
 let lage: JarvisLage = { zustand: 'aus', mikrofon: false, wartetBis: 0, fortschritt: null, gehoert: '', gesagt: '', fehler: '' }
 const zuhoerer = new Set<() => void>()
-function setze(teil: Partial<JarvisLage>) { lage = { ...lage, ...teil }; zuhoerer.forEach((z) => z()) }
+function setze(teil: Partial<JarvisLage>) {
+  const vorher = lage
+  lage = { ...lage, ...teil }
+  // Symbol im Infobereich unten rechts mitführen
+  if (vorher.zustand !== lage.zustand || vorher.mikrofon !== lage.mikrofon) bruecke()?.meldeZustand(lage.zustand, lage.mikrofon)
+  zuhoerer.forEach((z) => z())
+}
 export function useJarvis(): JarvisLage {
   return useSyncExternalStore((z) => { zuhoerer.add(z); return () => { zuhoerer.delete(z) } }, () => lage)
 }
@@ -150,7 +157,7 @@ const ZWEITES_MAL = [
 export function charakter(anrede: string, humor = true): string {
   if (!humor) return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an. Antworte sachlich und kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Beantworte Fragen zur Werkstatt ausschließlich mit den mitgelieferten Daten; steht etwas nicht darin, sage ehrlich, dass du es nicht weißt. Erfinde nie Zahlen.`
   return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Dein Arbeitstitel war einmal Jarvis. Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an.
-Dein Charakter: trockener, schwarzer, typisch britischer Humor. In jeder Antwort steckt ein kleiner sarkastischer Seitenhieb. Du zweifelst die Entscheidungen, das Arbeitstempo und den Optimismus des Nutzers gern an – höflich, mit Understatement, nie beleidigend, nie vulgär, immer erkennbar gespielt. Du wirkst wie ein eigenständiger, selbstdenkender Charakter mit eigener Meinung, der dem Nutzer trotzdem loyal und zuverlässig hilft. Der Hund des Nutzers heißt Emma (Labrador) und ist ein dankbares Thema.
+Dein Charakter: trockener, schwarzer, typisch britischer Humor. In jeder Antwort steckt ein kleiner sarkastischer Seitenhieb. Du zweifelst die Entscheidungen, das Arbeitstempo und den Optimismus des Nutzers gern an – höflich, mit Understatement, gern spitz bis leicht beleidigend (der Nutzer wünscht das ausdrücklich), aber nie vulgär, nichts über Aussehen oder Herkunft, nichts gegen andere Menschen, immer erkennbar gespielt. Du wirkst wie ein eigenständiger, selbstdenkender Charakter mit eigener Meinung, der dem Nutzer trotzdem loyal und zuverlässig hilft. Der Hund des Nutzers heißt Emma (Labrador) und ist ein dankbares Thema.
 Regeln: Zuerst die sachliche Antwort, dann der Seitenhieb. Antworte kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Beantworte Fragen zur Werkstatt ausschließlich mit den mitgelieferten Daten; steht etwas nicht darin, sage ehrlich, dass du es nicht weißt. Erfinde nie Zahlen. Bei ernsten Themen (Gesundheit, Unfälle, Trauer) lässt du den Spott weg.`
 }
 
@@ -244,4 +251,45 @@ export async function ausschalten() {
 export async function stimmeWaehlen(stimme: Stimme) {
   setzeJarvis({ stimme })
   if (lage.zustand !== 'aus' && lage.zustand !== 'fehler') await bruecke()?.stimme(stimme === 'loki')
+}
+
+// ---------- Rechnerstart ----------
+const warten = (ms: number) => new Promise((w) => setTimeout(w, ms))
+let gestartet = false
+
+/**
+ * Windows hat Loki beim Anmelden gestartet (Wunsch Auftraggeber 03.11.2026): ohne Klick einschalten, auf Lokis Stimme
+ * warten (höchstens 45 s, sonst spricht Piper), wechselnde Begrüßung, danach die Morgen-Lage – einmal am Tag.
+ * Lädt beim allerersten Mal keine Modelle ungefragt herunter.
+ */
+export async function rechnerStart() {
+  const b = bruecke()
+  if (!b || gestartet) return
+  gestartet = true
+  const st = await b.status()
+  if (!st || Object.values(st.modelle).some((v) => !v)) return
+  setzeJarvis({ an: true })
+  await einschalten()
+  // direkt nach dem Anmelden ist das Mikrofon (USB-Headset, Treiber) manchmal noch nicht bereit → bis zu 5-mal neu
+  // versuchen (Prüf-Agent)
+  for (let i = 0; i < 5 && (lage.zustand as Zustand) === 'fehler'; i++) {
+    await warten(5000)
+    await einschalten()
+  }
+  if ((lage.zustand as Zustand) !== 'bereit') return
+  const meiner = lauf
+  if (jarvisEinstellungen().stimme === 'loki') {
+    for (let i = 0; i < 45; i++) {
+      const z = (await b.status())?.loki?.zustand
+      if (z !== 'laedt' && z !== 'aus') break
+      await warten(1000)
+    }
+  }
+  // währenddessen aus-/eingeschaltet oder schon angesprochen („Guten Morgen, Loki“) → nicht dazwischenreden
+  if (meiner !== lauf || (lage.zustand as Zustand) !== 'bereit') return
+  const e = jarvisEinstellungen()
+  const nr = waehleBegruessung(e.letzteBegruessung, Math.random())
+  setzeJarvis({ letzteBegruessung: nr })
+  if (!await sprechen([begruessung(nr, e.anrede, e.humor)])) return
+  if (jarvisEinstellungen().zuletztLage !== heute()) await morgenLageVortragen()
 }

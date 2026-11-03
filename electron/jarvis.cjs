@@ -247,6 +247,8 @@ function einrichten(hauptfenster, erlaubt) {
 
 module.exports = {
   einrichten,
+  /** Lokis Stimme beenden (Windows meldet ab / fährt herunter) */
+  stimmeBeenden: () => loki.beenden(),
   // nur für den Selbsttest (electron electron/jarvis-test.cjs)
   _test: {
     vorbereiten, status,

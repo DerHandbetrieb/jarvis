@@ -7,7 +7,13 @@ import { BAUSTEINE, type BausteinSchluessel } from './morgenlage'
 export type LokiZustand = 'aus' | 'laedt' | 'bereit' | 'fehlt' | 'fehler'
 export type JarvisStatus = { verfuegbar: boolean; modelle: Record<string, boolean>; bereit: boolean; zuhoeren: boolean; groesseMb: number; loki?: { zustand: LokiZustand; fehler: string } }
 export type Stimme = 'loki' | 'piper'
+/** Autostart mit Windows – nur im installierten Programm verfügbar */
+export type Autostart = { verfuegbar: boolean; an: boolean }
 export type JarvisBruecke = {
+  /** Zustand fürs Symbol im Infobereich unten rechts */
+  meldeZustand: (zustand: string, mikrofon: boolean) => void
+  /** Rechtsklick-Menü des Symbols: „Mikrofon aus/an“ */
+  beiTrayMikrofon: (fn: () => void) => () => void
   status: () => Promise<JarvisStatus | null>
   vorbereiten: () => Promise<JarvisStatus | null>
   /** text = Originalsatz für Loki, piperText = mit Aussprache-Liste für Piper (springt ein, wenn Loki nicht bereit ist) */
@@ -37,10 +43,12 @@ export type JarvisEinstellungen = {
   modell: string
   /** Morgen-Lage am Tag schon vorgetragen (JJJJ-MM-TT) – damit „Guten Morgen“ später nur noch kurz antwortet */
   zuletztLage: string
+  /** Nummer der letzten Begrüßung beim Rechnerstart (-1 = noch keine) – damit nie zweimal dieselbe kommt */
+  letzteBegruessung: number
 }
 
 const STANDARD: JarvisEinstellungen = {
-  an: false, anrede: 'Sir', humor: true, stimme: 'loki', tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen2.5:7b', zuletztLage: '',
+  an: false, anrede: 'Sir', humor: true, stimme: 'loki', tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen2.5:7b', zuletztLage: '', letzteBegruessung: -1,
 }
 const SCHLUESSEL = 'jarvis.einstellungen'
 const zuhoerer = new Set<() => void>()
