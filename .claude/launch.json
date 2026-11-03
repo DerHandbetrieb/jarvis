@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hoerproben",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "vorschau/hoerproben", "--port", "5175", "--strictPort"],
+      "port": 5175
+    }
+  ]
+}

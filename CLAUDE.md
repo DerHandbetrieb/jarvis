@@ -42,14 +42,15 @@ Der Auftraggeber kann **nicht programmieren**. Du erledigst die gesamte Entwickl
 - **Stimme:** Piper **Thorsten high**, Tempo **0,88** (Hörprobe „A“ in der Werkstatt-App, `vorschau/stimmen/hoerproben.html`).
 - **Englische Wörter sauber aussprechen** („Sir“ → „Sörr“, nicht „sier“) über die Aussprache-Liste `src/jarvis/aussprache.ts`; eigene Einträge in den Einstellungen.
 - **Keine Kopie der echten Jarvis-Synchronstimme** (LG Berlin II, 20.08.2025, Az. 2 O 202/24: KI-Klon der Stimme eines Synchronsprechers verletzt sein Persönlichkeitsrecht). Der Stil entsteht nur über Wortwahl und Tempo.
-- **Codewörter:** „Guten Morgen, Jarvis“ = Morgen-Lage, „Hey Jarvis, …“ = Befehle/Fragen. **Rufname wird „Loki“** (siehe 7), umgesetzt ist noch „Jarvis“. Die Morgen-Lage startet, wenn der Auftraggeber nach dem Start „Guten Morgen, Jarvis“ sagt; nur am PC, mit **sichtbarer Mikrofon-Anzeige und Stumm-Schalter** (gebaut: Ring + Knopf „Mikrofon aus“) und **einstellbarer Empfindlichkeit wegen Werkstatt-Lärm** (noch nicht gebaut – die Schwelle der Sprechpausen-Erkennung steht fest auf 0,5 in `electron/jarvis.cjs`).
+- **Codewörter:** „Guten Morgen, Loki“ = Morgen-Lage, „Hey Loki, …“ = Befehle/Fragen (Rufname Loki, siehe 7; „Jarvis“ wird weiterhin verstanden). Die Morgen-Lage startet, wenn der Auftraggeber nach dem Start „Guten Morgen, Loki“ sagt; nur am PC, mit **sichtbarer Mikrofon-Anzeige und Stumm-Schalter** (gebaut: Ring + Knopf „Mikrofon aus“) und **einstellbarer Empfindlichkeit wegen Werkstatt-Lärm** (noch nicht gebaut – die Schwelle der Sprechpausen-Erkennung steht fest auf 0,5 in `electron/jarvis.cjs`).
 - **Morgen-Lage, Inhalt (etwa eine Minute):** Aufgaben und Neues seit gestern, Probleme in den Shops und nächtlicher Selbsttest, knappe Artikel und Verkäufe von gestern, Wetter und offene Freigaben. Feste Regeln ohne Sprachmodell (darum nichts erfunden); Inhalte als erweiterbare, abschaltbare Bausteine.
 - **Aktionen per Sprache** erst klein und immer mit Bestätigung; Antworten nur aus App-Daten.
-- **Wunsch Auftraggeber 03.11.2026 (offen, eigene Etappe „Stimme und Charakter“):**
-  - Die Stimme klingt ihm **zu statisch, nicht flüssig** – daran feilen.
-  - Gern ein **leichter britischer Akzent** im Deutschen.
-  - Die Texte sollen **immer** leicht sarkastisch sein, schwarzer, typisch britischer Humor – auch **ihm gegenüber kritisch und anzweifelnd** (natürlich gespielt), damit Jarvis wie ein eigenständiger, selbstdenkender Charakter wirkt. Das gilt für feste Texte (Morgen-Lage, Antworten) und für die Anweisung an das Sprachmodell.
-  - Vorgehen: erst recherchieren (offizielle Angaben von Piper/sherpa-onnx: Stellschrauben wie Sprechtempo, Betonungs- und Pausen-Werte, Satz-für-Satz-Erzeugung; andere freie Stimmen und ihre Lizenzen; ob ein Akzent mit Piper überhaupt geht oder eine andere Stimme/Umschrift nötig ist – nur mit Quelle), dann Hörproben zum Vergleichen, Auftraggeber wählt. Keine Kopie einer echten Synchronstimme.
+- **Charakter (Entscheidung 03.11.2026, „noch bissiger“):** Durchgehend trockener, schwarzer, typisch britischer Humor; in jeder Antwort ein kleiner Seitenhieb, dem Auftraggeber gegenüber gespielt kritisch und anzweifelnd, damit Loki wie ein eigenständiger, selbstdenkender Charakter wirkt – nie beleidigend, Fakten immer zuerst und vollständig, bei ernsten Themen kein Spott. Umgesetzt: Seitenhiebe je Baustein der Morgen-Lage (`SPITZEN` in `morgenlage.ts`), die Antworten in `dienst.ts` und die Anweisung an das Sprachmodell (`charakter()` in `dienst.ts`) – alles abschaltbar über „Humor“ in den Einstellungen. Offene Designfrage: Mit allen Bausteinen kommen bis zu acht Witzsätze zusammen – ggf. begrenzen, falls die Lage zu lang wird.
+- **Stimme (Hörproben 03.11.2026, `vorschau/hoerproben/`, Seite starten mit dem Vorschau-Server „hoerproben“):**
+  - Der Auftraggeber findet die Stimme **zu statisch, nicht flüssig**. Von A–D (Thorsten high mit verschiedenen Reglern) gefiel **A (heute: Tempo 0,88, Grundwerte) am besten**, überzeugt aber noch nicht ganz → bleibt vorerst.
+  - **Britischer Akzent über britische Piper-Stimmen mit deutscher Lautschrift (E–G) = „schrecklich, geht gar nicht“** – nicht wieder vorschlagen.
+  - Thorsten mit Gefühlslagen (J–L, CC0) war verständlich, wurde aber nicht gewählt.
+  - Nächster Schritt: bessere Sprachausgabe-Technik testen – Recherche mit Quellen in `recherche/stimmen-2026-11-03.md` (Kandidaten Chatterbox Multilingual, Qwen3-TTS, Thorsten-Kokoro; braucht Python mit CUDA). Ein Akzent könnte mit Qwen3-TTS natürlich entstehen (Stimmen keine deutschen Muttersprachler) – erst anhören.
 
 ## 3. Technik
 
@@ -74,7 +75,7 @@ Der Auftraggeber kann **nicht programmieren**. Du erledigst die gesamte Entwickl
 - `electron/preload.cjs` – Brücke `window.jarvisDesktop`
 - `electron/jarvis.cjs` – Stimme, Erkennung, Modelle laden, Ollama (aus der Werkstatt-App übernommen)
 - `electron/jarvis-test.cjs` – Selbsttest: spricht einen Satz und erkennt ihn wieder
-- `src/jarvis/` – aus der Werkstatt-App übernommen: `morgenlage.ts` (Bausteine wetter/aufgaben/probleme/lager/verkauf/freigaben, Sprüche u. a. über Emma, jeden 2. Tag), `aussprache.ts`, `befehle.ts` (Codewörter mit lautlichem Namensvergleich, feste Befehle), `dienst.ts` (Ablauf), `desktop.ts` (Einstellungen je Gerät, localStorage `jarvis.einstellungen`), `JarvisKnopf.tsx`, `JarvisEinstellungen.tsx`, Tests `jarvis.test.ts`. Neu: `wetter.ts` (Open-Meteo, aus der Werkstatt übernommen), `daten.ts` vorerst nur Wetter.
+- `src/jarvis/` – aus der Werkstatt-App übernommen: `morgenlage.ts` (Bausteine wetter/aufgaben/probleme/lager/verkauf/freigaben, Seitenhiebe nach jedem Sachsatz, Sprüche u. a. über Emma jeden 2. Tag), `aussprache.ts`, `befehle.ts` (Codewörter mit lautlichem Namensvergleich, feste Befehle), `dienst.ts` (Ablauf), `desktop.ts` (Einstellungen je Gerät, localStorage `jarvis.einstellungen`), `JarvisKnopf.tsx`, `JarvisEinstellungen.tsx`, Tests `jarvis.test.ts`. Neu: `wetter.ts` (Open-Meteo, aus der Werkstatt übernommen), `daten.ts` vorerst nur Wetter.
 - `src/App.tsx` – vorläufige, schlichte Oberfläche (Kopfzeile mit Ring + Einstellungen)
 
 Änderungen beim Umzug: Brücke heißt `jarvisDesktop` statt `werkstattDesktop`; keine Seiten-Navigation („öffne das Lager“ sagt ehrlich, dass das von hier noch nicht geht); Werkstatt-Bausteine der Morgen-Lage liefern vorerst nichts (siehe 6).
@@ -88,6 +89,7 @@ Der Auftraggeber kann **nicht programmieren**. Du erledigst die gesamte Entwickl
 - `npm run electron:dev` – Entwickeln mit Vite auf Port 5174 (5173 gehört der Werkstatt-App)
 - `npm run selbsttest -- --user-data-dir=<Ordner mit jarvis\-Modellen>` – Sprach-Selbsttest (z. B. `%APPDATA%\Jarvis`)
 - `npm run electron:build` – Windows-Installer in `release/`
+- Hörproben: `node vorschau/hoerproben/erzeugen.cjs <Ordner der Thorsten-Stimme>` (bzw. `akzent.cjs`, `loki-test.cjs`); die .wav-Dateien und `modelle/` (Teststimmen) sind nicht in Git und müssen nach dem Klonen neu erzeugt bzw. geladen werden. Anhören über den Vorschau-Server „hoerproben“ (`.claude/launch.json`, Port 5175).
 
 ## 5. Etappen
 
@@ -95,9 +97,9 @@ Der Auftraggeber kann **nicht programmieren**. Du erledigst die gesamte Entwickl
 2. ✅ Mikrofon + Whisper + Fragen an Ollama (Ollama beim Auftraggeber noch nicht eingerichtet)
 3. ✅ Codewort
 4. ✅ (03.11.2026) Umzug in dieses eigene Projekt, Grundgerüst
-5. offen: **Rufname Loki umsetzen** (entschieden, siehe 7) – Varianten mit Hörproben und echter Stimme sammeln
+5. ✅ (03.11.2026) Rufname Loki umgesetzt (Erkennung, Texte) – Test mit der echten Stimme des Auftraggebers steht noch aus
 6. offen: Empfindlichkeit des Mikrofons einstellbar machen (Werkstatt-Lärm)
-7. offen: Stimme und Charakter (flüssiger, leichter britischer Akzent, durchgehend britisch-sarkastisch, siehe 2) – gut zusammen mit den Hörproben zum Namen
+7. Stimme und Charakter: Charakter ✅ (bissiger); Stimme offen – bessere Technik per Hörtest (siehe 2)
 8. offen: Werkstatt-Anbindung (Plan, siehe 6)
 9. offen: Ollama einrichten
 10. offen: Aktionen per Sprache, **immer mit Bestätigung**, erst klein (Karte anlegen/erledigen, Produziert buchen, Seite öffnen; nie Shop-Texte/Preise)
@@ -117,14 +119,14 @@ Jarvis liest später Aufgaben, Lager, Verkäufe, Amazon-Probleme und offene Frei
 - **Rufname wird „Loki“** – kurz, leicht zu sprechen, sollte von Whisper gut verstanden werden. Codewörter dann „Guten Morgen, Loki“ und „Hey Loki, …“.
 - **Projekt- und Arbeitstitel bleibt „Jarvis“** – als kleines Andenken (Ordner, Repository, Programmname, Code bleiben so).
 - Grund für den Wechsel: Whisper verstand „Jarvis“ schlecht (gehört u. a. „Tchaovis“, „Chavez“, „Chavis“, „Javi“, „Highjavis“; Selbsttest 03.11.2026 mit der Thorsten-Stimme: „Alt+Jawis“). Verworfen: ALFRED, ODIN, HUGIN.
-- **Noch umzusetzen (später, eigene Etappe):** Namenserkennung in `src/jarvis/befehle.ts` auf Loki umstellen, mit Schreibvarianten, wie Whisper sie liefert (erst mit echten Hörproben und der echten Stimme des Auftraggebers sammeln, nicht raten); mehrere Rufnamen gleichzeitig erlauben (Jarvis zunächst als zweiten Rufnamen behalten?, beim Umsetzen fragen); Aussprache von „Loki“ prüfen; Texte (Sprüche, Hinweise, Anweisung an das Sprachmodell) anpassen. Eine Abkürzung für LOKI ist noch nicht festgelegt.
+- **Umgesetzt 03.11.2026:** `istLoki()` in `src/jarvis/befehle.ts` erkennt Loki/Luki/Logi/Loky…, auch zusammengeschrieben („Heiloki“, „High-Loki“) – Varianten aus dem Whisper-Test mit der Thorsten-Stimme (`vorschau/hoerproben/loki-test.cjs`; Jarvis dagegen wurde zu „Hayawis“, „Herr Yamis“). „Jarvis“ bleibt als zweiter Rufname. Offen: Test mit der echten Stimme des Auftraggebers; eine Abkürzung für LOKI ist nicht festgelegt.
 
 ## 8. Ideen für später (alle vor dem Bau mit offiziellen Quellen prüfen)
 
 - **Autostart mit Windows und Sci-Fi-Start-Sequenz** im Vollbild auf allen drei Bildschirmen mit Ton und Effekten, danach Begrüßung (Vorbilder: https://www.youtube.com/watch?v=RjF_j6QZpxc und https://www.youtube.com/watch?v=LuuOpozKbvE).
 - **Wallpaper Engine** (Steam) läuft beim Auftraggeber auf allen drei Bildschirmen mit einem animierten Objekt über alle drei – prüfen, ob sie sich für die Start-Sequenz bzw. als Jarvis-Anzeige nutzen lässt (Web-Hintergründe/Schnittstellen).
 - **Drei Bildschirme als Arbeitsfläche:** dauerhaft die Lage zeigen (Aufgaben, Lager, Shops, Verkäufe, Jarvis) und damit arbeiten – prüfen, wie weit man mit einem Hintergrundbild interagieren kann (Klicks nur bei freiem Desktop) oder ob randlose Vollbild-Fenster je Bildschirm besser sind.
-- **Alexa** (mehrere Geräte im Haus): eigener Skill („Alexa, frag Jarvis …“), der Fragen weitergibt; Stimme dort wäre die Alexa-Stimme; Kosten und Datenschutz vorher klären.
+- **Alexa** (mehrere Geräte im Haus): eigener Skill („Alexa, frag Loki …“), der Fragen weitergibt; Stimme dort wäre die Alexa-Stimme; Kosten und Datenschutz vorher klären.
 - **Außenkameras** und **Home-Automation-Station** einbinden.
 - Weitere Bausteine der Morgen-Lage: Börse, KI-Neuigkeiten (freie Quellen prüfen, keine Anlageberatung).
 - **Handy** und **PC des Kollegen** (dort ohne Ollama keine freien Fragen).

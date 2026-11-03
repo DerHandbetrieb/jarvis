@@ -4,7 +4,7 @@ import { BAUSTEINE, type BausteinSchluessel } from './morgenlage'
 import { bruecke, setzeJarvis, useJarvisEinstellungen } from './desktop'
 import { sprechen, useJarvis } from './dienst'
 
-const PROBE = 'Guten Tag, Sir. Ich bin bereit. Und ich darf sagen: Ich habe schon schlechtere Tage erlebt. Theoretisch.'
+const PROBE = 'Guten Tag, Sir. Ich bin bereit. Ob Sie es auch sind, wird sich zeigen. Ich bin vorsichtig optimistisch. Sehr vorsichtig.'
 
 export default function JarvisEinstellungen() {
   const e = useJarvisEinstellungen()
@@ -12,16 +12,16 @@ export default function JarvisEinstellungen() {
   const da = !!bruecke()
   const umschalten = (b: BausteinSchluessel) => setzeJarvis({ bausteine: e.bausteine.includes(b) ? e.bausteine.filter((x) => x !== b) : [...e.bausteine, b] })
   return (
-    <Abschnitt titel="Jarvis (Sprachassistent)">
+    <Abschnitt titel="Loki (Sprachassistent)">
       {!da ? (
         <p className="text-sm text-neutral-500">Jarvis läuft nur im Windows-Programm – dort laufen Stimme und Spracherkennung kostenlos auf dem PC. Im normalen Browser fehlt die Verbindung dazu.</p>
       ) : (
         <div className="space-y-4 text-sm">
-          <p className="text-neutral-600">Ein- und ausschalten über den runden Knopf oben rechts. Danach genügt „Guten Morgen, Jarvis“ für die Morgen-Lage oder „Hey Jarvis, …“ für Befehle.</p>
+          <p className="text-neutral-600">Ein- und ausschalten über den runden Knopf oben rechts. Danach genügt „Guten Morgen, Loki“ für die Morgen-Lage oder „Hey Loki, …“ für Befehle und Fragen („Jarvis“ geht auch).</p>
           <div className="flex flex-wrap items-end gap-4">
             <label className="block">Anrede<br /><input className="mt-1 w-40 rounded-lg border border-neutral-300 px-2 py-1.5" value={e.anrede} onChange={(x) => setzeJarvis({ anrede: x.target.value })} /></label>
             <label className="block">Sprechtempo ({e.tempo.toFixed(2)})<br /><input type="range" min="0.7" max="1.2" step="0.02" value={e.tempo} onChange={(x) => setzeJarvis({ tempo: Number(x.target.value) })} /></label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={e.humor} onChange={(x) => setzeJarvis({ humor: x.target.checked })} /> Humor (ab und zu ein Spruch)</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={e.humor} onChange={(x) => setzeJarvis({ humor: x.target.checked })} /> Humor (Seitenhiebe und Sprüche)</label>
             <button type="button" className="rounded-lg border border-neutral-300 px-3 py-1.5" disabled={j.zustand !== 'bereit'} onClick={() => void sprechen([PROBE])}>Stimme testen</button>
           </div>
           <div>

@@ -16,7 +16,7 @@ export default function JarvisKnopf({ klasse }: { klasse: string }) {
   const feld = useRef<HTMLDivElement>(null)
   const da = !!bruecke()
 
-  // eingeschaltet → beim Start der App gleich zuhören (für „Guten Morgen, Jarvis“)
+  // eingeschaltet → beim Start der App gleich zuhören (für „Guten Morgen, Loki“)
   useEffect(() => { if (da && e.an) void einschalten() }, [da, e.an])
   useEffect(() => {
     if (!offen) return
@@ -39,7 +39,7 @@ export default function JarvisKnopf({ klasse }: { klasse: string }) {
   const farbe = j.zustand === 'fehler' ? '#c0392b' : j.zustand === 'aus' ? '#8a8f94' : j.mikrofon ? '#179994' : '#c8a24a'
   return (
     <div className="relative" ref={feld}>
-      <button type="button" className={klasse} title={`Jarvis: ${TEXT[j.zustand]}`} aria-label={`Jarvis: ${TEXT[j.zustand]}`} onClick={() => setOffen((o) => !o)}>
+      <button type="button" className={klasse} title={`Loki: ${TEXT[j.zustand]}`} aria-label={`Loki: ${TEXT[j.zustand]}`} onClick={() => setOffen((o) => !o)}>
         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="9" fill="none" stroke={farbe} strokeWidth="2" style={aktiv ? { animation: 'jarvis-puls 1.2s ease-in-out infinite' } : undefined} />
           <circle cx="12" cy="12" r="3.2" fill={farbe} />
@@ -48,7 +48,7 @@ export default function JarvisKnopf({ klasse }: { klasse: string }) {
       <style>{'@keyframes jarvis-puls{0%,100%{opacity:1}50%{opacity:.35}}'}</style>
       {offen && (
         <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-neutral-200 bg-white p-3 text-sm text-neutral-800 shadow-lg">
-          <p className="font-medium">Jarvis · {TEXT[j.zustand]}{j.zustand !== 'aus' && !j.mikrofon ? ' (Mikrofon aus)' : ''}</p>
+          <p className="font-medium">Loki · {TEXT[j.zustand]}{j.zustand !== 'aus' && !j.mikrofon ? ' (Mikrofon aus)' : ''}</p>
           {j.fortschritt && <p className="mt-1 text-neutral-500">Lädt {j.fortschritt.name === 'whisper' ? 'Spracherkennung' : j.fortschritt.name === 'stimme' ? 'Stimme' : 'Pausen-Erkennung'}: {Math.round(j.fortschritt.anteil * 100)} %</p>}
           {j.fehler && <p className="mt-1 text-red-600">{j.fehler}</p>}
           {j.gehoert && <p className="mt-2 text-neutral-500">Gehört: „{j.gehoert}“</p>}
@@ -65,7 +65,7 @@ export default function JarvisKnopf({ klasse }: { klasse: string }) {
               </>
             )}
           </div>
-          <p className="mt-3 text-xs text-neutral-500">Sagen Sie „Guten Morgen, Jarvis“ für die Lage oder „Hey Jarvis, …“ für Befehle (z. B. „öffne das Lager“ oder „Lage“). Während Jarvis spricht, hört er nicht zu – zum Unterbrechen den Knopf „Stopp“ nehmen.</p>
+          <p className="mt-3 text-xs text-neutral-500">Sagen Sie „Guten Morgen, Loki“ für die Lage oder „Hey Loki, …“ für Befehle und Fragen (z. B. „Lage“). „Jarvis“ versteht er weiterhin. Während Loki spricht, hört er nicht zu – zum Unterbrechen den Knopf „Stopp“ nehmen.</p>
         </div>
       )}
     </div>

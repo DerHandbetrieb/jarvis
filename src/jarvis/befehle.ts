@@ -1,7 +1,7 @@
 // Jarvis – Codewörter und einfache Befehle (03.11.2026). Whisper liefert den erkannten Satz als Text; hier wird erkannt,
-// ob ein Codewort darin steckt („Guten Morgen, Jarvis“ → Morgen-Lage, „Hey Jarvis“ → Befehl/Frage) und welcher feste
+// ob ein Codewort darin steckt („Guten Morgen, Loki“ → Morgen-Lage, „Hey Loki“ → Befehl/Frage; „Jarvis“ geht weiterhin) und welcher feste
 // Befehl gemeint ist. Alles, was kein fester Befehl ist, geht später an das lokale Sprachmodell (Etappe 2).
-// Whisper schreibt den Namen oft anders („Javis“, „Tschawis“, „Charvis“) – darum großzügig vergleichen. Getestet in befehle.test.ts.
+// Whisper schreibt den Namen oft anders („Javis“, „Tschawis“, „Charvis“) – darum großzügig vergleichen. Getestet in jarvis.test.ts.
 
 /** Text vereinfachen: klein, ohne Satzzeichen, Umlaute aufgelöst, Mehrfach-Leerzeichen weg */
 export function vereinfachen(text: string): string {
@@ -32,11 +32,25 @@ export function istName(wort: string): boolean {
   return abstand(k.replace(/[eiy][sz]$/, 'is'), 'javis') <= 1
 }
 
+/**
+ * Ist das Wort „Loki“? Rufname seit 03.11.2026 (Entscheidung Auftraggeber). Whisper small schrieb im Test mit der
+ * Thorsten-Stimme „Loki“, „Luki“, „Logi“ (vorschau/hoerproben/loki-test.cjs) – dazu englische Schreibweisen.
+ * Nicht: „Loge“, „Luke“, „Lokal“ (andere Endung bzw. länger) und nicht „Lucky“/„Locky“ (Hunde- und Markenname – Prüf-Agent).
+ */
+export function istLoki(wort: string): boolean {
+  return /^(lo(k|kk|g|q)(i|ie|y|ey|ee)|lu(k|g)i)$/.test(wort)
+}
+
+/** Ein Rufname: Loki (neu) oder Jarvis (Arbeitstitel, bleibt als zweiter Rufname erhalten) */
+export function istRufname(wort: string): boolean {
+  return istLoki(wort) || istName(wort)
+}
+
 /** Position und Länge des ersten Namens im vereinfachten Text */
 function findeName(t: string): { index: number; laenge: number } | null {
   let pos = 0
   for (const w of t.split(' ')) {
-    if (istName(w)) return { index: pos, laenge: w.length }
+    if (istRufname(w)) return { index: pos, laenge: w.length }
     pos += w.length + 1
   }
   return null
@@ -49,8 +63,10 @@ export type Erkannt =
 
 /** Steckt ein Codewort im Satz? (Morgen-Gruß nur mit Namen, damit ein beiläufiges „Guten Morgen“ nichts auslöst) */
 export function codewort(text: string): Erkannt {
-  // zusammengeschrieben („Highjavis“, „Heyjarvis“) → trennen
-  const t = vereinfachen(text).replace(/\b(hey|hei|hai|hi|high)(?=(j|ch|sch|dsch|tsch)a)/g, '$1 ')
+  // zusammengeschrieben („Highjavis“, „Heyjarvis“, „Heiloki“ – echte Probe 03.11.2026) → trennen
+  const t = vereinfachen(text)
+    .replace(/\b(hey|hei|hai|hi|high)(?=(j|ch|sch|dsch|tsch)a)/g, '$1 ')
+    .replace(/\b(hey|hei|hai|hi|high|hallo)(?=l[ou](k|g|ck|q))/g, '$1 ')
   const name = findeName(t)
   if (!name) return null
   const vorher = t.slice(0, name.index).trim()

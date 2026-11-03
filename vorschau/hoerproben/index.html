@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hörproben Stimme</title>
+<style>
+  :root { --grund: #f4f4f2; --karte: #fff; --text: #262626; --leise: #6b6b6b; --akzent: #179994; --rand: #e2e2de; }
+  body { margin: 0; background: var(--grund); color: var(--text); font-family: system-ui, 'Segoe UI', sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  p.leise { color: var(--leise); margin: 0 0 20px; }
+  section { background: var(--karte); border: 1px solid var(--rand); border-radius: 16px; padding: 16px 18px; margin-bottom: 14px; }
+  h2 { font-size: 1.1rem; margin: 0 0 4px; }
+  h2 b { color: var(--akzent); }
+  .werte { color: var(--leise); font-size: .9rem; margin-bottom: 10px; }
+  .zeile { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: center; margin: 6px 0; }
+  audio { width: 100%; }
+  details { margin-top: 18px; color: var(--leise); }
+  details p { margin: 6px 0; }
+  @media (max-width: 520px) { .zeile { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Hörproben: Stimme und Charakter</h1>
+  <p class="leise">Gleiche Stimme (Thorsten high), andere Stellschrauben. Jede Variante sagt dieselben drei Texte im neuen, bissigeren Charakter.</p>
+
+  <section>
+    <h2><b>A</b> · so klingt es heute</h2>
+    <div class="werte">Tempo 0,88 · Betonung und Rhythmus Grundwerte · Satz für Satz erzeugt</div>
+    <div class="zeile"><span>Morgen-Lage</span><audio controls preload="none" src="A-morgen.wav"></audio></div>
+    <div class="zeile"><span>Frage</span><audio controls preload="none" src="A-frage.wav"></audio></div>
+    <div class="zeile"><span>Befehl</span><audio controls preload="none" src="A-befehl.wav"></audio></div>
+  </section>
+
+  <section>
+    <h2><b>B</b> · etwas lebendiger</h2>
+    <div class="werte">Tempo 0,95 · Betonung 0,8 · Rhythmus 1,0 · am Stück erzeugt</div>
+    <div class="zeile"><span>Morgen-Lage</span><audio controls preload="none" src="B-morgen.wav"></audio></div>
+    <div class="zeile"><span>Frage</span><audio controls preload="none" src="B-frage.wav"></audio></div>
+    <div class="zeile"><span>Befehl</span><audio controls preload="none" src="B-befehl.wav"></audio></div>
+  </section>
+
+  <section>
+    <h2><b>C</b> · deutlich lebendiger</h2>
+    <div class="werte">Tempo 1,0 · Betonung 0,9 · Rhythmus 1,2 · am Stück erzeugt</div>
+    <div class="zeile"><span>Morgen-Lage</span><audio controls preload="none" src="C-morgen.wav"></audio></div>
+    <div class="zeile"><span>Frage</span><audio controls preload="none" src="C-frage.wav"></audio></div>
+    <div class="zeile"><span>Befehl</span><audio controls preload="none" src="C-befehl.wav"></audio></div>
+  </section>
+
+  <section>
+    <h2><b>D</b> · lebendiger Rhythmus, ruhige Betonung</h2>
+    <div class="werte">Tempo 0,92 · Betonung 0,7 · Rhythmus 1,2 · am Stück erzeugt</div>
+    <div class="zeile"><span>Morgen-Lage</span><audio controls preload="none" src="D-morgen.wav"></audio></div>
+    <div class="zeile"><span>Frage</span><audio controls preload="none" src="D-frage.wav"></audio></div>
+    <div class="zeile"><span>Befehl</span><audio controls preload="none" src="D-befehl.wav"></audio></div>
+  </section>
+
+  <h2 style="margin:28px 0 4px">Britischer Akzent</h2>
+  <p class="leise">Britische Stimmen, denen ich deutsche Laute gebe – sie sprechen Deutsch, so gut sie es können. Starker Akzent, aber schwer verständlich (Whisper verstand bei E fast nichts, bei F und G nur Teile).</p>
+
+  <section>
+    <h2><b>E</b> · Alan (britisch)</h2>
+    <div class="werte">Lizenz: Mycroft-Stimme, noch zu prüfen</div>
+    <div class="zeile"><span>Morgen-Lage</span><audio controls preload="none" src="E-morgen.wav"></audio></div>
+    <div class="zeile"><span>Frage</span><audio controls preload="none" src="E-frage.wav"></audio></div>
+  </section>
+  <section>
+    <h2><b>F</b> · Northern English Male (britisch, Nordengland)</h2>
+    <div class="werte">Lizenz: CC BY-SA 4.0 (Nennung nötig, gewerblich erlaubt)</div>
+    <div class="zeile"><span>Morgen-Lage</span><audio controls preload="none" src="F-morgen.wav"></audio></div>
+    <div class="zeile"><span>Frage</span><audio controls preload="none" src="F-frage.wav"></audio></div>
+  </section>
+  <section>
+    <h2><b>G</b> · Southern English Male (britisch, Südengland)</h2>
+    <div class="werte">Lizenz: keine Angabe im Paket, noch zu prüfen</div>
+    <div class="zeile"><span>Morgen-Lage</span><audio controls preload="none" src="G-morgen.wav"></audio></div>
+    <div class="zeile"><span>Frage</span><audio controls preload="none" src="G-frage.wav"></audio></div>
+  </section>
+
+  <h2 style="margin:28px 0 4px">Thorsten mit Gefühlslagen</h2>
+  <p class="leise">Derselbe Sprecher wie heute, aber aus einer Aufnahme mit Stimmungen (Lizenz CC0). Etwas schlichtere Klangqualität („medium“ statt „high“), dafür lebendiger. Gut verständlich.</p>
+  <section>
+    <h2><b>J</b> · amüsiert</h2>
+    <div class="zeile"><span>Morgen-Lage</span><audio controls preload="none" src="J-morgen.wav"></audio></div>
+    <div class="zeile"><span>Frage</span><audio controls preload="none" src="J-frage.wav"></audio></div>
+  </section>
+  <section>
+    <h2><b>K</b> · neutral</h2>
+    <div class="zeile"><span>Morgen-Lage</span><audio controls preload="none" src="K-morgen.wav"></audio></div>
+    <div class="zeile"><span>Frage</span><audio controls preload="none" src="K-frage.wav"></audio></div>
+  </section>
+  <section>
+    <h2><b>L</b> · überrascht</h2>
+    <div class="zeile"><span>Morgen-Lage</span><audio controls preload="none" src="L-morgen.wav"></audio></div>
+    <div class="zeile"><span>Frage</span><audio controls preload="none" src="L-frage.wav"></audio></div>
+  </section>
+
+  <details>
+    <summary>Was die Werte bedeuten</summary>
+    <p><b>Tempo:</b> wie schnell er spricht (1,0 = normal).</p>
+    <p><b>Betonung:</b> wie stark die Tonhöhe schwankt – höher klingt lebendiger, zu hoch klingt wackelig.</p>
+    <p><b>Rhythmus:</b> wie unterschiedlich lang Silben und Pausen werden – höher klingt weniger „abgehackt“.</p>
+    <p><b>Am Stück:</b> mehrere Sätze in einem Durchgang statt einzeln – die Übergänge werden natürlicher.</p>
+  </details>
+</main>
+</body>
+</html>

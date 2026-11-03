@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { morgenLage, uhrzeit, zahl, euro, type LageEingabe, BAUSTEINE } from './morgenlage'
+import { morgenLage, uhrzeit, zahl, euro, type LageEingabe, BAUSTEINE, SPITZEN, spitze, tagNummer } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { befehl, codewort, vereinfachen } from './befehle'
 
@@ -38,6 +38,23 @@ describe('Morgen-Lage', () => {
     const ohne = morgenLage(basis({ humor: false, jetzt: new Date(2026, 10, 2, 8, 0) }))
     expect(mitHumor.length).toBeGreaterThanOrEqual(ohne.length)
   })
+  it('mit Humor: nach jedem Sachsatz ein Seitenhieb, Anrede überall eingesetzt (Wunsch „noch bissiger“, 03.11.2026)', () => {
+    const daten = {
+      aufgaben: { anzahl: 11, wichtigste: ['Tassen'], neu: 0 },
+      probleme: { amazon: ['Uhr'], selbsttestRot: false },
+      lager: { namen: ['A'] },
+      verkauf: { bestellungen: 2, stueck: 2, umsatzCent: 5000 },
+      freigaben: 1,
+    }
+    const tag = new Date(2026, 10, 3, 5, 30)
+    const mit = morgenLage(basis({ humor: true, anrede: 'Chef', jetzt: tag, ...daten }))
+    const ohne = morgenLage(basis({ humor: false, anrede: 'Chef', jetzt: tag, ...daten }))
+    const t = tagNummer(tag)
+    for (const liste of [SPITZEN.frueh, SPITZEN.vieleAufgaben, SPITZEN.probleme, SPITZEN.lager, SPITZEN.wenigVerkauft, SPITZEN.freigaben]) expect(mit).toContain(spitze(liste, t).replace(/\bSir\b/g, 'Chef'))
+    expect(mit.join(' ')).not.toMatch(/\bSir\b/)
+    expect(mit.at(-1)).toMatch(/^Das wäre alles/)
+    expect(ohne.some((s) => Object.values(SPITZEN).flat().includes(s))).toBe(false)
+  })
   it('Hilfsfunktionen', () => {
     expect(uhrzeit(new Date(2026, 0, 1, 9, 0))).toBe('9 Uhr')
     expect(zahl(1)).toBe('eine'); expect(zahl(1, false)).toBe('ein'); expect(zahl(20)).toBe('20')
@@ -70,6 +87,23 @@ describe('Codewörter und Befehle', () => {
     expect(codewort('Guten Morgen, Tchaovis.')).toEqual({ art: 'morgen' })
     expect(codewort('Hey, Chavez!')).toEqual({ art: 'hey', rest: '' })
     expect(codewort('Highjavis, öffne das Lager')).toEqual({ art: 'hey', rest: 'oeffne das lager' })
+  })
+  it('erkennt den Rufnamen Loki (Whisper-Ausgaben aus loki-test.cjs, 03.11.2026)', () => {
+    expect(codewort('Guten Morgen, Loki.')).toEqual({ art: 'morgen' })
+    expect(codewort('High Loki befindet das Lager.')).toMatchObject({ art: 'hey' })
+    expect(codewort('High-Luki öffnet das Lager.')).toEqual({ art: 'hey', rest: 'oeffnet das lager' })
+    expect(codewort('Heiloki.')).toEqual({ art: 'hey', rest: '' })
+    expect(codewort('Hi Loki.')).toEqual({ art: 'hey', rest: '' })
+    expect(codewort('Logi, was steht heute an?')).toEqual({ art: 'hey', rest: 'was steht heute an' })
+    expect(codewort('Hallo, Luki, wie viele Tassen haben wir verkauft?')).toMatchObject({ art: 'hey', rest: 'wie viele tassen haben wir verkauft' })
+    // keine Fehlauslöser
+    expect(codewort('Wir sitzen in der Loge')).toBeNull()
+    expect(codewort('Luke, ich bin dein Vater')).toBeNull()
+    expect(codewort('Lucky ist mein Hund')).toBeNull()
+    expect(codewort('Locky, komm her')).toBeNull()
+    expect(codewort('Hallo Lucky')).toBeNull()
+    expect(codewort('Lokal ist besser')).toBeNull()
+    expect(codewort('Ich habe Loki gesagt')).toBeNull()
   })
   it('erkennt „Hey Jarvis“ mit Rest', () => {
     expect(codewort('Hey Jarvis, öffne das Lager.')).toEqual({ art: 'hey', rest: 'oeffne das lager' })
