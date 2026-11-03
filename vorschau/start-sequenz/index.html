@@ -486,6 +486,9 @@ function tonStarten(e) {
     hat.connect(hf).connect(huelle(T(s + 0.3), 0.002, 0.01, 0.06, k === 'messing' ? 0.04 : 0.08)); hat.start(T(s + 0.3))
     if (Math.round((s - 12.8) / 0.6) % 4 === 0) probe('impactMetal_002', T(s), 0.25, k === 'messing' ? 0.6 : 0.9)
   }
+  // tiefes Brummen unter Lokis Stimme (Analyse Auftraggeber: „niedrigfrequentes Hintergrund-Brummen während der
+  // Sprachausgabe“) – zwei leicht verstimmte Töne um 45 Hz, langsam ein- und ausgeblendet
+  ;[44.5, 45.3].forEach((fq) => osz('sine', fq, T(14.6), T(22)).connect(huelle(T(14.6), 1.2, 4.6, 1.6, 0.32, master)))
   // Lokis Begrüßung ab 15 s, Musik geht dabei leiser
   if (puffer.gruss) {
     const s = merk(ac.createBufferSource()); s.buffer = puffer.gruss; const sg = ac.createGain(); sg.gain.value = 1.15

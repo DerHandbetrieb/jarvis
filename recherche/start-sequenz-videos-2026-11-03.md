@@ -16,6 +16,13 @@ CLAUDE.md Abschnitt 2); eigene Effekte mit geprüfter Lizenz.
 | ~20 s | volle HUD-Oberfläche „klappt auf“: großer Kreis-Reaktor in der Mitte, seitlich Balkendiagramme, Daten, orange Akzente | **harter Einschlag** + helle Signaltöne (ca. 1,3 / 2,3 / 4 kHz) |
 | 20–37 s | HUD lebt, Anzeigen drehen sich | rhythmische Musik mit gleichmäßigen Schlägen (etwa alle 1,5 s ein starker Akzent); leise englische Begrüßung („Welcome home, sir …“, Rest unsicher) |
 
+**Sprachtext Video 1 (Analyse des Auftraggebers, 03.11.2026):** Auslöser Systemstart/Anmeldung. Reihenfolge:
+(1) Begrüßung „Welcome home, sir.“ (2) Fokus „You need to pay attention to control the time today.“
+(3) Intervall-Hinweis „With every passing hour, I remind you once.“ (4) Abschluss „Enjoy your time, sir.“ –
+britisch, ruhig, formell. Ton: dezenter Sci-Fi-Start-Klang als Einstieg, **tiefes Brummen (Sub-Bass) während der
+Sprachausgabe**, im Hintergrund eine **stündliche Erinnerung** (Timer). → Sub-Bass unter Lokis Gruß in die Entwürfe
+übernommen; stündliche Erinnerung als Idee in CLAUDE.md Abschnitt 8.
+
 ## Video 2 (33 s) – „Jarvis startup welcome sound“, ein Bildschirm
 
 | Zeit | Bild | Ton |
