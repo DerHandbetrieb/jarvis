@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Start-Sequenz – vier Entwürfe</title>
+<!--
+  Vier Entwürfe für Lokis Start-Sequenz (03.11.2026). Jede Sequenz läuft 22 Sekunden über eine verkleinerte Darstellung
+  der drei Bildschirme des Auftraggebers (je 1920×1080, zusammen 5760×1080; dunkle Streifen = Bildschirmrahmen).
+  Ablauf nach der Video-Auswertung (recherche/start-sequenz-videos-2026-11-03.md): Akt 1 Hochfahren (0–10 s),
+  Akt 2 Stille (10–12 s), Akt 3 Enthüllung mit Einschlag, HUD und Lokis Begrüßung (12–22 s).
+  Töne: selbst erzeugt (Web Audio) + Kenney „Sci-Fi Sounds“ (CC0, toene/). Werte sind Beispielwerte, die Uhrzeit ist echt.
+  Lokis Stimme: loki-gruss.wav (erzeugt mit gruss.py, nicht in Git).
+-->
+<style>
+  :root { --bg: #07090c; --text: #d7dde3; --leise: #7f8a94; --rand: #1b2128; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1500px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-weight: 600; font-size: 24px; margin: 0 0 4px; }
+  .unter { color: var(--leise); margin: 0 0 24px; }
+  section { margin: 0 0 40px; }
+  h2 { font-size: 19px; margin: 0 0 2px; font-weight: 600; }
+  h2 b { display: inline-block; width: 28px; }
+  .beschr { color: var(--leise); margin: 0 0 10px; }
+  .buehne { position: relative; width: 100%; aspect-ratio: 5760 / 1080; background: #000; border: 1px solid var(--rand); border-radius: 6px; overflow: hidden; }
+  canvas { width: 100%; height: 100%; display: block; }
+  .knoepfe { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+  button { background: #12181f; color: var(--text); border: 1px solid #2a333d; border-radius: 8px; padding: 7px 14px; font: inherit; cursor: pointer; }
+  button:hover { border-color: #4a5865; }
+  button.an { background: #1b3a40; border-color: #2f7d86; }
+  .hinweis { color: var(--leise); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Lokis Start-Sequenz – vier Entwürfe</h1>
+  <p class="unter">Jede Vorschau zeigt alle drei Bildschirme verkleinert nebeneinander (die dunklen Streifen sind die Rahmen). Ton an, „Abspielen“ drücken – 22 Sekunden, im Finale spricht Loki. Am besten einzeln und im Vollbild ansehen. Die Zahlen sind Beispielwerte, die Uhrzeit ist echt.</p>
+  <div id="liste"></div>
+  <p class="hinweis">Töne: teils vom Programm selbst erzeugt, teils aus „Sci-Fi Sounds“ von Kenney (www.kenney.nl, Lizenz CC0). Im echten Programm läuft die Sequenz über alle drei Bildschirme und über der Taskleiste.</p>
+</main>
+<script>
+'use strict'
+const W = 5760, H = 1080, DAUER = 22
+const CX = 2880, CY = 540 // Mitte des mittleren Bildschirms
+const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`
+const misch = (a, b, k) => [0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * k))
+const klemm = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x))
+const phase = (t, a, b) => klemm((t - a) / (b - a))
+const weich = (x) => x * x * (3 - 2 * x)
+const raus = (x) => 1 - Math.pow(1 - x, 3)
+// fester Zufall, damit jede Wiedergabe gleich aussieht
+function zufall(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296) }
+
+// ---------- Entwürfe ----------
+const ENTWUERFE = [
+  {
+    id: 'A', name: 'Eis – Blau-Türkis', beschr: 'Kühl, klar, gläsern: Lichtlinie über alle drei Bildschirme, Kern baut sich aus Ringen auf, Warp-Flug, Einschlag, ruhiges HUD in Eisblau.',
+    farbe: () => [95, 236, 255], akzent: () => [255, 170, 60], schrift: '"Segoe UI", sans-serif', boden: 'gitter', klang: 'glas',
+    log: ['LOKI KERN 2.0 – INITIALISIERUNG', 'Sprachkern Qwen3 · 0.6B · Vorlage geladen', 'Spracherkennung Whisper small · int8', 'Grafikkarte RTX 4080 · 16 GB', 'Bildschirme 3 × 1920 × 1080', 'Werkstatt-Verbindung · ausstehend', 'Charakter-Modul · bissig · AKTIV'],
+  },
+  {
+    id: 'B', name: 'Alarm → Freigabe – Rot zu Blau', beschr: 'Spannung wie im zweiten Video: rote Sicherheitsprüfung mit Scan-Strahl und Warnstreifen, beim Einschlag kippt alles in Blau – System freigegeben.',
+    farbe: (t) => (t < 12 ? [255, 60, 52] : misch([255, 60, 52], [70, 170, 255], weich(phase(t, 12, 12.6)))), akzent: (t) => (t < 12 ? [255, 190, 60] : [140, 255, 230]),
+    schrift: '"Bahnschrift", "Segoe UI", sans-serif', boden: 'scan', klang: 'alarm',
+    log: ['SICHERHEITSPRÜFUNG LÄUFT', 'Identität des Benutzers · wird geprüft …', 'Stimmabdruck · abgeglichen', 'Netzwerk · verschlüsselt', 'Speicher · Integrität OK', 'Benutzerkompetenz · NICHT ERMITTELBAR', 'Freigabe wird erteilt · widerwillig'],
+  },
+  {
+    id: 'C', name: 'Britisches Gold – Messing & Schwarz', beschr: 'Der Butler im Anzug: warmes Gold, Art-déco-Strahlenkranz, Serifenschrift, langsame, edle Bewegungen, Blechbläser-Akkord beim Einschlag.',
+    farbe: () => [236, 188, 104], akzent: () => [255, 236, 190], schrift: 'Georgia, "Times New Roman", serif', boden: 'strahlen', klang: 'messing',
+    log: ['Guten Morgen. Das Haus erwacht.', 'Der Tee wird vorbereitet · symbolisch', 'Stimme · britisch · kultiviert', 'Ohren · aufmerksam', 'Werkstatt · noch verschlossen', 'Geduld mit dem Hausherrn · begrenzt', 'Loki steht zu Diensten'],
+  },
+  {
+    id: 'D', name: 'Terminal – Grüner Phosphor', beschr: 'Retro-Zukunft: Code-Regen, Startprotokoll wie ein alter Großrechner, Röhrenmonitor-Flimmern, eckige Pieptöne, LOKI in Blockschrift.',
+    farbe: () => [70, 255, 130], akzent: () => [210, 255, 120], schrift: 'Consolas, "Cascadia Mono", monospace', boden: 'regen', klang: 'digital',
+    log: ['> boot loki.sys', '> mount /stimme ......... ok', '> mount /ohren .......... ok', '> load sarkasmus.dll .... ok', '> check benutzer ........ WARNUNG', '> ignore warnung ........ ok', '> start loki'],
+  },
+]
+
+// ---------- Zeichnen ----------
+function zeichne(ctx, e, t, uhr) {
+  const f = e.farbe(t), ak = e.akzent(t)
+  const zr = zufall(7)
+  ctx.save()
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H)
+  // Kamera-Ruck beim Einschlag
+  const ruck = t > 12 && t < 12.9 ? (1 - phase(t, 12, 12.9)) * 26 : 0
+  if (ruck) ctx.translate(Math.sin(t * 90) * ruck, Math.cos(t * 70) * ruck * 0.6)
+  // Kamerafahrt: beim Hochfahren langsam heran, nach dem Einschlag zurück in die Totale
+  const zoom = t < 12 ? 1 + 0.07 * weich(phase(t, 1.5, 10)) : 1.14 - 0.14 * raus(phase(t, 12, 15))
+  ctx.translate(CX, CY); ctx.scale(zoom, zoom); ctx.translate(-CX, -CY)
+  ctx.globalCompositeOperation = 'lighter'
+  const luft = Math.max(phase(t, 1.5, 5) * (1 - phase(t, 9.7, 10.1)), phase(t, 12, 13) * (1 - phase(t, 20.5, 22)))
+  if (luft > 0) atmosphaere(ctx, e, t, f, luft)
+
+  // Akt 1a: Lichtlinie läuft von links über alle drei Bildschirme (0,2–1,6 s)
+  if (t < 3) {
+    const p = raus(phase(t, 0.2, 1.6)), aus = 1 - phase(t, 1.8, 3)
+    ctx.shadowColor = rgba(f, 1); ctx.shadowBlur = 40
+    ctx.fillStyle = rgba(f, 0.9 * aus); ctx.fillRect(0, CY - 2, W * p, 4)
+    ctx.fillStyle = rgba([255, 255, 255], 0.9 * aus); ctx.fillRect(W * p - 160, CY - 3, 160, 6)
+    ctx.shadowBlur = 0
+    reflex(ctx, W * p, CY, 0.9 * aus * (p < 1 ? 1 : 0.4), f)
+  }
+
+  // Boden / Hintergrund je Entwurf (Akt 1 und 3)
+  const hell1 = phase(t, 1.2, 4) * (1 - phase(t, 9.6, 10.1))
+  const hell3 = phase(t, 12, 13.5) * (1 - phase(t, 20.5, 22))
+  const hell = Math.max(hell1, hell3)
+  if (hell > 0) hintergrund(ctx, e, t, f, hell)
+
+  // Akt 1: Startprotokoll links, Ladebalken rechts, Kern in der Mitte
+  if (t > 1.5 && t < 10.1) {
+    const a = phase(t, 1.5, 2.2) * (1 - phase(t, 9.6, 10.1))
+    protokoll(ctx, e, t, f, a)
+    ladebalken(ctx, e, t, f, ak, a)
+    kern(ctx, e, t, f, ak, a, phase(t, 2, 8), false)
+  }
+  // Warp-Flug (6–10 s): Lichtstreifen fliegen auf die Mitte zu
+  if (t > 6 && t < 10.1) warp(ctx, e, t, f, phase(t, 6, 9.8) * (1 - phase(t, 9.8, 10.1)))
+
+  // Akt 2: Stille – ein einzelner Punkt atmet (10–12 s)
+  if (t >= 10.1 && t < 12) {
+    const a = 0.4 + 0.6 * Math.abs(Math.sin((t - 10) * 3))
+    ctx.fillStyle = rgba(f, a); ctx.shadowColor = rgba(f, 1); ctx.shadowBlur = 25
+    ctx.beginPath(); ctx.arc(CX, CY, 7, 0, 7); ctx.fill(); ctx.shadowBlur = 0
+    if (t > 11.3) { ctx.strokeStyle = rgba(f, 0.6 * phase(t, 11.3, 12)); ctx.lineWidth = 2; ctx.strokeRect(CX - 60, CY - 60, 120, 120) }
+  }
+
+  // Akt 3: Einschlag – Blitz und Stoßwelle über alle drei Bildschirme
+  if (t >= 12 && t < 14.5) {
+    const p = phase(t, 12, 14.5)
+    ctx.strokeStyle = rgba(f, 0.9 * (1 - p)); ctx.lineWidth = 30 * (1 - p) + 2
+    ctx.shadowColor = rgba(f, 1); ctx.shadowBlur = 60
+    ctx.beginPath(); ctx.ellipse(CX, CY, 3200 * raus(p), 1400 * raus(p), 0, 0, 7); ctx.stroke(); ctx.shadowBlur = 0
+  }
+  if (t >= 12 && t < 15) reflex(ctx, CX, CY, 1.6 * (1 - phase(t, 12, 15)), f)
+  // Akt 3: HUD
+  if (t >= 12) {
+    const a = phase(t, 12.2, 13.4) * (1 - phase(t, 20.5, 22))
+    strahlen(ctx, t, f, a)
+    kern(ctx, e, t, f, ak, a, 1, true)
+    seiten(ctx, e, t, f, ak, a, uhr)
+    if (t > 14.8) untertitel(ctx, e, t, f, a)
+  }
+
+  ctx.globalCompositeOperation = 'source-over'
+  // Blitz
+  if (t >= 12 && t < 12.6) { ctx.fillStyle = `rgba(255,255,255,${0.85 * (1 - phase(t, 12, 12.6))})`; ctx.fillRect(-50, -50, W + 100, H + 100) }
+  // Röhrenmonitor-Zeilen (Terminal) bzw. feines Flimmern
+  if (e.id === 'D') { ctx.fillStyle = 'rgba(0,0,0,0.28)'; for (let y = 0; y < H; y += 6) ctx.fillRect(0, y, W, 3) }
+  // Glitch-Streifen kurz vor und nach dem Einschlag
+  if ((t > 9.3 && t < 10) || (t > 12.4 && t < 12.9)) glitch(ctx, t)
+  ctx.restore()
+  // Bildschirmrahmen (Lücken zwischen den drei Bildschirmen)
+  ctx.fillStyle = '#0d1014'; ctx.fillRect(1920 - 14, 0, 28, H); ctx.fillRect(3840 - 14, 0, 28, H)
+}
+
+function hintergrund(ctx, e, t, f, a) {
+  ctx.save()
+  if (e.boden === 'gitter') {
+    // perspektivischer Boden über alle drei Bildschirme
+    ctx.strokeStyle = rgba(f, 0.18 * a); ctx.lineWidth = 2
+    const hor = 640, fahrt = (t * 120) % 80
+    for (let i = -40; i <= 40; i++) { ctx.beginPath(); ctx.moveTo(CX + i * 10, hor); ctx.lineTo(CX + i * 260, H + 200); ctx.stroke() }
+    for (let k = 0; k < 14; k++) { const y = hor + Math.pow((k * 80 + fahrt) / 1100, 2) * 600; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke() }
+  } else if (e.boden === 'scan') {
+    // Scan-Strahl wandert über alle drei Bildschirme, Warnstreifen oben/unten (nur in der roten Phase)
+    const x = ((t * 1400) % (W + 800)) - 400
+    const g = ctx.createLinearGradient(x - 300, 0, x + 40, 0)
+    g.addColorStop(0, rgba(f, 0)); g.addColorStop(1, rgba(f, 0.35 * a))
+    ctx.fillStyle = g; ctx.fillRect(x - 300, 0, 340, H)
+    if (t < 12) {
+      ctx.fillStyle = rgba(f, 0.22 * a)
+      for (let i = -2; i < 90; i++) { const sx = i * 70 + ((t * 60) % 70); ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx + 35, 0); ctx.lineTo(sx + 5, 36); ctx.lineTo(sx - 30, 36); ctx.fill(); ctx.beginPath(); ctx.moveTo(sx, H - 36); ctx.lineTo(sx + 35, H - 36); ctx.lineTo(sx + 5, H); ctx.lineTo(sx - 30, H); ctx.fill() }
+    } else {
+      ctx.strokeStyle = rgba(f, 0.12 * a); ctx.lineWidth = 1
+      for (let x2 = 0; x2 < W; x2 += 60) { ctx.beginPath(); ctx.moveTo(x2, 0); ctx.lineTo(x2, H); ctx.stroke() }
+      for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke() }
+    }
+  } else if (e.boden === 'strahlen') {
+    // Art-déco-Strahlenkranz aus der Mitte über alle drei Bildschirme
+    ctx.translate(CX, CY); ctx.rotate(t * 0.02)
+    for (let i = 0; i < 72; i++) {
+      ctx.rotate(Math.PI * 2 / 72)
+      ctx.fillStyle = rgba(f, (i % 2 ? 0.05 : 0.11) * a)
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(3200, -70); ctx.lineTo(3200, 70); ctx.fill()
+    }
+  } else if (e.boden === 'regen') {
+    // Code-Regen
+    const z = zufall(11); ctx.font = '26px Consolas, monospace'
+    for (let s = 0; s < 150; s++) {
+      const x = s * 39 + 10, v = 300 + z() * 500, l = 8 + Math.floor(z() * 14), y0 = ((t * v + z() * H * 2) % (H + l * 30)) - l * 30
+      for (let k = 0; k < l; k++) { ctx.fillStyle = rgba(f, (k === l - 1 ? 0.9 : 0.06 + 0.25 * k / l) * a); ctx.fillText(String.fromCharCode(0x30A0 + ((s * 7 + k * 13 + Math.floor(t * 8)) % 96)), x, y0 + k * 30) }
+    }
+  }
+  ctx.restore()
+}
+
+function protokoll(ctx, e, t, f, a) {
+  ctx.save(); ctx.font = `30px ${e.schrift}`; ctx.textBaseline = 'top'
+  const x = 140, y0 = 220
+  e.log.forEach((zeile, i) => {
+    const start = 2 + i * 1.0, p = phase(t, start, start + 0.7)
+    if (p <= 0) return
+    const txt = zeile.slice(0, Math.ceil(zeile.length * p))
+    ctx.fillStyle = rgba(/WARN|NICHT|widerw/i.test(zeile) ? e.akzent(t) : e.farbe(t), 0.9 * a)
+    ctx.fillText(txt + (p < 1 && Math.floor(t * 8) % 2 ? '▌' : ''), x, y0 + i * 62)
+  })
+  ctx.strokeStyle = rgba(f, 0.3 * a); ctx.lineWidth = 2; ctx.strokeRect(100, 170, 1700, 520)
+  // Radar mit Suchstrahl
+  ctx.save(); ctx.translate(560, 880); ctx.strokeStyle = rgba(f, 0.35 * a)
+  for (const rr of [60, 120, 170]) { ctx.beginPath(); ctx.arc(0, 0, rr, 0, 7); ctx.stroke() }
+  const w = t * 2.4, g = ctx.createConicGradient ? ctx.createConicGradient(w - 0.9, 0, 0) : null
+  if (g) { g.addColorStop(0, rgba(f, 0)); g.addColorStop(0.14, rgba(f, 0.45 * a)); g.addColorStop(0.15, rgba(f, 0)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 170, 0, 7); ctx.fill() }
+  const zz = zufall(5); for (let k = 0; k < 6; k++) { const pw = zz() * 7, pr = 40 + zz() * 120; ctx.fillStyle = rgba(e.akzent(t), (0.3 + 0.7 * ((w - pw) % 6.283 < 1 ? 1 : 0.2)) * a); ctx.beginPath(); ctx.arc(Math.cos(pw) * pr, Math.sin(pw) * pr, 7, 0, 7); ctx.fill() }
+  ctx.restore()
+  // Wellenform (Stimme wird geladen)
+  ctx.beginPath(); ctx.strokeStyle = rgba(f, 0.6 * a); ctx.lineWidth = 3
+  for (let x = 900; x < 1800; x += 6) { const amp = 60 * Math.sin(x * 0.01 + t * 5) * Math.sin(x * 0.003 + t) * phase(t, 3, 8); ctx.lineTo(x, 880 + amp) }
+  ctx.stroke()
+  ctx.font = `22px ${e.schrift}`; ctx.fillStyle = rgba(f, 0.6 * a); ctx.fillText('PROTOKOLL', 112, 140)
+  ctx.restore()
+}
+
+function ladebalken(ctx, e, t, f, ak, a) {
+  ctx.save(); ctx.textBaseline = 'middle'
+  const x = 3840 + 160, breite = 1500
+  const zeilen = [['Spracherkennung', 2.5, 5.5], ['Pausen-Erkennung', 3, 4.5], ['Lokis Stimme', 3.5, 9.2], ['Charakter-Modul', 6, 8.5]]
+  zeilen.forEach(([name, a1, a2], i) => {
+    const y = 260 + i * 150, p = raus(phase(t, a1, a2))
+    ctx.font = `30px ${e.schrift}`; ctx.fillStyle = rgba(f, 0.85 * a); ctx.fillText(name, x, y - 38)
+    ctx.textAlign = 'right'; ctx.fillText(`${Math.round(p * 100)} %`, x + breite, y - 38); ctx.textAlign = 'left'
+    ctx.strokeStyle = rgba(f, 0.5 * a); ctx.lineWidth = 2; ctx.strokeRect(x, y, breite, 26)
+    const seg = 40, n = Math.floor(p * seg)
+    for (let k = 0; k < n; k++) { ctx.fillStyle = rgba(k === n - 1 && p < 1 ? ak : f, 0.75 * a); ctx.fillRect(x + 4 + k * (breite - 8) / seg, y + 4, (breite - 8) / seg - 5, 18) }
+  })
+  ctx.restore()
+}
+
+function kern(ctx, e, t, f, ak, a, aufbau, voll) {
+  if (a <= 0) return
+  ctx.save(); ctx.translate(CX, CY)
+  const puls = voll ? 1 + 0.03 * Math.sin(t * Math.PI * 2 / 0.6) : 1
+  ctx.scale(puls, puls)
+  ctx.shadowColor = rgba(f, 1); ctx.shadowBlur = 30
+  const ringe = voll ? 7 : 5
+  for (let i = 0; i < ringe; i++) {
+    const p = weich(klemm(aufbau * ringe - i)), r = 150 + i * 50
+    if (p <= 0) continue
+    ctx.strokeStyle = rgba(i % 3 === 2 ? ak : f, (0.35 + 0.5 * (1 - i / ringe)) * a)
+    ctx.lineWidth = i % 2 ? 4 : 10
+    if (e.id === 'C') ctx.setLineDash(i % 2 ? [] : [3, 14])
+    else ctx.setLineDash(i % 2 ? [40, 18] : [])
+    const dreh = t * (i % 2 ? 0.6 : -0.35) * (1 + i * 0.15)
+    ctx.beginPath(); ctx.arc(0, 0, r, dreh, dreh + Math.PI * 2 * p); ctx.stroke()
+  }
+  ctx.setLineDash([])
+  // inneres Glühen
+  const gl = ctx.createRadialGradient(0, 0, 0, 0, 0, 330)
+  gl.addColorStop(0, rgba(f, 0.35 * a * aufbau)); gl.addColorStop(1, rgba(f, 0))
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, 330, 0, 7); ctx.fill()
+  // äußerer Skalenring mit 120 Strichen
+  const sp = weich(klemm(aufbau * 1.3 - 0.3))
+  if (sp > 0) {
+    ctx.save(); ctx.rotate(-t * 0.08); ctx.strokeStyle = rgba(f, 0.5 * a); ctx.lineWidth = 3
+    for (let k = 0; k < 120 * sp; k++) { const w = k / 120 * Math.PI * 2, l = k % 10 === 0 ? 34 : 14; ctx.beginPath(); ctx.moveTo(Math.cos(w) * 500, Math.sin(w) * 500); ctx.lineTo(Math.cos(w) * (500 - l), Math.sin(w) * (500 - l)); ctx.stroke() }
+    ctx.restore()
+  }
+  // Mitte: LOKI
+  const pl = voll ? phase(t, 12.4, 13.4) : 0
+  if (pl > 0) {
+    ctx.shadowBlur = 40
+    ctx.fillStyle = rgba(f, 0.95 * a * pl)
+    ctx.font = e.id === 'C' ? `italic 96px ${e.schrift}` : `600 96px ${e.schrift}`
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    const name = e.id === 'D' ? '[ LOKI ]' : 'L O K I'
+    ctx.fillText(name, 0, 0)
+    ctx.font = `24px ${e.schrift}`; ctx.fillStyle = rgba(f, 0.6 * a * pl)
+    ctx.fillText(e.id === 'C' ? 'zu Ihren Diensten · bedauerlicherweise' : 'SYSTEM BEREIT', 0, 78)
+  } else {
+    ctx.fillStyle = rgba(f, 0.8 * a); ctx.beginPath(); ctx.arc(0, 0, 18 + 10 * Math.sin(t * 6), 0, 7); ctx.fill()
+  }
+  // Hexagon-Rahmen (A, B) bzw. Raute (C)
+  if (voll && e.id !== 'D') {
+    ctx.strokeStyle = rgba(f, 0.4 * a); ctx.lineWidth = 3
+    ctx.beginPath()
+    const ecken = e.id === 'C' ? 4 : 6, rr = 640
+    for (let k = 0; k <= ecken; k++) { const w = k / ecken * Math.PI * 2 + (e.id === 'C' ? Math.PI / 4 : 0) + t * 0.05; ctx.lineTo(Math.cos(w) * rr, Math.sin(w) * rr * 0.92) }
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
+function warp(ctx, e, t, f, a) {
+  ctx.save(); const z = zufall(3)
+  for (let i = 0; i < 520; i++) {
+    const w = z() * Math.PI * 2, v = 0.4 + z() * 1.6, off = z()
+    const k = ((t - 6) * v * 0.5 + off) % 1, kk = k * k
+    const r1 = 60 + kk * 3400, r2 = r1 * (1 + 0.12 + 0.25 * a)
+    ctx.strokeStyle = rgba(f, 0.6 * a * k); ctx.lineWidth = 1 + 3 * k
+    ctx.beginPath(); ctx.moveTo(CX + Math.cos(w) * r1, CY + Math.sin(w) * r1 * 0.55); ctx.lineTo(CX + Math.cos(w) * r2, CY + Math.sin(w) * r2 * 0.55); ctx.stroke()
+  }
+  ctx.restore()
+}
+
+function seiten(ctx, e, t, f, ak, a, uhr) {
+  ctx.save(); ctx.textBaseline = 'alphabetic'
+  // linker Bildschirm: Uhrzeit, Datum, Wetter – Felder klappen nacheinander auf
+  const auf = (n) => weich(phase(t, 12.6 + n * 0.25, 13.3 + n * 0.25))
+  const feld = (x, y, w, h, n, titel, wert, klein) => {
+    const p = auf(n); if (p <= 0) return
+    ctx.strokeStyle = rgba(f, 0.55 * a); ctx.lineWidth = 2
+    ctx.strokeRect(x, y, w * p, h)
+    ctx.fillStyle = rgba(f, 0.06 * a); ctx.fillRect(x, y, w * p, h)
+    if (p < 1) return
+    ctx.fillStyle = rgba(f, 0.6 * a); ctx.font = `22px ${e.schrift}`; ctx.fillText(titel, x + 24, y + 40)
+    ctx.fillStyle = rgba(e.id === 'B' ? [235, 245, 255] : f, 0.95 * a); ctx.font = `${klein ? 44 : 120}px ${e.schrift}`; ctx.fillText(wert, x + 24, y + h - 34)
+  }
+  const z = uhr
+  feld(200, 160, 1500, 260, 0, 'UHRZEIT', `${String(z.getHours()).padStart(2, '0')}:${String(z.getMinutes()).padStart(2, '0')}:${String(z.getSeconds()).padStart(2, '0')}`)
+  feld(200, 460, 720, 180, 1, 'DATUM', z.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }), true)
+  feld(980, 460, 720, 180, 2, 'ÖHRINGEN', '6 °C · Nieselregen', true)
+  feld(200, 680, 1500, 220, 3, 'LAGE', 'Werkstatt-Daten folgen', true)
+  // rechter Bildschirm: Systemwerte als Balken und Kurve
+  const werte = [['PROZESSOR', 0.23], ['ARBEITSSPEICHER', 0.29], ['GRAFIKKARTE', 0.41], ['SPRACHKERN', 1]]
+  werte.forEach(([name, w], i) => {
+    const p = auf(i + 1); if (p <= 0) return
+    // runde Anzeige
+    const gx = 4180 + i * 400, gy = 300, wackel0 = w < 1 ? w + 0.04 * Math.sin(t * 3 + i) : 1
+    ctx.lineWidth = 16; ctx.strokeStyle = rgba(f, 0.15 * a); ctx.beginPath(); ctx.arc(gx, gy, 140, Math.PI * 0.75, Math.PI * 2.25); ctx.stroke()
+    ctx.strokeStyle = rgba(i === 3 ? ak : f, 0.85 * a); ctx.shadowColor = rgba(f, 1); ctx.shadowBlur = 20
+    ctx.beginPath(); ctx.arc(gx, gy, 140, Math.PI * 0.75, Math.PI * (0.75 + 1.5 * wackel0 * p)); ctx.stroke(); ctx.shadowBlur = 0
+    ctx.textAlign = 'center'; ctx.fillStyle = rgba(e.id === 'B' ? [235, 245, 255] : f, 0.95 * a); ctx.font = `56px ${e.schrift}`
+    ctx.fillText(w < 1 ? `${Math.round(wackel0 * 100)}` : 'OK', gx, gy + 20); ctx.font = `20px ${e.schrift}`; ctx.fillStyle = rgba(f, 0.6 * a); ctx.fillText(name, gx, gy + 190); ctx.textAlign = 'left'
+  })
+  // Kurve (Herzschlag des Systems)
+  const p = auf(5)
+  if (p > 0) {
+    ctx.strokeStyle = rgba(ak, 0.8 * a); ctx.lineWidth = 3; ctx.beginPath()
+    for (let i = 0; i <= 300 * p; i++) { const x = 4040 + i * 5, s = Math.sin(i * 0.15 + t * 4) * 30 + (i % 50 < 3 ? -80 : 0); ctx.lineTo(x, 760 + s) }
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
+function untertitel(ctx, e, t, f, a) {
+  const satz = 'Ah, Sir. Sie leben noch. Wie schön. Ich hatte mich gerade an die Ruhe gewöhnt.'
+  const p = phase(t, 15, 21.2)
+  ctx.save(); ctx.textAlign = 'center'; ctx.font = `${e.id === 'C' ? 'italic ' : ''}40px ${e.schrift}`
+  ctx.fillStyle = rgba([240, 244, 248], 0.9 * a)
+  ctx.fillText(satz.slice(0, Math.ceil(satz.length * p)), CX, 990)
+  ctx.restore()
+}
+
+// Nebel, Lichtglocken und schwebende Partikel über alle drei Bildschirme
+function atmosphaere(ctx, e, t, f, a) {
+  ctx.save()
+  for (const [x, y, rad, st] of [[CX, CY, 1700, 0.16], [960, 300, 900, 0.07], [4800, 760, 900, 0.07]]) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, rad); g.addColorStop(0, rgba(f, st * a)); g.addColorStop(1, rgba(f, 0))
+    ctx.fillStyle = g; ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2)
+  }
+  const z = zufall(21)
+  for (let i = 0; i < 260; i++) {
+    const x = (z() * W + t * (20 + z() * 60)) % W, y = (z() * H - t * (10 + z() * 30) + H * 4) % H, s = 1 + z() * 3
+    ctx.fillStyle = rgba(f, (0.15 + 0.5 * z()) * a * (0.6 + 0.4 * Math.sin(t * 2 + i)))
+    ctx.fillRect(x, y, s, s)
+  }
+  ctx.restore()
+}
+// waagerechter Lichtreflex wie bei Kinoobjektiven
+function reflex(ctx, x, y, st, f) {
+  if (st <= 0) return
+  ctx.save()
+  const g = ctx.createLinearGradient(x - 2600, 0, x + 2600, 0)
+  g.addColorStop(0, rgba(f, 0)); g.addColorStop(0.5, rgba(misch(f, [255, 255, 255], 0.6), 0.55 * Math.min(1, st))); g.addColorStop(1, rgba(f, 0))
+  ctx.fillStyle = g; ctx.fillRect(x - 2600, y - 3 * st, 5200, 6 * st)
+  const k = ctx.createRadialGradient(x, y, 0, x, y, 260 * st); k.addColorStop(0, rgba([255, 255, 255], 0.7 * Math.min(1, st))); k.addColorStop(1, rgba(f, 0))
+  ctx.fillStyle = k; ctx.beginPath(); ctx.arc(x, y, 260 * st, 0, 7); ctx.fill()
+  ctx.restore()
+}
+// langsam drehende Lichtstrahlen aus dem Kern
+function strahlen(ctx, t, f, a) {
+  ctx.save(); ctx.translate(CX, CY); ctx.rotate(t * 0.05)
+  for (let i = 0; i < 10; i++) {
+    ctx.rotate(Math.PI * 2 / 10)
+    const g = ctx.createLinearGradient(0, 0, 3000, 0); g.addColorStop(0, rgba(f, 0.1 * a)); g.addColorStop(1, rgba(f, 0))
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(3000, -150); ctx.lineTo(3000, 150); ctx.fill()
+  }
+  ctx.restore()
+}
+
+function glitch(ctx, t) {
+  // Streifen des bisherigen Bilds seitlich versetzen (Quelle in echten Pixeln, Ziel in der 5760er-Fläche)
+  const z = zufall(Math.floor(t * 30)), s = ctx.canvas.width / W
+  for (let i = 0; i < 9; i++) {
+    const y = z() * H, h = 8 + z() * 60, dx = (z() - 0.5) * 300
+    try { ctx.drawImage(ctx.canvas, 0, y * s, ctx.canvas.width, h * s, dx, y, W, h) } catch { /* nichts */ }
+  }
+}
+
+// ---------- Ton ----------
+let ac = null, puffer = {}
+const DATEIEN = ['computerNoise_000', 'computerNoise_002', 'forceField_000', 'forceField_001', 'forceField_002', 'lowFrequency_explosion_000', 'impactMetal_000', 'impactMetal_002', 'doorOpen_000', 'doorOpen_001', 'spaceEngineLow_000', 'engineCircular_000', 'laserLarge_000']
+async function tonVorbereiten() {
+  if (!ac) ac = new AudioContext()
+  if (ac.state === 'suspended') await ac.resume()
+  const fehlt = [...DATEIEN.filter((n) => !puffer[n]), ...(puffer.gruss ? [] : ['gruss'])]
+  await Promise.all(fehlt.map(async (n) => {
+    try {
+      const url = n === 'gruss' ? 'loki-gruss.wav' : `toene/${n}.ogg`
+      puffer[n] = await ac.decodeAudioData(await (await fetch(url)).arrayBuffer())
+    } catch { puffer[n] = null }
+  }))
+}
+function hall() {
+  const len = ac.sampleRate * 3, b = ac.createBuffer(2, len, ac.sampleRate)
+  for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6) }
+  const k = ac.createConvolver(); k.buffer = b; return k
+}
+const NOTE = (n) => 440 * Math.pow(2, (n - 69) / 12)
+const AKKORDE = { glas: [57, 64, 71, 76], alarm: [53, 60, 65, 69], messing: [50, 57, 66, 69], digital: [52, 59, 64, 71] }
+
+function tonStarten(e) {
+  const t0 = ac.currentTime + 0.05, aus = []
+  const master = ac.createGain(); master.gain.value = 0.9
+  const komp = ac.createDynamicsCompressor(); master.connect(komp).connect(ac.destination)
+  const raum = hall(), raumGain = ac.createGain(); raumGain.gain.value = 0.35; raum.connect(raumGain).connect(master)
+  const musik = ac.createGain(); musik.connect(master); musik.connect(raum)
+  // Schluss-Ausblendung
+  master.gain.setValueAtTime(0.9, t0 + 20); master.gain.linearRampToValueAtTime(0, t0 + 22)
+  const merk = (n) => { aus.push(n); return n }
+  const osz = (typ, f, start, ende, ziel = musik) => { const o = merk(ac.createOscillator()); o.type = typ; o.frequency.setValueAtTime(f, start); o.start(start); o.stop(ende); return o }
+  const huelle = (start, an, halten, ab, spitze, ziel = musik) => { const g = ac.createGain(); g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(spitze, start + an); g.gain.setValueAtTime(spitze, start + an + halten); g.gain.exponentialRampToValueAtTime(0.0001, start + an + halten + ab); g.connect(ziel); return g }
+  const probe = (name, wann, laut = 1, rate = 1, ziel = musik) => { const b = puffer[name]; if (!b) return; const s = merk(ac.createBufferSource()); s.buffer = b; s.playbackRate.value = rate; const g = ac.createGain(); g.gain.value = laut; s.connect(g).connect(ziel); s.start(wann) }
+  const rauschen = (dauer) => { const b = ac.createBuffer(1, ac.sampleRate * dauer, ac.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; const s = merk(ac.createBufferSource()); s.buffer = b; return s }
+  const piep = (wann, f, laut = 0.12, typ = 'sine', lang = 0.09) => { const o = osz(typ, f, wann, wann + lang + 0.05); o.connect(huelle(wann, 0.005, lang * 0.4, lang * 0.6, laut)) }
+
+  const k = e.klang, T = (s) => t0 + s
+  // Akt 1: Lichtlinie
+  probe('laserLarge_000', T(0.2), 0.5, k === 'messing' ? 0.6 : 0.8)
+  // Start-Pieptöne
+  const piepF = { glas: 1760, alarm: 1320, messing: 880, digital: 1500 }[k], piepTyp = k === 'digital' ? 'square' : k === 'messing' ? 'triangle' : 'sine'
+  ;[0.25, 0.9, 1.5].forEach((s, i) => piep(T(s), piepF * (i === 2 ? 1.5 : 1), 0.14, piepTyp))
+  // Protokoll-Zeilen: je Zeile ein kurzer Ton, dazu Rechner-Rauschen
+  for (let i = 0; i < 7; i++) piep(T(2 + i), piepF * (k === 'digital' ? 1 + (i % 3) * 0.25 : 0.75 + i * 0.05), 0.07, piepTyp, 0.05)
+  probe(k === 'digital' ? 'computerNoise_002' : 'computerNoise_000', T(2), k === 'digital' ? 0.5 : 0.25)
+  probe('computerNoise_002', T(6.5), 0.2)
+  // Kern-Ringe: Kraftfeld-Töne
+  ;[2.6, 3.8, 5.0, 6.2, 7.4].forEach((s, i) => probe(['forceField_000', 'forceField_001', 'forceField_002'][i % 3], T(s), 0.35, k === 'messing' ? 0.7 : 1))
+  // Bass-Teppich 2–10 s, endet mit hartem Schnitt
+  const bass = ac.createBiquadFilter(); bass.type = 'lowpass'; bass.frequency.setValueAtTime(70, T(2)); bass.frequency.exponentialRampToValueAtTime(k === 'messing' ? 500 : 1100, T(9.9))
+  const bg = ac.createGain(); bg.gain.setValueAtTime(0, T(2)); bg.gain.linearRampToValueAtTime(0.5, T(9.6)); bg.gain.setValueAtTime(0.5, T(9.95)); bg.gain.linearRampToValueAtTime(0, T(10.02))
+  bass.connect(bg).connect(musik)
+  ;[41.2, 41.6, 55].forEach((f) => osz(k === 'messing' ? 'sawtooth' : 'sawtooth', f, T(2), T(10.1)).connect(bass))
+  probe('spaceEngineLow_000', T(4.5), 0.45); probe('spaceEngineLow_000', T(9.3), 0.0001)
+  // Alarm (nur B): zweitönige Sirene in der roten Phase
+  if (k === 'alarm') for (let s = 2.2; s < 9.6; s += 0.9) { piep(T(s), 620, 0.07, 'square', 0.4); piep(T(s + 0.45), 780, 0.07, 'square', 0.4) }
+  // Steigerung 6–10 s: Rauschen mit wanderndem Filter + Triebwerk
+  const r = rauschen(4.2), rf = ac.createBiquadFilter(); rf.type = 'bandpass'; rf.Q.value = 3
+  rf.frequency.setValueAtTime(200, T(6)); rf.frequency.exponentialRampToValueAtTime(7000, T(9.95))
+  const rg = ac.createGain(); rg.gain.setValueAtTime(0, T(6)); rg.gain.linearRampToValueAtTime(0.35, T(9.95)); rg.gain.linearRampToValueAtTime(0, T(10.02))
+  r.connect(rf).connect(rg).connect(musik); r.start(T(6)); r.stop(T(10.1))
+  probe('engineCircular_000', T(6), 0.4, 1.3)
+  // Akt 2: Stille, nur ein leises Ticken
+  piep(T(11.3), piepF * 0.5, 0.05, 'sine', 0.04); piep(T(11.65), piepF * 0.5, 0.05, 'sine', 0.04)
+  // Akt 3: Einschlag
+  probe('lowFrequency_explosion_000', T(12), 1)
+  probe('impactMetal_000', T(12), 0.7, 0.7)
+  const sub = osz('sine', 95, T(12), T(14)); sub.frequency.exponentialRampToValueAtTime(26, T(13.4)); sub.connect(huelle(T(12), 0.01, 0.2, 1.6, 0.9))
+  const knall = rauschen(1.5), kf = ac.createBiquadFilter(); kf.type = 'lowpass'; kf.frequency.value = 1800
+  knall.connect(kf).connect(huelle(T(12), 0.003, 0.05, 1.2, 0.6)); knall.start(T(12))
+  // Akkord nach dem Einschlag (Fläche), Musik bis zum Schluss
+  const typA = { glas: 'triangle', alarm: 'sawtooth', messing: 'sawtooth', digital: 'square' }[k]
+  const flf = ac.createBiquadFilter(); flf.type = 'lowpass'; flf.frequency.value = k === 'messing' ? 1400 : 2200
+  const flg = ac.createGain(); flg.gain.setValueAtTime(0, T(12)); flg.gain.linearRampToValueAtTime(k === 'digital' ? 0.05 : 0.09, T(13.5)); flg.connect(musik)
+  flf.connect(flg)
+  AKKORDE[k].forEach((n, i) => { const o = osz(typA, NOTE(n + (k === 'alarm' ? 1 : 0)), T(12), T(22)); o.detune.value = (i - 1.5) * 6; o.connect(flf) })
+  if (k === 'alarm') AKKORDE.alarm.forEach((n) => osz('sine', NOTE(n + 12), T(12), T(22)).connect(huelle(T(12.2), 1, 6, 3, 0.03)))
+  // HUD-Felder klappen auf
+  for (let n = 0; n < 6; n++) probe(n % 2 ? 'doorOpen_001' : 'doorOpen_000', T(12.6 + n * 0.25), 0.25, 1.2)
+  // Takt 12,8–21 s: Schlag alle 0,6 s, Akzent alle 2,4 s
+  for (let s = 12.8; s < 21; s += 0.6) {
+    const kick = osz('sine', 130, T(s), T(s + 0.4)); kick.frequency.exponentialRampToValueAtTime(42, T(s + 0.25)); kick.connect(huelle(T(s), 0.003, 0.03, 0.3, 0.55))
+    const hat = rauschen(0.1), hf = ac.createBiquadFilter(); hf.type = 'highpass'; hf.frequency.value = 7000
+    hat.connect(hf).connect(huelle(T(s + 0.3), 0.002, 0.01, 0.06, k === 'messing' ? 0.04 : 0.08)); hat.start(T(s + 0.3))
+    if (Math.round((s - 12.8) / 0.6) % 4 === 0) probe('impactMetal_002', T(s), 0.25, k === 'messing' ? 0.6 : 0.9)
+  }
+  // Lokis Begrüßung ab 15 s, Musik geht dabei leiser
+  if (puffer.gruss) {
+    const s = merk(ac.createBufferSource()); s.buffer = puffer.gruss; const sg = ac.createGain(); sg.gain.value = 1.15
+    s.connect(sg).connect(master); s.start(T(15))
+    musik.gain.setValueAtTime(1, T(14.8)); musik.gain.linearRampToValueAtTime(0.35, T(15.2)); musik.gain.setValueAtTime(0.35, T(15 + puffer.gruss.duration)); musik.gain.linearRampToValueAtTime(1, T(15.5 + puffer.gruss.duration))
+  }
+  return () => { aus.forEach((n) => { try { n.stop() } catch { /* schon aus */ } }); master.disconnect() }
+}
+
+// ---------- Seite ----------
+let laeuft = null
+function stoppen() { if (!laeuft) return; cancelAnimationFrame(laeuft.raf); laeuft.tonAus?.(); laeuft.knopf.textContent = '▶ Abspielen'; laeuft.knopf.classList.remove('an'); const l = laeuft; laeuft = null; zeichne(l.ctx, l.e, 17, new Date()) }
+const liste = document.getElementById('liste')
+ENTWUERFE.forEach((e) => {
+  const sec = document.createElement('section')
+  sec.innerHTML = `<h2><b>${e.id}</b>${e.name}</h2><p class="beschr">${e.beschr}</p><div class="buehne"><canvas width="${W / 2}" height="${H / 2}"></canvas></div>
+    <div class="knoepfe"><button class="spielen">▶ Abspielen</button><button class="voll">Vollbild</button></div>`
+  liste.appendChild(sec)
+  const canvas = sec.querySelector('canvas'), ctx = canvas.getContext('2d')
+  ctx.scale(0.5, 0.5)
+  zeichne(ctx, e, 17, new Date())
+  const knopf = sec.querySelector('.spielen')
+  knopf.onclick = async () => {
+    const war = laeuft?.e === e
+    stoppen()
+    if (war) return
+    knopf.textContent = '■ Stopp'; knopf.classList.add('an')
+    laeuft = { e, ctx, knopf }
+    const meins = laeuft
+    await tonVorbereiten()
+    if (laeuft !== meins) return
+    meins.tonAus = tonStarten(e)
+    const start = performance.now() + 50
+    const bild = () => {
+      const t = (performance.now() - start) / 1000
+      zeichne(ctx, e, Math.max(0, t), new Date())
+      if (t < DAUER && laeuft === meins) meins.raf = requestAnimationFrame(bild)
+      else if (laeuft === meins) stoppen()
+    }
+    meins.raf = requestAnimationFrame(bild)
+  }
+  sec.querySelector('.voll').onclick = () => sec.querySelector('.buehne').requestFullscreen?.()
+})
+</script>
+</body>
+</html>

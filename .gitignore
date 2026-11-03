@@ -30,3 +30,6 @@ __pycache__/
 
 # Videos zur Analyse (fremde Inhalte, groß) – nicht in Git
 videos/
+
+# Kenney-Download (Zip + entpackt) – CC0, ausgewählte Töne liegen versioniert in vorschau/start-sequenz/toene
+sounds/

@@ -4,8 +4,26 @@
     {
       "name": "hoerproben",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "vorschau/hoerproben", "--port", "5175", "--strictPort"],
+      "runtimeArgs": [
+        "vite",
+        "vorschau/hoerproben",
+        "--port",
+        "5175",
+        "--strictPort"
+      ],
       "port": 5175
+    },
+    {
+      "name": "start-sequenz",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "vorschau/start-sequenz",
+        "--port",
+        "5177",
+        "--strictPort"
+      ],
+      "port": 5177
     }
   ]
 }
