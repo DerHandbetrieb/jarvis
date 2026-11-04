@@ -1,0 +1,35 @@
+// Tests für die Kamera-Wache (electron/kamerawache.cjs, 04.11.2026)
+import { describe, expect, it, vi } from 'vitest'
+import { createRequire } from 'node:module'
+
+const { erstelleKamerawache, RUHE_MS } = createRequire(import.meta.url)('./kamerawache.cjs')
+
+describe('Kamera-Wache', () => {
+  it('meldet beim Auftauchen einer Person, nicht dauernd, und erst nach 2 Minuten Ruhe erneut', () => {
+    let t = 0
+    const ereignisse = []
+    const w = erstelleKamerawache({ abfragen: async () => false, beimEreignis: (e) => ereignisse.push(e), jetzt: () => t })
+    w._schritt(false); t = 1000
+    w._schritt(true); t = 3000 // Person taucht auf → Meldung
+    w._schritt(true); t = 5000 // bleibt stehen → keine weitere
+    w._schritt(false); t = 30_000 // kurz weg
+    w._schritt(true) // wieder da, aber keine 2 Minuten Ruhe → keine Meldung
+    expect(ereignisse.length).toBe(1)
+    t = 30_000 + RUHE_MS + 1
+    w._schritt(false); w._schritt(true) // nach 2 Minuten ohne Person → neue Meldung
+    expect(ereignisse.map((e) => e.art)).toEqual(['person', 'person'])
+  })
+  it('bei Fehlern: Pause wird länger, danach geht es weiter; stoppen beendet die Schleife', async () => {
+    const pausen = []
+    let n = 0
+    const protokoll = vi.fn()
+    let w
+    const abfragen = vi.fn(async () => { n++; if (n <= 2) throw new Error('Zeitüberschreitung'); if (n >= 4) w.stoppen(); return false })
+    w = erstelleKamerawache({ abfragen, beimEreignis: () => {}, protokoll, warte: async (ms) => { pausen.push(ms) } })
+    w.starten()
+    await vi.waitFor(() => expect(w.laeuft()).toBe(false))
+    expect(pausen.slice(0, 3)).toEqual([10_000, 20_000, 2000])
+    expect(w.stand()).toMatchObject({ fehler: 2, abfragen: 1 }) // die letzte Abfrage lief beim Stoppen noch – zählt nicht mehr
+    expect(protokoll.mock.calls.some((c) => String(c[0]).includes('wieder erreichbar'))).toBe(true)
+  })
+})

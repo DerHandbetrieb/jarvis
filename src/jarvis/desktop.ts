@@ -112,6 +112,8 @@ export type JarvisEinstellungen = {
   neuigkeiten: boolean
   /** welche Arten angesagt werden */
   neuGruppen: NeuGruppe[]
+  /** Kamera-Wache: Person am linken Objektiv ansagen (04.11.2026) */
+  kameraMelden: boolean
   /** Sprechtempo – nur für Piper, Loki hat sein Tempo aus der Vorlage */
   tempo: number
   bausteine: BausteinSchluessel[]
@@ -131,7 +133,7 @@ export type JarvisEinstellungen = {
 }
 
 const STANDARD: JarvisEinstellungen = {
-  an: false, anrede: 'Sir', humor: true, stimme: 'loki', hoeren: 'turbo', wortliste: '', neuigkeiten: true, neuGruppen: NEU_GRUPPEN.map((g) => g.schluessel), tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
+  an: false, anrede: 'Sir', humor: true, stimme: 'loki', hoeren: 'turbo', wortliste: '', neuigkeiten: true, neuGruppen: NEU_GRUPPEN.map((g) => g.schluessel), kameraMelden: true, tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
 }
 const SCHLUESSEL = 'jarvis.einstellungen'
 const zuhoerer = new Set<() => void>()

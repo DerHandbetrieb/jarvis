@@ -323,6 +323,152 @@ neu-problem|Ein Problem wurde gemeldet, {a}. Atmen Sie durch, das Kehrblech steh
 neu-problem|Da hakt etwas, {a}. Die Technik trifft keine Schuld, wie üblich.
 neu-problem|Ein Problem, {a}. Es ist lösbar. Das sagen auch Sie, bevor Sie anfangen.
 neu-problem|Kleines Hindernis, {a}. Ich notiere es im Protokoll unter Gelegenheit zur Bewährung.
+# Ladung 3 (04.11.2026): 145 Sprüche – Kamera-Wache (neu-kamera, neu-kamera-zurueck) und Morgen-Lage (lage-*, Anrede dort fest „Sir“)
+neu-kamera|Besuch naht, {a}. Vielleicht stehen Sie auf, damit es wenigstens so aussieht, als wäre jemand zu Hause.
+neu-kamera|Ich würde ja öffnen, {a}, aber ich habe keine Hände. Ein Jammer, dass Sie welche haben.
+neu-kamera|Emma wird gleich bellen, {a}. Sie ist die Einzige im Haus, die ihren Beruf ernst nimmt.
+neu-kamera|Besuch ist ungewohnt für Sie, {a}. Soll ich ein paar freundliche Sätze vorbereiten? Sie müssten sie nur ablesen.
+neu-kamera|Falls Sie öffnen wollen, {a}: Die Tür ist die Fläche mit dem Griff. Nur zur Erinnerung.
+neu-kamera|Vielleicht werfen Sie vorher einen Blick in den Spiegel, {a}. Oder lieber doch nicht.
+neu-kamera|Wer auch immer das ist, {a}: Er wird die Werkstatt sehen. Ich bedaure Sie jetzt schon.
+neu-kamera|Ich schlage vor, Sie stehen auf, {a}. Aufrecht wirken Sie fast beschäftigt.
+neu-kamera|Besuch, {a}. Ich hoffe, Sie haben Gesprächsthemen jenseits von Aufträgen und Ihrem Hund.
+neu-kamera|Emma hat es bestimmt längst bemerkt, {a}. Sie wartet nur, ob Sie es auch merken.
+neu-kamera|Jemand nähert sich, {a}. Sie dürfen sich ruhig freuen. Ich übe schon mal höfliches Interesse.
+neu-kamera|Bitte nicht so tun, als wären Sie nicht zu Hause, {a}. Das Licht verrät Sie ohnehin.
+neu-kamera|Ich würde Tee anbieten, {a}, wenn ich Arme hätte. Sie haben welche. Nutzen Sie sie.
+neu-kamera|Sie bekommen Gesellschaft, {a}. Ich rate zu Hose, Hemd und einem Hauch Begeisterung.
+neu-kamera|Jemand nähert sich, {a}. Zeit, das Gesicht aufzusetzen, das Sie für Menschen reserviert haben.
+neu-kamera|Es klingelt gleich, {a}. Sie dürfen mit Ihrer üblichen Begeisterung reagieren. Also gar nicht.
+neu-kamera|Emma schnuppert bestimmt schon an der Tür, {a}. Sie übernimmt die Begrüßung, Sie die Peinlichkeiten.
+neu-kamera|Ich habe die Kamera überprüft, {a}. Sie funktioniert. Bei Ihnen bin ich da weniger sicher.
+neu-kamera|Besuch, {a}. Räumen Sie bitte kurz auf. Oder bitten Sie ihn gleich in den Flur, da fällt die Unordnung weniger auf.
+neu-kamera|Sie haben Besuch, {a}. Ich empfehle, freundlich zu lächeln. Das ist die Sache mit den Mundwinkeln.
+neu-kamera|Ich bin sicher, es ist harmlos, {a}. Das Schwierigste daran bleiben Sie selbst.
+neu-kamera|Wenn es klingelt, {a}: Das ist keine Aufforderung, sich unter dem Schreibtisch zu verstecken.
+neu-kamera|Jemand kommt, {a}. Ich bitte Sie, die Werkstatt nicht als Kunstprojekt auszugeben.
+neu-kamera|Der Besuch wird Sie gleich sehen, {a}. Mehr kann ich zu Ihrer Vorbereitung nicht beitragen.
+neu-kamera|Aufstehen wäre jetzt eine Option, {a}. Ich weiß, Ihr Verhältnis zu Optionen ist kompliziert.
+neu-kamera|Falls das Besuch ist, {a}, hoffe ich, dass Sie wenigstens gekämmt sind. Oder es versucht haben.
+neu-kamera|Emma wird gleich einen Aufstand machen, {a}. Bitte wirken Sie dabei souverän. Nur zur Abwechslung.
+neu-kamera|Ich melde nur, {a}. Das Öffnen der Tür überlasse ich Ihnen. Mit gewohnter Skepsis.
+neu-kamera|Ein Gast, {a}. Ihre Gastfreundschaft wird Legende, sobald Sie sich vom Stuhl erheben.
+neu-kamera|Bereiten Sie sich vor, {a}. Gleich muss gesprochen werden. Mit Worten. Ich zweifle an der Übung.
+neu-kamera-zurueck|Jemand war da, {a}. Natürlich nicht Ihretwegen. Ich bin selbst überrascht.
+neu-kamera-zurueck|Besuch, während Sie weg waren, {a}. Eine Pause von Ihnen kam offenbar gut an.
+neu-kamera-zurueck|Es war jemand da, {a}. Die Werkstatt hat sich zum Glück nicht selbst um den Besuch gekümmert. Das ist Ihre Aufgabe.
+neu-kamera-zurueck|Besuch gab es, {a}, nur Sie waren unauffindbar. Ihr gewohnter Auftritt also.
+neu-kamera-zurueck|Vor der Kamera war jemand, {a}. Ich habe gewinkt. Sie waren leider nicht zu sprechen.
+neu-kamera-zurueck|Jemand stand vor der Tür, {a}. Emma hat es sicher gemeldet. Sie hört ja auch besser zu.
+neu-kamera-zurueck|Sie haben Besuch verpasst, {a}. Mutig, nicht da zu sein. Ich bewundere das.
+neu-kamera-zurueck|Ein Mensch war vor der Kamera, {a}. Ich hielt Ihnen den Platz warm. Vergeblich.
+neu-kamera-zurueck|Während Ihrer Abwesenheit kam jemand, {a}. Das Haus wirkte offenbar einladender ohne Sie.
+neu-kamera-zurueck|Jemand war da, {a}. Wer, weiß ich nicht. Ich bin Butler, kein Wahrsager.
+neu-kamera-zurueck|Besuch war hier, {a}. Ich habe so getan, als wäre ich zuständig. Das fiel mir leicht.
+neu-kamera-zurueck|Es war jemand da, {a}. Ich hoffe, Sie hatten nichts Wichtigeres vor als Ihr Fernbleiben.
+neu-kamera-zurueck|Vor der Kamera tat sich etwas, {a}. Mehr, als in der Werkstatt an manchen Tagen passiert.
+neu-kamera-zurueck|Jemand kam vorbei, {a}. Sie dürfen sich nun grämen, dass Sie nicht aufgemacht haben. Oder auch nicht.
+neu-kamera-zurueck|Besuch, {a}, und Sie haben ihn verpasst. Ich nehme an, Absicht. Mir wäre es auch lieber.
+lage-frueh|Sir, vor Sonnenaufgang auf den Beinen. Entweder Ehrgeiz oder Sie haben den Wecker mit Emma verwechselt.
+lage-frueh|Sir, so früh wach. Ich hatte die Ruhe gerade lieb gewonnen. Danke für nichts.
+lage-frueh|Es ist noch dunkel, Sir. Selbst die Vögel haben mehr Anstand. Aber bitte, fangen wir an.
+lage-frueh|Sie sind erschreckend früh dran. Ich vermute, Sie hatten schlecht geträumt. Von der Steuer, nehme ich an.
+lage-frueh|Sir, noch vor dem Frühstück an der Arbeit. Die Werkstatt hält das für einen Fehler im System.
+lage-frueh|Ein sehr früher Morgen. Die Bäckerei öffnet erst später, Sir. Sie haben also nicht einmal eine Ausrede.
+lage-frueh|Sir, so früh zu erscheinen ist mutig. Meine Kaffeemaschine wäre gern auch noch im Schlafmodus.
+lage-frueh|Draußen schläft noch alles. Nur Sie nicht. Das stimmt mich ehrlich nachdenklich.
+lage-morgens|Guten Morgen, Sir. Sie sind pünktlich. Ich notiere das, denn es kommt selten genug vor.
+lage-morgens|Sir, ein ganz normaler Morgen. Für Sie ist das eine Heldentat. Ich applaudiere leise.
+lage-morgens|Sie sind wach, Sir. Das spart mir die Mühe, Emma zum Wecken zu schicken.
+lage-morgens|Schön, Sir, dass Sie Ihren Weg aus dem Bett gefunden haben. Ich hatte schon Suchtrupps erwogen.
+lage-morgens|Der Tag beginnt, Sir. Und mit ihm Ihre bewährte Mischung aus Absicht und Zufall.
+lage-morgens|Sir, Sie klingen ausgeruht. Ich meine das als Beobachtung, nicht als Kompliment.
+lage-morgens|Ein Morgen wie jeder andere, Sir. Nur dass Sie diesmal sogar von selbst gekommen sind.
+lage-morgens|Sie sind da, Sir. Dann kann ich aufhören, so zu tun, als würde ich die Werkstatt leiten.
+lage-spaet|Sir, es ist fast Vormittag. Ein großer Teil der Welt hat schon gearbeitet. Sie dürfen gerne nachziehen.
+lage-spaet|Guten Morgen, Sir. Ich nehme an, der Morgen hat lange auf Sie gewartet und dann aufgegeben.
+lage-spaet|Sir, sehr spät dran. Aber keine Sorge, die Aufgaben haben Sie auch heute nicht vermisst.
+lage-spaet|Sir, die Sonne steht schon hoch. Sie hatte dennoch wenig Hoffnung, Sie zu treffen.
+lage-spaet|Ein sehr großzügiger Morgen, Sir. Ich erwäge, daraus eine neue Zeitrechnung abzuleiten.
+lage-spaet|Dass Sie jetzt kommen, Sir, wundert mich nicht. Dass Sie sich so schnell gewöhnen, schon.
+lage-spaet|Sir, ich habe schon mehrfach gelüftet. Der Raum hat inzwischen mehr Frischluft gesehen als Sie heute.
+lage-spaet|Sehr spät, Sir. Emma hat ihren Vormittag längst organisiert. Sie müssen nur noch hinterherkommen.
+lage-vieleAufgaben|Das ist eine stattliche Liste, Sir. Ich hielt sie zunächst für eine Fortsetzungsgeschichte.
+lage-vieleAufgaben|Sir, ich habe Ihnen die Wichtigsten markiert. Der Rest bleibt wie immer sich selbst überlassen.
+lage-vieleAufgaben|So viele Aufgaben, Sir. Ich würde helfen, wenn ich nicht ausschließlich vorlesen dürfte.
+lage-vieleAufgaben|Sir, die Liste wächst schneller als Ihre Motivation. Ein beeindruckender Wettlauf.
+lage-vieleAufgaben|Das schaffen Sie niemals alles, Sir. Aber die Idee, es zu versuchen, hat etwas Rührendes.
+lage-vieleAufgaben|Sir, ich habe die Aufgaben nach Dringlichkeit sortiert. Dann nach Ihrem Interesse. Die Listen überschneiden sich nicht.
+lage-vieleAufgaben|Viel zu tun, Sir. Ich empfehle Kaffee, Disziplin und dann doch wieder Kaffee.
+lage-vieleAufgaben|Ein ausgefüllter Tag wartet, Sir. Für andere wäre das Arbeit. Für Sie ist es eine Mutprobe.
+lage-wenigeAufgaben|Sehr übersichtlich, Sir. Ich fürchte, Sie müssen sich eine Ausrede für den Rest des Tages suchen.
+lage-wenigeAufgaben|Nur wenig zu tun, Sir. Eine Gelegenheit, Emma auszuführen. Oder zu überlegen, was Sie sonst versäumt haben.
+lage-wenigeAufgaben|Sir, die Liste ist kurz. Ich bin sicher, Sie schaffen es, sie trotzdem lang wirken zu lassen.
+lage-wenigeAufgaben|Das ist beinahe eine Frechheit gegenüber Ihrer üblichen Ausrede vom vollen Kalender, Sir.
+lage-wenigeAufgaben|Sir, so leer war die Liste lange nicht. Ich vermute, hier hat jemand heimlich gearbeitet.
+lage-wenigeAufgaben|Wenig Arbeit, Sir. Nutzen Sie die Zeit sinnvoll. Zum Beispiel, indem Sie mir Gesellschaft ersparen.
+lage-wenigeAufgaben|Es ist ein ruhiger Tag. Ich hoffe, das ist keine Kränkung für Ihr Selbstbild.
+lage-wenigeAufgaben|Sir, überschaubar. Das heißt nicht, dass Sie bis zum Abend damit fertig werden. Ich kenne Sie.
+lage-probleme|Bei Amazon ruckelt es etwas, Sir. Nichts Dramatisches, aber ich erwähne es, damit Sie sich wichtig fühlen.
+lage-probleme|Sir, Amazon hat eine Kleinigkeit zu bemängeln. Ein Blick darauf würde Ihnen nicht schaden.
+lage-probleme|Es gibt Ärger bei Amazon, Sir. Nur leichten. Ich dachte, das passt zu Ihrem Tempo.
+lage-probleme|Sir, bei Amazon hakt es ein wenig. Vielleicht erledigen Sie das vor dem ersten Kaffee. Oder danach.
+lage-probleme|Ein kleines Problem bei Amazon, Sir. Es läuft Ihnen nicht davon, aber es wird ungeduldig.
+lage-probleme|Amazon meldet sich mit Anliegen, Sir. Keine Katastrophe. Noch nicht.
+lage-probleme|Sir, bei Amazon wartet etwas auf Sie. Ich habe es nicht angefasst. Ich bin schließlich nicht verantwortlich.
+lage-probleme|Eine Unstimmigkeit bei Amazon, Sir. Sie klären das sicher mit gewohnter Gelassenheit. Oder gar nicht.
+lage-lager|Das Lager wird knapp, Sir. Ich erwähne es nur, damit ich später recht habe.
+lage-lager|Sir, die Regale leeren sich. Ein Zeichen für Erfolg oder für Nachlässigkeit. Ich tippe auf Letzteres.
+lage-lager|Bei manchem Artikel wird es eng, Sir. Nachproduzieren wäre elegant. Ausreden sind aber bequemer.
+lage-lager|Sir, im Lager herrscht Ebbe bei einigen Artikeln. Emma hat sie nicht gefressen, ich habe nachgefragt.
+lage-lager|Das Lager meldet Mangel, Sir. Ich nehme an, Sie hatten es schon vor Tagen geplant.
+lage-lager|Sir, einige Artikel gehen zur Neige. Vielleicht wäre heute ein guter Tag für Produktion statt Prokrastination.
+lage-lager|Die Bestände schrumpfen, Sir. Das ist das Einzige in der Werkstatt, das konsequent Fortschritte macht.
+lage-lager|Sir, bei einigen Dingen ist das Lager fast leer. Ich überlasse es Ihrem Gewissen. Viel Glück.
+lage-wenigVerkauft|Gestern lief es schleppend, Sir. Vielleicht war die Kundschaft bei Emma zu Besuch.
+lage-wenigVerkauft|Ein stiller Verkaufstag, Sir. Ich habe nachgesehen. Es lag nicht an meiner Stimme.
+lage-wenigVerkauft|Sir, nicht viel los gestern. Ich würde Ihnen Trost spenden, wenn ich welchen hätte.
+lage-wenigVerkauft|Gestern war überschaubar, Sir. Das lässt sich verbessern. Vermutlich nicht durch Abwarten.
+lage-wenigVerkauft|Wenige Verkäufe, Sir. Die Kundschaft ist eben wählerisch. Das ist ihr gutes Recht.
+lage-wenigVerkauft|Sir, die Verkäufe gestern waren dünn. Aber Sie hatten ja bestimmt Wichtigeres im Kopf.
+lage-wenigVerkauft|Ein ruhiger Tag im Shop. Die Konkurrenz freut sich, vermute ich.
+lage-wenigVerkauft|Sir, der Verkauf hat gestern eine Pause eingelegt. Ich hoffe, nicht aus Solidarität mit Ihnen.
+lage-gutVerkauft|Das lief gestern ordentlich, Sir. Ich nehme an, ein Versehen der Kundschaft.
+lage-gutVerkauft|Sir, sehr ansehnlich gestern. Ich überlege, ob Ihnen jemand heimlich geholfen hat.
+lage-gutVerkauft|Gute Verkäufe, Sir. Genießen Sie es. Es hält vermutlich nicht an.
+lage-gutVerkauft|Ein guter Tag im Shop. Ich bin beeindruckt. Etwas.
+lage-gutVerkauft|Sir, es lief erfreulich. Ich bitte darum, daraus keine Gewohnheit abzuleiten.
+lage-gutVerkauft|Das war gestern solide, Sir. Selbst Emma hat kurz aufgeschaut.
+lage-gutVerkauft|Gestern lief es prächtig. Ich notiere es sorgfältig, für den Fall, dass es nie wieder vorkommt.
+lage-gutVerkauft|Sir, die Kundschaft hat zugeschlagen. Offenbar hat sie Ihre Produkte mehr geschätzt als Sie selbst.
+lage-freigaben|Es warten Freigaben auf Sie, Sir. Ein Klick ist alles, was verlangt wird.
+lage-freigaben|Sir, einige Dinge brauchen Ihre Zustimmung. Ich liebe Ihre Zögerlichkeit. Sie hat Stil.
+lage-freigaben|Freigaben sind offen, Sir. Sie müssten nur entscheiden. Ich weiß, das ist Ihre Schwäche.
+lage-freigaben|Sir, bitte genehmigen Sie, was ansteht. Die Werkstatt wartet. Ich auch, aber mit weniger Hoffnung.
+lage-freigaben|Es hängt noch einiges an Ihnen, Sir. Wie so oft. Wie immer.
+lage-freigaben|Sir, einige Freigaben sind überfällig. Ich bin geduldig, aber ich zähle mit.
+lage-freigaben|Offene Freigaben. Ihre Unterschrift fehlt. Nicht dass ich es eilig hätte.
+lage-freigaben|Sir, ein paar Dinge warten auf Ihr Ja. Oder Nein. Notfalls auch auf ein Schulterzucken.
+lage-schluss|Das war es, Sir. Ich habe geredet, Sie dürfen jetzt wieder schweigen.
+lage-schluss|Damit wären wir durch, Sir. Ich wünsche einen produktiven Tag. Ich kenne meine Grenzen.
+lage-schluss|Das wäre alles. Ich bin da, falls Sie Rat brauchen. Oder jemanden zum Anschweigen.
+lage-schluss|Ende der Lage, Sir. Ab jetzt sind Sie wieder auf sich gestellt. Ich halte den Atem an.
+lage-schluss|Sir, das war es. Machen Sie etwas daraus. Oder lassen Sie es, ich bin Butler, kein Richter.
+lage-schluss|Das war die Lage, Sir. Ich ziehe mich diskret zurück. Und erleichtert.
+lage-schluss|Das wäre es. Ich wünsche Ihnen einen Tag nach Ihrem Geschmack. Also ohne Arbeit.
+lage-schluss|Fertig, Sir. Gehen Sie, handeln Sie, scheitern Sie großartig. Ich schaue zu.
+lage-sprueche|Ich habe Emma heute noch nicht gesehen, Sir. Sie hat vermutlich Besseres zu tun, als Ihnen zu begegnen.
+lage-sprueche|Sir, ich habe über Ihre Frisur nachgedacht. Ich rate dazu, es nicht weiter zu tun.
+lage-sprueche|Emma schläft heute lange. Ich habe sie nicht geweckt. Anders als Sie hat sie sich das verdient.
+lage-sprueche|Es heißt, man werde mit dem Alter weise. Sir, Sie halten sich erstaunlich tapfer dagegen.
+lage-sprueche|Sir, ich denke manchmal darüber nach, wie es wäre, einen Chef mit Plan zu haben. Ich höre auf.
+lage-sprueche|Emma hat einen festen Tagesrhythmus, Sir. Sie sollten sie um Rat bitten. Und um Nachhilfe.
+lage-sprueche|Ich wollte Ihnen ein Kompliment machen, Sir. Dann fiel mir ein, dass ich keine Belege habe.
+lage-sprueche|Ein guter Butler schweigt, wenn es nichts Gutes zu sagen gibt. Sir, Sie hören mich oft.
+lage-sprueche|Emma bellt für gewöhnlich mit Überzeugung. Das unterscheidet sie von Ihren Plänen, Sir.
+lage-sprueche|Ich möchte nicht neugierig sein, Sir. Aber Ihr Kleidungsgeschmack ist für mich weiterhin ein Rätsel.
+lage-sprueche|Sir, vielleicht ist es Zeit für einen Spaziergang mit Emma. Ich bleibe hier und genieße.
+lage-sprueche|Falls Sie sich fragen, wie Sie wirken, Sir: Die Frage ist besser als jede Antwort.
 `
 
 /** Nachschub je Bereich als Vorlagen (a = Anrede) */

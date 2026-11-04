@@ -126,7 +126,7 @@ function schleife(ms) {
   const jetzt = new Date()
   const uhrzeit = jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' })
   if (datumText(jetzt) !== zustand.datum) { zustand = { ...zustand, datum: datumText(jetzt) }; hintenNeu() }
-  zeichneVorne(g, { hinten, schild, t: ms / 1000, uhrzeit, ton: performance.now() - letzterTon < 2000 ? ton : null, versatz: nurMitte ? B : 0, kamBilder: kamQuellen(), loki })
+  zeichneVorne(g, { hinten, schild, t: ms / 1000, uhrzeit, ton: performance.now() - letzterTon < 2000 ? ton : null, versatz: nurMitte ? B : 0, kamBilder: kamQuellen(), loki, kamAlarm: !!zustand.kam?.alarm && Date.now() - zustand.kam.alarm < 20_000 })
 }
 
 hintenNeu()

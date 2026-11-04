@@ -52,7 +52,7 @@ describe('Morgen-Lage', () => {
     const t = tagNummer(tag)
     for (const liste of [SPITZEN.frueh, SPITZEN.vieleAufgaben, SPITZEN.probleme, SPITZEN.lager, SPITZEN.wenigVerkauft, SPITZEN.freigaben]) expect(mit).toContain(spitze(liste, t).replace(/\bSir\b/g, 'Chef'))
     expect(mit.join(' ')).not.toMatch(/\bSir\b/)
-    expect(mit.at(-1)).toMatch(/^Das wäre alles/)
+    expect(mit.at(-1)).toBe(spitze(SPITZEN.schluss, t).replace(/\bSir\b/g, 'Chef'))
     expect(ohne.some((s) => Object.values(SPITZEN).flat().includes(s))).toBe(false)
   })
   it('Hilfsfunktionen', () => {
@@ -246,13 +246,37 @@ describe('Benutzte Sprüche nach hinten (rotation.ts, 04.11.2026)', () => {
   it('Nachschub: jede Zeile „bereich|Text“ hat einen bekannten Bereich und den Platzhalter {a}', async () => {
     const { NACHSCHUB_TEXT } = await import('./nachschub')
     const { FUNDUS } = await import('./fundus')
-    const bereiche = new Set([...Object.keys(FUNDUS), 'begruessung', ...['bestellung', 'aufgabe', 'problem', 'knapp', 'freigabe', 'zurueck'].map((b) => `neu-${b}`)])
+    const { SPITZEN } = await import('./morgenlage')
+    const bereiche = new Set([...Object.keys(FUNDUS), 'begruessung', ...['bestellung', 'aufgabe', 'problem', 'knapp', 'freigabe', 'zurueck', 'kamera', 'kamera-zurueck'].map((b) => `neu-${b}`),
+      ...Object.keys(SPITZEN).map((k) => `lage-${k}`), 'lage-sprueche'])
     for (const z of NACHSCHUB_TEXT.split(/\r?\n/).filter((x) => x.trim() && !x.trimStart().startsWith('#'))) {
       const [b, t] = [z.slice(0, z.indexOf('|')), z.slice(z.indexOf('|') + 1)]
       expect(bereiche.has(b), z).toBe(true)
-      expect(t, z).toContain('{a}')
+      if (!b.startsWith('lage-')) expect(t, z).toContain('{a}') // Morgen-Lage: Anrede als festes „Sir“
+      else expect(t, z).not.toContain('{a}')
       expect(/\d|`|\$\{/.test(t), z).toBe(false)
       expect(t.split(/\s+/).length, z).toBeLessThanOrEqual(22)
     }
+  })
+})
+
+describe('Kamera-Wache: Ansage (04.11.2026)', () => {
+  it('Person zuerst, mehrere zusammengefasst, weg = Zusammenfassung, eigener Seitenhieb', async () => {
+    const { ansage, auswaehlen } = await import('./neuigkeiten')
+    const p = { art: 'person' as const, seite: 'links' as const }
+    const o = { anrede: 'Sir', humor: false, weg: false }
+    expect(ansage([p], o)).toEqual(['Sir, eine Person nähert sich dem Grundstück.'])
+    expect(ansage([p, p], o)).toEqual(['Sir, an der Kamera war gerade zweimal jemand.'])
+    expect(ansage([{ art: 'bestellung', kanal: 'Etsy', stueck: 1, cent: 1000, artikel: [] }, p], o)[0]).toBe('Sir, eine Person nähert sich dem Grundstück.')
+    const weg = ansage([p, p], { anrede: 'Sir', humor: true, weg: true, spitze: (b) => `SPITZE ${b}` })
+    expect(weg).toEqual(['Während Sie weg waren, Sir: zweimal war jemand vor der Kamera.', 'SPITZE kamera-zurueck'])
+    expect(ansage([p], { ...o, humor: true, spitze: (b) => `SPITZE ${b}` }).at(-1)).toBe('SPITZE kamera')
+    expect(auswaehlen([p], ['bestellung'])).toEqual([])
+    expect(auswaehlen([p], ['kamera'])).toEqual([p])
+  })
+  it('Morgen-Lage bekommt ihren Nachschub (Spitzen und Sprüche wachsen)', async () => {
+    const { SPITZEN, SPRUECHE } = await import('./morgenlage')
+    expect(SPITZEN.spaet.length).toBeGreaterThanOrEqual(10)
+    expect(SPRUECHE.length).toBeGreaterThanOrEqual(25)
   })
 })

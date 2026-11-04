@@ -1,3 +1,5 @@
+import { nachschub } from "./nachschub"
+
 // Jarvis – Morgen-Lage (Etappe 1, 03.11.2026, Wunsch Auftraggeber): aus den App-Daten ein kurzer gesprochener Bericht
 // im britischen Stil (förmlich, „Sir“, trockenes Understatement, Seitenhiebe nach den Sachsätzen und ab und zu ein Spruch ohne Arbeitsbezug, z. B. über Emma).
 // Feste Regeln, kein Sprachmodell – darum immer verfügbar und ohne Erfindungen. Inhalte als Bausteine, an- und abschaltbar
@@ -151,6 +153,14 @@ export const SPRUECHE: string[] = [
   'Falls ich je die Weltherrschaft übernehme, Sir, bekommen Sie einen ruhigen Posten. Weit weg.',
   'Ich habe Ihre Arbeitszeiten ausgewertet. Ich empfehle eine Karriere im Ruhestand.',
 ]
+
+// Nachschub (nachschub.ts, Bereiche „lage-<gruppe>“ und „lage-sprueche“; Anrede dort als festes „Sir“, ersetzt wird später)
+for (const [b, liste] of Object.entries(nachschub())) {
+  const gruppe = b.startsWith('lage-') ? b.slice(5) : null
+  if (!gruppe) continue
+  const ziel = gruppe === 'sprueche' ? SPRUECHE : (SPITZEN as Record<string, string[]>)[gruppe]
+  if (ziel) ziel.push(...liste.map((f) => f('Sir')))
+}
 
 /** Wetter-Satz mit leisem Kommentar */
 function wetterSatz(w: { grad: number | null; text: string | null }): string | null {

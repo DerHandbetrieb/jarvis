@@ -326,7 +326,7 @@ let neuSchlange: { n: Neuigkeit; zeit: number; verpasst: boolean }[] = []
 
 /** Seitenhieb je Bereich, ohne baldige Wiederholung (die letzten 60 % jedes Bereichs bleiben gesperrt) */
 /** Seitenhiebe nach Neuigkeiten je Bereich, samt Nachschub („neu-<bereich>“ in nachschub.ts) */
-const neuListe = (bereich: Spitzenbereich) => [...NEU_SPITZEN[bereich], ...(NACHSCHUB[`neu-${bereich}`] ?? []).map((f) => f('{anrede}'))]
+const neuListe = (bereich: Spitzenbereich) => [...((NEU_SPITZEN as Record<string, string[]>)[bereich] ?? []), ...(NACHSCHUB[`neu-${bereich}`] ?? []).map((f) => f('{anrede}'))]
 function neuSpitze(bereich: Spitzenbereich): string | null {
   const liste = neuListe(bereich)
   const [nr] = waehle(`neu-${bereich}`, liste)
@@ -345,7 +345,7 @@ export function spruchPools(): Record<string, string[]> {
     fundus: FUNDUS_ALLE.map((f) => f('Sir')),
     begruessung: BEGRUESSUNGEN.map((b) => b('Sir')),
     'zweites-mal': ZWEITES_MAL,
-    ...Object.fromEntries((Object.keys(NEU_SPITZEN) as Spitzenbereich[]).map((b) => [`neu-${b}`, neuListe(b)])),
+    ...Object.fromEntries(([...Object.keys(NEU_SPITZEN), 'kamera', 'kamera-zurueck'] as Spitzenbereich[]).map((b) => [`neu-${b}`, neuListe(b)])),
     ...Object.fromEntries(Object.entries(SPITZEN).map(([k, v]) => [`lage-${k}`, v])),
     'lage-sprueche': SPRUECHE,
   }
@@ -383,11 +383,12 @@ async function neuAnsagen() {
     // Neues beim Hauptprozess abholen (er hält es, bis wir es nehmen) und nach den Einstellungen auswählen
     const geholt = (await b.holeNeuigkeiten?.().catch(() => null)) ?? []
     if (geholt.length) {
-      const neu = e.neuigkeiten ? geholt.filter((x) => auswaehlen([x.n], e.neuGruppen).length) : []
+      const gruppen = [...e.neuGruppen, ...(e.kameraMelden ? ['kamera' as const] : [])]
+      const neu = geholt.filter((x) => (x.n.art === 'person' ? e.kameraMelden : e.neuigkeiten) && auswaehlen([x.n], gruppen).length)
       protokoll(`Neuigkeiten: ${geholt.length} neu, ${neu.length} zum Ansagen (${neu.map((x) => x.n.art).join(', ') || '–'})`)
       neuSchlange.push(...neu.map((x) => ({ n: x.n, zeit: x.zeit, verpasst: false })))
     }
-    if (!e.neuigkeiten) { neuSchlange = []; return }
+    if (!e.neuigkeiten && !e.kameraMelden) { neuSchlange = []; return }
     neuSchlange = neuSchlange.filter((x) => Date.now() - x.zeit < NEU_HOECHSTENS_MS)
     if (!neuSchlange.length) return
     const a = await b.anwesenheit?.().catch(() => null)
@@ -395,7 +396,8 @@ async function neuAnsagen() {
     if (a.ruhe >= ABWESEND_S) { neuSchlange.forEach((x) => { x.verpasst = true }); return }
     if (a.spiel || stumm || !lage.mikrofon || lage.zustand !== 'bereit' || lage.wartetBis > Date.now() || nachgereicht) return
     const jetzt = neuSchlange.splice(0)
-    const weg = jetzt.some((x) => x.verpasst || Date.now() - x.zeit > VERPASST_MS)
+    // eine Person „nähert sich“ nur, wenn es frisch ist (≤ 90 s) – sonst Zusammenfassung „war jemand vor der Kamera“ (Prüf-Agent)
+    const weg = jetzt.some((x) => x.verpasst || Date.now() - x.zeit > (x.n.art === 'person' ? 90_000 : VERPASST_MS))
     const saetze = ansage(jetzt.map((x) => x.n), { anrede: e.anrede || 'Sir', humor: e.humor, weg, spitze: neuSpitze })
     if (!saetze.length) return
     protokoll(`Neuigkeiten angesagt (${jetzt.length}${weg ? ', Zusammenfassung' : ''})`)

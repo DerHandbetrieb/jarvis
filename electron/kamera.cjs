@@ -170,6 +170,29 @@ function erstelleKamera({ speicher, holen = holeHttps, oeffneStromFn = oeffneStr
     throw new Error('kein Bild')
   }
 
+  /**
+   * Erkennt die Kamera gerade eine Person? (04.11.2026, Wunsch Auftraggeber: „Sir, da nähert sich jemand“.) Die Kamera
+   * erkennt Personen selbst (GetAiState, an der Duo PoE gemessen: people.support = 1 je Objektiv); hier nur abfragen.
+   * Gleiche Anmeldung/Zertifikatsprüfung wie das Standbild; -6 = Token abgelaufen → einmal neu anmelden.
+   * → true/false; wirft bei Fehlern (die Wache macht dann eine Pause)
+   */
+  async function personErkannt(kanal = 0) {
+    const k = konto
+    if (!k) return false
+    for (let versuch = 0; versuch < 2; versuch++) {
+      const t = await sitzungHolen(k, k.fingerabdruck)
+      const r = await holen(`https://${k.adresse}/cgi-bin/api.cgi?cmd=GetAiState&token=${encodeURIComponent(t.wert)}`, { erwartet: t.fingerabdruck, koerper: JSON.stringify([{ cmd: 'GetAiState', action: 0, param: { channel: kanal } }]), zeitgrenze: 5000 })
+      const text = r.daten.toString('utf8', 0, Math.min(2000, r.daten.length))
+      let wert = null
+      try { wert = JSON.parse(text)?.[0]?.value } catch { /* unten */ }
+      if (wert?.people) return Number(wert.people.alarm_state) === 1
+      const e = kameraFehler(text)
+      if (e?.rspCode === -6) { if (sitzungen.get(k) === t) sitzungen.delete(k); if (versuch === 0) continue }
+      throw Object.assign(new Error(`keine Erkennungs-Antwort (${r.status})`), e ? { kamera: e } : { unerwartet: r.status })
+    }
+    return false
+  }
+
   /** Kamera eintragen: erst testen, nur bei Erfolg (Bild da) verschlüsselt speichern; gibt ein Vorschaubild zurück */
   async function einrichten({ adresse, benutzer, passwort, name }) {
     const k = { adresse: String(adresse ?? '').trim(), benutzer: String(benutzer ?? ''), passwort: String(passwort ?? ''), name: String(name ?? 'Kamera').trim().slice(0, 30) || 'Kamera' }
@@ -289,7 +312,7 @@ function erstelleKamera({ speicher, holen = holeHttps, oeffneStromFn = oeffneStr
     zustand = { eingerichtet: false, name: '', adresse: '', fehler: '', stand: null }
     return oeffentlich()
   }
-  return { status: oeffentlich, einrichten, bild, live, liveSchliessen, laden, entfernen }
+  return { status: oeffentlich, einrichten, bild, live, liveSchliessen, personErkannt, laden, entfernen }
 }
 
 module.exports = { erstelleKamera, istHeimnetz, holeHttps, oeffneStrom }

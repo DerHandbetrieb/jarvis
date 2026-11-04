@@ -98,19 +98,34 @@ function stummKnopf(g, t, loki) {
   W.txt(g, !loki ? 'L.O.K.I. NICHT VERBUNDEN' : hoert ? 'L.O.K.I. HÖRT ZU · KLICK = STUMM' : loki.zustand === 'laedt' ? 'L.O.K.I. STARTET …' : da ? 'L.O.K.I. STUMM · KLICK = AN' : 'L.O.K.I. AUS · KLICK = AN', x, y + r + 40, W.fb(hoert ? S.hell : rot, 0.95), { gr: 12, gew: 600, aus: 'center', sp: 3 })
 }
 
-export function zeichneVorne(g, { hinten, schild, t, uhrzeit, ton, versatz = 0, kamBilder = [], loki = null }) {
+export function zeichneVorne(g, { hinten, schild, t, uhrzeit, ton, versatz = 0, kamBilder = [], loki = null, kamAlarm = false }) {
   g.setTransform(1, 0, 0, 1, -versatz, 0) // versatz = 1920: nur der mittlere Bildschirm
   g.drawImage(hinten, 0, 0)
   if (versatz === 0 && kamBilder.some(Boolean)) {
     // zwei Objektive nebeneinander (Duo PoE), feste Plätze – fehlt eins kurz, springt nichts (Auftraggeber 04.11.2026)
     const f = KAMERA_FELD, spalt = 16, bw = (f.w - spalt) / 2
-    kamBilder.slice(0, 2).forEach((q, i) => {
-      const x0 = f.x + i * (bw + spalt)
-      const qw = q?.width, qh = q?.height
-      if (!q || !qw || !qh) { g.fillStyle = 'rgba(5,9,13,0.92)'; g.fillRect(x0, f.y, bw, f.h); W.txt(g, 'VERBINDE …', x0 + bw / 2, f.y + f.h / 2, W.fb(S.haupt, 0.7), { gr: 16, gew: 600, aus: 'center', sp: 3 }); return }
-      const m = Math.min(bw / qw, f.h / qh), w = qw * m, h = qh * m
-      g.drawImage(q, x0 + (bw - w) / 2, f.y + (f.h - h) / 2, w, h)
-    })
+    // Kamera-Wache (04.11.2026): Person am linken Objektiv → das linke Bild über die ganze Kachel, roter pulsierender Rahmen
+    const links = kamBilder[0]
+    if (kamAlarm && links?.width && links?.height) {
+      g.fillStyle = 'rgba(5,9,13,0.92)'; g.fillRect(f.x, f.y, f.w, f.h)
+      const m = Math.min(f.w / links.width, f.h / links.height), w = links.width * m, h = links.height * m
+      g.drawImage(links, f.x + (f.w - w) / 2, f.y + (f.h - h) / 2, w, h)
+    } else {
+      kamBilder.slice(0, 2).forEach((q, i) => {
+        const x0 = f.x + i * (bw + spalt)
+        const qw = q?.width, qh = q?.height
+        if (!q || !qw || !qh) { g.fillStyle = 'rgba(5,9,13,0.92)'; g.fillRect(x0, f.y, bw, f.h); W.txt(g, 'VERBINDE …', x0 + bw / 2, f.y + f.h / 2, W.fb(S.haupt, 0.7), { gr: 16, gew: 600, aus: 'center', sp: 3 }); return }
+        const m = Math.min(bw / qw, f.h / qh), w = qw * m, h = qh * m
+        g.drawImage(q, x0 + (bw - w) / 2, f.y + (f.h - h) / 2, w, h)
+      })
+    }
+  }
+  if (versatz === 0 && kamAlarm) {
+    const f = KAMERA_FELD, puls = 0.55 + 0.45 * Math.abs(Math.sin(t * 4))
+    g.save(); g.strokeStyle = `rgba(255,70,60,${puls})`; g.lineWidth = 4; g.shadowColor = 'rgba(255,60,50,0.9)'; g.shadowBlur = 18
+    g.strokeRect(f.x - 6, f.y - 6, f.w + 12, f.h + 12); g.restore()
+    g.fillStyle = 'rgba(120,10,10,0.75)'; g.fillRect(f.x, f.y, 330, 34)
+    W.txt(g, 'PERSON ERKANNT · LINKS', f.x + 14, f.y + 23, `rgba(255,220,215,${0.7 + 0.3 * puls})`, { gr: 15, gew: 700, sp: 3 })
   }
   g.save(); g.globalAlpha = 0.55; g.translate(B + B / 2, H / 2); g.rotate(t * 0.01); g.drawImage(schild, -schild.width / 2, -schild.height / 2); g.restore()
   W.leuchten(g, S, 10, () => W.txt(g, uhrzeit, B + 60, 76, W.fb(S.hell, 1), { gr: 44, gew: 200, sp: 4 })); W.txt(g, 'ORTSZEIT', B + 62, 96, W.fb(S.haupt, 0.8), { gr: 11, sp: 3 })

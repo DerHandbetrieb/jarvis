@@ -15,6 +15,7 @@ const { erstelleKamera } = require('./kamera.cjs')
 const { erstelleKameraLive } = require('./kameralive.cjs')
 const { ueberwachen } = require('./vollbild.cjs')
 const { erstelleNeuigkeiten } = require('./neuigkeiten.cjs')
+const { erstelleKamerawache } = require('./kamerawache.cjs')
 const { Readable } = require('node:stream')
 let kameraLive = null // Live-Bild fürs Dauer-HUD (04.11.2026)
 const { findeWallpaperEngine, einrichten } = require('./wallpaper.cjs')
@@ -369,6 +370,22 @@ if (!app.requestSingleInstanceLock()) {
       return { ...kamera.status(), vorschau: b ? `data:image/jpeg;base64,${b.toString('base64')}` : null }
     })
     ipcMain.handle('kamera-entfernen', async (e) => (vonFenster(e) ? kamera.entfernen() : null))
+    // Kamera-Wache (04.11.2026): linkes Objektiv, nur Personen (Interview). Meldungen laufen über dieselbe Warteschlange
+    // wie die Werkstatt-Neuigkeiten – dort gelten „nur wenn er am PC ist“, nie dazwischenreden, Verpasstes gesammelt.
+    let kameraAlarm = 0
+    const kamerawache = erstelleKamerawache({
+      abfragen: () => kamera.personErkannt(0),
+      protokoll: kameraLog,
+      beimEreignis: (e) => {
+        kameraAlarm = e.zeit
+        kameraLog('Kamera-Wache: Person erkannt (linkes Objektiv)')
+        // Personen höchstens 2 Stunden aufheben (sonst nach einer Nacht lauter „jemand war da“, Prüf-Agent)
+        neuPuffer = [...neuPuffer.filter((x) => x.n.art !== 'person' || e.zeit - x.zeit < 2 * 3600_000), { n: { art: 'person', seite: 'links' }, zeit: e.zeit }].slice(-200)
+      },
+    })
+    const wacheAbgleichen = () => { if (kamera.status().eingerichtet) kamerawache.starten(); else kamerawache.stoppen() }
+    setTimeout(wacheAbgleichen, 5000); setInterval(wacheAbgleichen, 30_000)
+    app.on('will-quit', () => kamerawache.stoppen())
 
     // Dauer-HUD (Web-Wallpaper in Wallpaper Engine): Gegenstelle nur auf 127.0.0.1 mit Zugriffsschlüssel. Liefert die
     // zwischengespeicherte Werkstatt-Lage (höchstens 1 Stunde alt) und das Wetter (Open-Meteo, alle 15 Minuten).
@@ -388,7 +405,7 @@ if (!app.requestSingleInstanceLock()) {
       daten: async () => {
         const l = werkstatt.lage()
         const k = kamera.status()
-        return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, kamera: k.eingerichtet ? { name: k.name } : null, loki: { ...trayZustand } }
+        return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null } : null, loki: { ...trayZustand } }
       },
       // roter Knopf im Wallpaper: wie „Mikrofon aus/an“ im Infobereich, beim Stummschalten verstummt Loki auch sofort
       stumm: async () => {

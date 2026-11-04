@@ -10,16 +10,18 @@ export type Neuigkeit =
   | { art: 'freigabe'; titel: string }
   | { art: 'knapp'; name: string; variante: string | null; bestand: number }
   | { art: 'selbsttest'; rot: number }
+  /** Kamera-Wache (04.11.2026): die Kamera hat eine Person erkannt (nur linkes Objektiv) */
+  | { art: 'person'; seite: 'links' | 'rechts' }
 
 /** Gruppen in den Einstellungen: „problem“ = Amazon-Problem, Selbsttest rot, Lager knapp */
-export type NeuGruppe = 'bestellung' | 'problem' | 'aufgabe' | 'freigabe'
+export type NeuGruppe = 'bestellung' | 'problem' | 'aufgabe' | 'freigabe' | 'kamera'
 export const NEU_GRUPPEN: { schluessel: NeuGruppe; titel: string }[] = [
   { schluessel: 'bestellung', titel: 'Bestellungen' },
   { schluessel: 'problem', titel: 'Probleme (Amazon, Selbsttest, Lager knapp)' },
   { schluessel: 'aufgabe', titel: 'Neue Aufgaben' },
   { schluessel: 'freigabe', titel: 'Neue Freigaben' },
 ]
-export const gruppeVon = (n: Neuigkeit): NeuGruppe => (n.art === 'amazon' || n.art === 'selbsttest' || n.art === 'knapp' ? 'problem' : n.art)
+export const gruppeVon = (n: Neuigkeit): NeuGruppe => (n.art === 'amazon' || n.art === 'selbsttest' || n.art === 'knapp' ? 'problem' : n.art === 'person' ? 'kamera' : n.art)
 
 /** Werkstatt-Konto des Auftraggebers (profiles „Alex“) – seine eigenen Karten kennt er schon (Interview 04.11.2026) */
 export const EIGENES_KONTO = '71f61d5f-318c-426c-8563-d0565fc53a1d'
@@ -56,8 +58,11 @@ export function ansage(liste: Neuigkeit[], o: { anrede: string; humor: boolean; 
   const frei = liste.filter((n) => n.art === 'freigabe') as Extract<Neuigkeit, { art: 'freigabe' }>[]
   const knap = liste.filter((n) => n.art === 'knapp') as Extract<Neuigkeit, { art: 'knapp' }>[]
   const test = liste.filter((n) => n.art === 'selbsttest') as Extract<Neuigkeit, { art: 'selbsttest' }>[]
+  const pers = liste.filter((n) => n.art === 'person')
   const s: string[] = []
   // Probleme immer zuerst und einzeln (wichtig), höchstens zwei genannt
+  // Person an der Kamera zuerst – das ist das Eiligste (bei „weg“ gesammelt unten)
+  if (pers.length && !o.weg) s.push(pers.length === 1 ? `${o.anrede}, eine Person nähert sich dem Grundstück.` : `${o.anrede}, an der Kamera war gerade ${zahl(pers.length) === 'zwei' ? 'zweimal' : `${zahl(pers.length)} Mal`} jemand.`)
   for (const a of amaz.slice(0, 2)) s.push(satz(`Neues Amazon-Problem: ${ohneAmazon(a.titel)}`))
   if (amaz.length === 3) s.push('Dazu ein weiteres Amazon-Problem.')
   else if (amaz.length > 3) s.push(`Dazu ${zahl(amaz.length - 2)} weitere Amazon-Probleme.`)
@@ -68,6 +73,7 @@ export function ansage(liste: Neuigkeit[], o: { anrede: string; humor: boolean; 
     if (best.length) teile.push(`${best.length === 1 ? `eine neue Bestellung über ${euro(summe)}` : `${zahl(best.length)} neue Bestellungen über zusammen ${euro(summe)}`}`)
     if (aufg.length) teile.push(aufg.length === 1 ? 'eine neue Aufgabe' : `${zahl(aufg.length)} neue Aufgaben`)
     if (knap.length) teile.push(knap.length === 1 ? 'ein Artikel ist knapp geworden' : `${zahl(knap.length)} Artikel sind knapp geworden`)
+    if (pers.length) teile.push(pers.length === 1 ? 'einmal war jemand vor der Kamera' : pers.length >= 5 ? 'mehrmals war jemand vor der Kamera' : `${pers.length === 2 ? 'zweimal' : `${zahl(pers.length)} Mal`} war jemand vor der Kamera`)
     if (frei.length) teile.push(frei.length === 1 ? 'eine neue Freigabe' : `${zahl(frei.length)} neue Freigaben`)
     if (teile.length) s.unshift(`Während Sie weg waren, ${o.anrede}: ${aufzaehlen(teile)}.`)
     else if (s.length) s.unshift(`Während Sie weg waren, ${o.anrede}:`)
@@ -89,11 +95,12 @@ export function ansage(liste: Neuigkeit[], o: { anrede: string; humor: boolean; 
     else if (frei.length > 1) s.push(`${gross(zahl(frei.length))} neue Freigaben im Marketing warten auf Sie.`)
   }
   if (o.humor && o.spitze) {
-    const bereich: Spitzenbereich = o.weg ? 'zurueck' : amaz.length || test.length ? 'problem' : best.length ? 'bestellung' : knap.length ? 'knapp' : aufg.length ? 'aufgabe' : 'freigabe'
+    const nurKamera = pers.length === liste.length
+    const bereich: Spitzenbereich = o.weg ? (nurKamera ? 'kamera-zurueck' : 'zurueck') : pers.length ? 'kamera' : amaz.length || test.length ? 'problem' : best.length ? 'bestellung' : knap.length ? 'knapp' : aufg.length ? 'aufgabe' : 'freigabe'
     const sp = o.spitze(bereich)
     if (sp) s.push(sp)
   }
   return s
 }
 
-export type Spitzenbereich = 'bestellung' | 'aufgabe' | 'problem' | 'knapp' | 'freigabe' | 'zurueck'
+export type Spitzenbereich = 'bestellung' | 'aufgabe' | 'problem' | 'knapp' | 'freigabe' | 'zurueck' | 'kamera' | 'kamera-zurueck'
