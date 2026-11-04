@@ -14,6 +14,7 @@ const { erstelleHudServer, hudSchluessel } = require('./hudserver.cjs')
 const { erstelleKamera } = require('./kamera.cjs')
 const { erstelleKameraLive } = require('./kameralive.cjs')
 const { ueberwachen } = require('./vollbild.cjs')
+const { erstelleNeuigkeiten } = require('./neuigkeiten.cjs')
 const { Readable } = require('node:stream')
 let kameraLive = null // Live-Bild fürs Dauer-HUD (04.11.2026)
 const { findeWallpaperEngine, einrichten } = require('./wallpaper.cjs')
@@ -277,10 +278,14 @@ if (!app.requestSingleInstanceLock()) {
     hauptRef = hauptfenster
     jarvis.einrichten(hauptfenster, istAppAdresse)
     // bei Vollbild-Spielen Grafikspeicher freigeben (Stimme + Sprachmodell), danach Stimme wieder laden
-    const vollbildAus = ueberwachen((an) => { if (an && sequenzFenster && !sequenzFenster.isDestroyed()) return; void jarvis.spielLaeuft(an) })
+    // Anwesenheit für die Neuigkeiten (04.11.2026): wie lange Maus/Tastatur unbenutzt sind, und ob ein Spiel läuft
+    // ohne frische Messung (Programm gerade gestartet, PowerShell hängt) gilt er als abwesend – nie in den leeren Raum reden (Prüf-Agent)
+    const anwesenheit = { ruhe: 0, gemessen: 0, spiel: false }
+    const vollbildAus = ueberwachen((an) => { if (an && sequenzFenster && !sequenzFenster.isDestroyed()) return; anwesenheit.spiel = an; void jarvis.spielLaeuft(an) }, { beiRuhe: (s) => { anwesenheit.ruhe = s; anwesenheit.gemessen = Date.now() } })
     app.on('will-quit', () => vollbildAus())
 
     const vonFenster = (e) => e.sender === hauptfenster.webContents && istAppAdresse(e.senderFrame?.url ?? '')
+    ipcMain.handle('jarvis-anwesenheit', (e) => (vonFenster(e) ? { ruhe: Date.now() - anwesenheit.gemessen > 30_000 ? 1e6 : anwesenheit.ruhe, spiel: anwesenheit.spiel } : null))
     tray = new Tray(nativeImage.createFromPath(path.join(__dirname, 'symbol', SYMBOL.aus)))
     tray.on('click', zeigen)
     trayAktualisieren()
@@ -313,7 +318,22 @@ if (!app.requestSingleInstanceLock()) {
     const werkstatt = erstelleWerkstatt({
       konfig: leseKonfig(fs.existsSync(konfigDatei) ? fs.readFileSync(konfigDatei, 'utf8') : ''),
       speicher: verschluesselt(path.join(app.getPath('userData'), 'werkstatt-sitzung.bin')),
+      takt: 2 * 60_000, // alle 2 Minuten (Neuigkeiten, 04.11.2026) – gemessen klein gegen 500.000 freie Aufrufe/Monat
     })
+    // Neuigkeiten: jede frische Lage mit dem Bekannten abgleichen, nur Neues ans Hauptfenster (das sagt es an)
+    const neuDatei = path.join(app.getPath('userData'), 'neuigkeiten.json')
+    const neuigkeiten = erstelleNeuigkeiten({ speicher: {
+      lesen: () => (fs.existsSync(neuDatei) ? fs.readFileSync(neuDatei, 'utf8') : null),
+      schreiben: (t) => { fs.writeFileSync(neuDatei + '.neu', t); fs.renameSync(neuDatei + '.neu', neuDatei) },
+    } })
+    // Neues bleibt hier liegen, bis die Oberfläche es abholt – auch während L.O.K.I. lädt oder aus ist (höchstens 24 h, 200 Stück).
+    // Sonst wäre es schon „bekannt“, aber nie angesagt (Prüf-Agent).
+    let neuPuffer = []
+    werkstatt.beiLage((l) => {
+      const t = Date.now()
+      neuPuffer = [...neuPuffer, ...neuigkeiten.abgleichen(l).map((n) => ({ n, zeit: t }))].filter((x) => t - x.zeit < 24 * 3600_000).slice(-200)
+    })
+    ipcMain.handle('jarvis-neuigkeiten-holen', (e) => { if (!vonFenster(e)) return null; const p = neuPuffer; neuPuffer = []; return p })
     werkstatt.beiAenderung((s) => { if (!hauptfenster.isDestroyed()) hauptfenster.webContents.send('werkstatt-aenderung', s) })
     void werkstatt.laden()
     ipcMain.handle('werkstatt-status', (e) => (vonFenster(e) ? werkstatt.status() : null))

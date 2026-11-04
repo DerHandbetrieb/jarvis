@@ -20,6 +20,7 @@ function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date
   let lage = null, erneuern = null, abruf = null, timer = null, beschaeftigt = false
   let durchgang = 0 // steigt bei Verbinden/Trennen – ältere, noch laufende Vorgänge verwerfen dann ihr Ergebnis
   const zuhoerer = new Set()
+  const lageHoerer = new Set() // bekommen jede frisch geholte Lage (Neuigkeiten, 04.11.2026)
   const setze = (z) => { zustand = { ...zustand, ...z }; zuhoerer.forEach((f) => f(oeffentlich())) }
   const oeffentlich = () => ({ ...zustand, verfuegbar: !!(konfig?.url && konfig?.schluessel) })
 
@@ -169,6 +170,7 @@ function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date
         // nur eine vollständige Antwort übernehmen (andere/kaputte Fassung der Serverfunktion → alte Lage behalten)
         if (!d || typeof d.aufgaben !== 'object' || typeof d.verkauf?.gestern !== 'object' || !Array.isArray(d.lagerKnapp) || typeof d.freigaben !== 'number') throw new Error('Antwort der Serverfunktion unvollständig')
         lage = { ...d, geholt: jetzt() }
+        for (const f of lageHoerer) { try { f(lage) } catch (x) { protokoll('Werkstatt-Lage weitergeben:', x?.message) } }
         setze({ zustand: 'verbunden', fehler: zustand.fehler === SPEICHER_FEHLER ? zustand.fehler : '', stand: lage.geholt })
       } catch (f) {
         if (f?.getrennt || meiner !== durchgang) return lage
@@ -211,6 +213,8 @@ function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date
   return {
     status: oeffentlich, verbinden, code, trennen, laden, holeLage, aktuelleLage, lage: () => lage,
     beiAenderung: (f) => { zuhoerer.add(f); return () => zuhoerer.delete(f) },
+    /** jede frisch geholte, vollständige Lage (nicht die zwischengespeicherte) */
+    beiLage: (f) => { lageHoerer.add(f); return () => lageHoerer.delete(f) },
   }
 }
 

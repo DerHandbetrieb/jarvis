@@ -7,6 +7,7 @@ import { gehoerSchalten, hoerenWaehlen, sprechen, startSequenzJetzt, stimmeWaehl
 import WerkstattVerbindung from './WerkstattVerbindung'
 import KameraVerbindung from './KameraVerbindung'
 import ModellPruefung from './ModellPruefung'
+import { NEU_GRUPPEN, type NeuGruppe } from './neuigkeiten'
 
 // Was gerade mit Lokis Stimme los ist (Piper springt ein, solange sie nicht bereit ist)
 const LOKI_TEXT: Record<string, string> = {
@@ -115,6 +116,17 @@ export default function JarvisEinstellungen() {
               <input className="mt-1 w-full rounded-lg border border-neutral-300 px-2 py-1.5" value={e.wortliste} placeholder="Kasuwa, Billbee, Boulder-Tasse" onChange={(x) => void hoerenWaehlen({ wortliste: x.target.value })} />
             </label>
           )}
+          <div>
+            <label className="flex items-center gap-2 font-medium text-neutral-700"><input type="checkbox" checked={e.neuigkeiten} onChange={(x) => setzeJarvis({ neuigkeiten: x.target.checked })} /> Neuigkeiten aus der Werkstatt von selbst ansagen</label>
+            {e.neuigkeiten && (
+              <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 pl-6">
+                {NEU_GRUPPEN.map((g) => (
+                  <label key={g.schluessel} className="flex items-center gap-2"><input type="checkbox" checked={e.neuGruppen.includes(g.schluessel)} onChange={() => setzeJarvis({ neuGruppen: e.neuGruppen.includes(g.schluessel) ? e.neuGruppen.filter((x: NeuGruppe) => x !== g.schluessel) : [...e.neuGruppen, g.schluessel] })} /> {g.titel}</label>
+                ))}
+              </div>
+            )}
+            <p className="mt-1 pl-6 text-neutral-500">Nur Neues, nur wenn Sie am PC sind (Maus oder Tastatur in den letzten 10 Minuten) – Verpasstes kommt gesammelt. Ihre eigenen Karten (Konto „Alex“) sagt L.O.K.I. nicht an. Abgleich alle 2 Minuten, Bestellungen kommen bis zu 15 Minuten später (Billbee).</p>
+          </div>
           <div>
             <p className="font-medium text-neutral-700">Inhalte der Morgen-Lage</p>
             <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1">

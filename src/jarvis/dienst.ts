@@ -10,6 +10,8 @@ import { morgenLage, tagNummer, type BausteinSchluessel } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
 import { begruessung, sequenzGruss, waehleBegruessung } from './begruessung'
+import { ansage, auswaehlen, type Neuigkeit, type Spitzenbereich } from './neuigkeiten'
+import { NEU_SPITZEN } from './neuSpitzen'
 
 export type Zustand = 'aus' | 'laedt' | 'bereit' | 'spricht' | 'denkt' | 'fehler'
 export type JarvisLage = {
@@ -310,6 +312,66 @@ async function behandeln(text: string, c: ReturnType<typeof codewort>, begonnen:
   }
 }
 
+// ---------- Neuigkeiten aus der Werkstatt (04.11.2026) ----------
+// Der Hauptprozess hält nur wirklich Neues bereit (abgeglichen mit dem Bekannten), wir holen es alle 15 s ab. Hier: nach
+// den Einstellungen auswählen, sammeln und ansagen, sobald Ruhe ist – nie mitten ins Sprechen, Nachdenken oder ein
+// Gespräch, nicht bei Stumm, nicht während eines Spiels, nur wenn er am PC ist (Maus/Tastatur in den letzten 10 Minuten).
+// War er weg (oder ist das Ereignis älter als 30 Minuten, z. B. weil L.O.K.I. aus war), kommt eine kurze Zusammenfassung.
+const ABWESEND_S = 600, NEU_PRUEFEN_MS = 15_000, NEU_HOECHSTENS_MS = 24 * 3600_000
+let neuSchlange: { n: Neuigkeit; zeit: number; verpasst: boolean }[] = []
+
+/** Seitenhieb je Bereich, ohne baldige Wiederholung (die letzten 60 % jedes Bereichs bleiben gesperrt) */
+function neuSpitze(bereich: Spitzenbereich): string | null {
+  const liste = NEU_SPITZEN[bereich]
+  if (!liste?.length) return null
+  let zuletzt: Record<string, number[]> = {}
+  try { zuletzt = JSON.parse(localStorage.getItem('jarvis.neuSpitzen') ?? '{}') ?? {} } catch { /* leer */ }
+  const gesperrt = new Set((zuletzt[bereich] ?? []).slice(-Math.floor(liste.length * 0.6)))
+  const frei = liste.map((_, i) => i).filter((i) => !gesperrt.has(i))
+  const nr = frei[Math.floor(Math.random() * frei.length)] ?? 0
+  zuletzt[bereich] = [...(zuletzt[bereich] ?? []), nr].slice(-liste.length)
+  try { localStorage.setItem('jarvis.neuSpitzen', JSON.stringify(zuletzt)) } catch { /* egal */ }
+  return liste[nr].replaceAll('{anrede}', jarvisEinstellungen().anrede || 'Sir')
+}
+
+/** älter als 30 Minuten beim Ansagen = verpasst (z. B. während L.O.K.I. aus war) → Zusammenfassung statt Einzelheiten */
+const VERPASST_MS = 30 * 60_000
+
+function neuigkeitenStarten(): (() => void)[] {
+  const uhr = setInterval(() => void neuAnsagen(), NEU_PRUEFEN_MS)
+  return [() => clearInterval(uhr)] // die Schlange bleibt beim Ausschalten erhalten (nichts geht verloren)
+}
+
+let neuLaeuft = false
+async function neuAnsagen() {
+  const b = bruecke(), e = jarvisEinstellungen()
+  if (neuLaeuft || !b) return
+  neuLaeuft = true
+  try {
+    // Neues beim Hauptprozess abholen (er hält es, bis wir es nehmen) und nach den Einstellungen auswählen
+    const geholt = (await b.holeNeuigkeiten?.().catch(() => null)) ?? []
+    if (geholt.length) {
+      const neu = e.neuigkeiten ? geholt.filter((x) => auswaehlen([x.n], e.neuGruppen).length) : []
+      protokoll(`Neuigkeiten: ${geholt.length} neu, ${neu.length} zum Ansagen (${neu.map((x) => x.n.art).join(', ') || '–'})`)
+      neuSchlange.push(...neu.map((x) => ({ n: x.n, zeit: x.zeit, verpasst: false })))
+    }
+    if (!e.neuigkeiten) { neuSchlange = []; return }
+    neuSchlange = neuSchlange.filter((x) => Date.now() - x.zeit < NEU_HOECHSTENS_MS)
+    if (!neuSchlange.length) return
+    const a = await b.anwesenheit?.().catch(() => null)
+    if (!a) return
+    if (a.ruhe >= ABWESEND_S) { neuSchlange.forEach((x) => { x.verpasst = true }); return }
+    if (a.spiel || stumm || !lage.mikrofon || lage.zustand !== 'bereit' || lage.wartetBis > Date.now() || nachgereicht) return
+    const jetzt = neuSchlange.splice(0)
+    const weg = jetzt.some((x) => x.verpasst || Date.now() - x.zeit > VERPASST_MS)
+    const saetze = ansage(jetzt.map((x) => x.n), { anrede: e.anrede || 'Sir', humor: e.humor, weg, spitze: neuSpitze })
+    if (!saetze.length) return
+    protokoll(`Neuigkeiten angesagt (${jetzt.length}${weg ? ', Zusammenfassung' : ''})`)
+    // bei einem Fehler wieder einreihen; abgebrochen („Loki, stopp“, stumm) = bewusst nicht hören wollen → nicht wiederholen
+    try { await sprechen(saetze) } catch { neuSchlange.unshift(...jetzt) }
+  } finally { neuLaeuft = false }
+}
+
 // ---------- Start ----------
 let aus: (() => void)[] = []
 // Laufnummer: nur der neueste Ein-/Ausschaltvorgang darf den Zustand ändern – Aus (und gleich wieder Ein), während
@@ -322,7 +384,7 @@ export async function einschalten() {
   const meiner = ++lauf
   setze({ zustand: 'laedt', fehler: '' })
   aus.forEach((f) => f())
-  aus = [b.beiFortschritt((f) => setze({ fortschritt: f })), b.beiErkannt((d) => void erkannt(d.text, d.sekunden, d.art ?? ''))]
+  aus = [b.beiFortschritt((f) => setze({ fortschritt: f })), b.beiErkannt((d) => void erkannt(d.text, d.sekunden, d.art ?? '')), ...neuigkeitenStarten()]
   try {
     // Lokis Stimme lädt parallel im Hintergrund (ca. 12 s) – bis dahin spricht Piper
     if (jarvisEinstellungen().stimme === 'loki') void b.stimme(true).catch(() => null)

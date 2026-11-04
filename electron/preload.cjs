@@ -67,6 +67,8 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     frage: (modell, nachrichten) => ipcRenderer.invoke('jarvis-frage', { modell: String(modell), nachrichten }),
     modellPruefen: (modell) => ipcRenderer.invoke('jarvis-modell-pruefen', String(modell)),
     modellHolen: (modell) => ipcRenderer.invoke('jarvis-modell-holen', String(modell)),
+    anwesenheit: () => ipcRenderer.invoke('jarvis-anwesenheit'),
+    holeNeuigkeiten: () => ipcRenderer.invoke('jarvis-neuigkeiten-holen'),
     protokoll: (zeile) => ipcRenderer.send('jarvis-protokoll', String(zeile ?? '').slice(0, 600)),
     ton: (stueck) => { if (stueck instanceof Float32Array) ipcRenderer.send('jarvis-ton', stueck) },
     beiErkannt: (fn) => {

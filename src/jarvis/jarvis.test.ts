@@ -170,3 +170,45 @@ describe('Flachwitz des Tages', () => {
     expect(flachwitzFuer(new Date(2026, 10, 4, 23, 59))).toBe(flachwitzFuer(new Date(2026, 10, 4, 0, 1)))
   })
 })
+
+describe('Neuigkeiten ansagen (04.11.2026)', () => {
+  it('eine Bestellung, mehrere Bestellungen, Beträge zum Sprechen', async () => {
+    const { ansage, euro } = await import('./neuigkeiten')
+    expect(euro(3980)).toBe('39 Euro 80'); expect(euro(4000)).toBe('40 Euro'); expect(euro(1205)).toBe('12 Euro 05')
+    const o = { anrede: 'Sir', humor: false, weg: false }
+    expect(ansage([{ art: 'bestellung', kanal: 'Etsy', stueck: 2, cent: 3980, artikel: ['2× Klettertasse'] }], o)).toEqual(['Neue Bestellung bei Etsy: 2 mal Klettertasse, 39 Euro 80.'])
+    expect(ansage([
+      { art: 'bestellung', kanal: 'Etsy', stueck: 1, cent: 2000, artikel: ['1× Tasse'] },
+      { art: 'bestellung', kanal: 'Amazon', stueck: 1, cent: 1990, artikel: [] },
+      { art: 'bestellung', kanal: 'Etsy', stueck: 1, cent: 1000, artikel: [] },
+    ], o)).toEqual(['Drei neue Bestellungen über zusammen 49 Euro 90: zwei bei Etsy und eine bei Amazon.'])
+  })
+  it('Probleme zuerst; weg = Zusammenfassung; mit Humor genau ein Seitenhieb', async () => {
+    const { ansage } = await import('./neuigkeiten')
+    const liste = [
+      { art: 'freigabe' as const, titel: 'Etsy-Entwurf' }, { art: 'freigabe' as const, titel: 'Zweiter' },
+      { art: 'amazon' as const, titel: 'Amazon-Problem: Bild fehlt', von: null, faellig: null },
+      { art: 'bestellung' as const, kanal: 'Etsy', stueck: 1, cent: 1500, artikel: [] },
+    ]
+    expect(ansage(liste, { anrede: 'Sir', humor: false, weg: false })).toEqual(['Neues Amazon-Problem: Bild fehlt.', 'Neue Bestellung bei Etsy, 15 Euro.', 'Zwei neue Freigaben im Marketing warten auf Sie.'])
+    const weg = ansage(liste, { anrede: 'Sir', humor: true, weg: true, spitze: (b) => `SPITZE ${b}` })
+    expect(weg).toEqual(['Während Sie weg waren, Sir: eine neue Bestellung über 15 Euro und zwei neue Freigaben.', 'Neues Amazon-Problem: Bild fehlt.', 'SPITZE zurueck'])
+  })
+  it('eigene Karten (Konto Alex) und abgewählte Arten fallen weg', async () => {
+    const { auswaehlen, EIGENES_KONTO } = await import('./neuigkeiten')
+    const liste = [
+      { art: 'aufgabe' as const, titel: 'Eigene', von: EIGENES_KONTO, faellig: null },
+      { art: 'aufgabe' as const, titel: 'Von Pöp', von: 'anderer', faellig: null },
+      { art: 'knapp' as const, name: 'Tasse', variante: null, bestand: 1 },
+      { art: 'freigabe' as const, titel: 'x' },
+    ]
+    expect(auswaehlen(liste, ['aufgabe', 'problem']).map((n) => n.art === 'aufgabe' ? n.titel : n.art)).toEqual(['Von Pöp', 'knapp'])
+  })
+  it('alle Seitenhiebe: Platzhalter, kurz, keine Zahlen', async () => {
+    const { NEU_SPITZEN } = await import('./neuSpitzen')
+    for (const [bereich, liste] of Object.entries(NEU_SPITZEN)) {
+      expect(liste.length, bereich).toBeGreaterThanOrEqual(20)
+      for (const s of liste) { expect(s).toContain('{anrede}'); expect(s.split(/\s+/).length, s).toBeLessThanOrEqual(22); expect(/\d/.test(s), s).toBe(false) }
+    }
+  })
+})

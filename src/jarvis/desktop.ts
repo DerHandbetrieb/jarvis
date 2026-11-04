@@ -2,6 +2,7 @@
 // (Stimme und Spracherkennung laufen dort lokal); im Browser ist window.jarvisDesktop nicht da.
 import { useSyncExternalStore } from 'react'
 import { BAUSTEINE, type BausteinSchluessel } from './morgenlage'
+import { NEU_GRUPPEN, type Neuigkeit, type NeuGruppe } from './neuigkeiten'
 
 /** Lokis Stimme (Qwen3-TTS als eigenes Python-Programm): fehlt = nicht eingerichtet, fehler = abgestürzt/Laden misslungen */
 export type LokiZustand = 'aus' | 'laedt' | 'bereit' | 'fehlt' | 'fehler'
@@ -36,6 +37,10 @@ export type JarvisBruecke = {
   modellHolen?: (modell: string) => Promise<{ ok: boolean; text?: string } | null>
   /** eine Zeile ins Gesprächs-Protokoll (gespraech.log im Datenordner) */
   protokoll?: (zeile: string) => void
+  /** Anwesenheit: Sekunden ohne Maus/Tastatur, Vollbild-Spiel läuft (Neuigkeiten, 04.11.2026) */
+  anwesenheit?: () => Promise<{ ruhe: number; spiel: boolean } | null>
+  /** neue Ereignisse aus der Werkstatt abholen (schon mit dem Bekannten abgeglichen; der Hauptprozess hält sie bis dahin) */
+  holeNeuigkeiten?: () => Promise<{ n: Neuigkeit; zeit: number }[] | null>
   ton: (stueck: Float32Array) => void
   beiErkannt: (fn: (d: { text: string; sekunden: number; art?: Hoeren }) => void) => () => void
   beiFortschritt: (fn: (d: { name: string; anteil: number }) => void) => () => void
@@ -101,6 +106,10 @@ export type JarvisEinstellungen = {
   hoeren: Hoeren
   /** eigene Wörter, die L.O.K.I. besser verstehen soll (Produkt- und Namen), durch Komma oder Zeile getrennt */
   wortliste: string
+  /** Neuigkeiten aus der Werkstatt von selbst ansagen (Wunsch Auftraggeber 04.11.2026) */
+  neuigkeiten: boolean
+  /** welche Arten angesagt werden */
+  neuGruppen: NeuGruppe[]
   /** Sprechtempo – nur für Piper, Loki hat sein Tempo aus der Vorlage */
   tempo: number
   bausteine: BausteinSchluessel[]
@@ -120,7 +129,7 @@ export type JarvisEinstellungen = {
 }
 
 const STANDARD: JarvisEinstellungen = {
-  an: false, anrede: 'Sir', humor: true, stimme: 'loki', hoeren: 'turbo', wortliste: '', tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
+  an: false, anrede: 'Sir', humor: true, stimme: 'loki', hoeren: 'turbo', wortliste: '', neuigkeiten: true, neuGruppen: NEU_GRUPPEN.map((g) => g.schluessel), tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
 }
 const SCHLUESSEL = 'jarvis.einstellungen'
 const zuhoerer = new Set<() => void>()
