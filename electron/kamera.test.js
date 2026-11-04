@@ -201,6 +201,21 @@ describe('Kamera-Anbindung', () => {
     w.liveSchliessen()
     expect(abgebrochen).toEqual([404, 200, 200])
   })
+  it('Live-Strom: je Objektiv nur einer – ein neuer schließt den alten (auch wenn dessen Abbruch nie ankam)', async () => {
+    const { Readable } = await import('node:stream')
+    const sp = speicher()
+    await sp.schreiben(JSON.stringify({ adresse: '192.168.1.50', benutzer: 'a', passwort: 'b', fingerabdruck: 'AA:BB' }))
+    let n = 0
+    const zu = []
+    const oeffneStromFn = vi.fn(async () => { const nr = ++n; const strom = Readable.from([Buffer.from('FLV')]); strom.pause(); return { status: 200, typ: 'video/x-flv', strom, abbrechen: () => { zu.push(nr); strom.destroy() } } })
+    const w = erstelleKamera({ speicher: sp, holen: vi.fn(async () => anmeldungOk()), oeffneStromFn, protokoll: () => {} })
+    await w.laden()
+    for (let i = 0; i < 6; i++) expect((await w.live(0))?.typ).toBe('video/x-flv') // früher nach 4 Strömen Schluss
+    expect((await w.live(1))?.typ).toBe('video/x-flv')
+    expect(zu).toEqual([1, 2, 3, 4, 5]) // Objektiv 0: jeder alte zu, Objektiv 1 unberührt
+    w.liveSchliessen()
+    expect(zu.sort()).toEqual([1, 2, 3, 4, 5, 6, 7])
+  })
   it('laden/entfernen: gespeicherte Kamera nach Neustart, defekte Daten werden gelöscht', async () => {
     const sp = speicher()
     await sp.schreiben(JSON.stringify({ adresse: '192.168.1.50', benutzer: 'a', passwort: 'b', name: 'Hof', fingerabdruck: 'x' }))

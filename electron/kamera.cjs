@@ -219,14 +219,19 @@ function erstelleKamera({ speicher, holen = holeHttps, oeffneStromFn = oeffneStr
   /**
    * Live-Strom eines Objektivs (kanal 0/1, Duo PoE: zwei Kanäle laut GetChannelstatus, Test 04.11.2026) als FLV –
    * so zeigt auch die Reolink-Weboberfläche das Live-Bild (support.reolink.com Artikel 360003452893). „main“ = Hauptstrom
-   * (2560×1440, 25 Bilder/s) – der „sub“-Strom (640×360, 10 Bilder/s) ruckelte zu sehr (Auftraggeber 04.11.2026). Höchstens 4 Ströme gleichzeitig. → { typ, strom, abbrechen } oder null
+   * (2560×1440, 25 Bilder/s) – der „sub“-Strom (640×360, 10 Bilder/s) ruckelte zu sehr (Auftraggeber 04.11.2026). Je Objektiv höchstens ein Strom. → { typ, strom, abbrechen } oder null
    */
   // offene Ströme (zum ausdrücklichen Schließen) und Pause nach Fehlschlägen, die mit jedem weiteren länger wird
   // (Prüf-Agent 04.11.2026: ohne Pause hätte sich Loki bei abgeschaltetem FLV-Anschluss ~24-mal je Minute neu angemeldet)
+  // Rückmeldung Auftraggeber 04.11.2026 („wieder nur ein Bild da“): früher höchstens 4 Ströme insgesamt – blieb ein alter
+  // Strom hängen (Abbruch kam nicht an), bekam ein Objektiv keinen neuen mehr. Jetzt je Objektiv genau einer: ein neuer
+  // Strom schließt den alten desselben Objektivs, so kann sich nichts ansammeln.
   const offen = new Set()
+  const jeObjektiv = [null, null]
+  const anfrageNr = [0, 0] // nur die jüngste Anfrage je Objektiv bekommt einen Strom (Prüf-Agent: kein Wettlauf)
   // je Objektiv getrennt – ein gestörtes Objektiv bremst das andere nicht (Rückmeldung Auftraggeber 04.11.2026: „das zweite ist weg“)
   const livePauseBis = [0, 0], liveFehler = [0, 0]
-  const liveFehlschlag = (k) => { liveFehler[k]++; livePauseBis[k] = jetzt() + Math.min(5 * 60_000, 15_000 * 2 ** (liveFehler[k] - 1)) }
+  const liveFehlschlag = (k) => { liveFehler[k]++; livePauseBis[k] = jetzt() + Math.min(60_000, 5_000 * 2 ** (liveFehler[k] - 1)) }
   /** ersten Teil einer Fehlerantwort lesen (höchstens 1 s / 2 kB), um „bitte neu anmelden“ (-6) zu erkennen */
   const fehlerText = (strom) => new Promise((fertig) => {
     let text = ''
@@ -237,19 +242,21 @@ function erstelleKamera({ speicher, holen = holeHttps, oeffneStromFn = oeffneStr
   })
   async function live(kanal) {
     const k = konto
-    if (!k || ![0, 1].includes(kanal) || offen.size >= 4 || jetzt() < livePauseBis[kanal]) return null
+    if (!k || ![0, 1].includes(kanal) || jetzt() < livePauseBis[kanal]) return null
+    jeObjektiv[kanal]?.abbrechen() // alter Strom dieses Objektivs (ggf. hängend) zuerst zu
+    const meine = ++anfrageNr[kanal]
     for (let versuch = 0; versuch < 2; versuch++) {
       let t, s
       try {
         t = await sitzungHolen(k, k.fingerabdruck)
         s = await oeffneStromFn(`https://${k.adresse}/flv?port=1935&app=bcs&stream=channel${kanal}_main.bcs&token=${encodeURIComponent(t.wert)}`, { erwartet: t.fingerabdruck })
       } catch (f) { liveFehlschlag(kanal); throw f }
-      if (konto !== k) { s.abbrechen(); return null } // inzwischen entfernt oder neu eingetragen
+      if (konto !== k || meine !== anfrageNr[kanal]) { s.abbrechen(); return null } // inzwischen entfernt/neu eingetragen oder eine neuere Anfrage läuft
       if (s.status === 200 && /flv/i.test(s.typ)) {
         liveFehler[kanal] = 0
-        const eintrag = { abbrechen: () => { s.abbrechen(); offen.delete(eintrag) } }
-        offen.add(eintrag)
-        const fertig = () => offen.delete(eintrag)
+        const fertig = () => { offen.delete(eintrag); if (jeObjektiv[kanal] === eintrag) jeObjektiv[kanal] = null }
+        const eintrag = { abbrechen: () => { s.abbrechen(); fertig() } }
+        offen.add(eintrag); jeObjektiv[kanal] = eintrag
         s.strom.once('close', fertig); s.strom.once('end', fertig); s.strom.once('error', fertig)
         return { typ: 'video/x-flv', strom: s.strom, abbrechen: eintrag.abbrechen }
       }

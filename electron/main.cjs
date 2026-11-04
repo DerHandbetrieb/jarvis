@@ -18,6 +18,17 @@ const { Readable } = require('node:stream')
 let kameraLive = null // Live-Bild fürs Dauer-HUD (04.11.2026)
 const { findeWallpaperEngine, einrichten } = require('./wallpaper.cjs')
 const { execFileSync } = require('node:child_process')
+/** Kamera-Protokoll (04.11.2026): kurze Zeilen nach %APPDATA%Jarviskamera.log (höchstens ca. 200 kB, dann neu), damit
+ *  sich Aussetzer im Dauer-HUD nachvollziehen lassen. Zugangsdaten/Token werden vorher entfernt. */
+function kameraLog(...teile) {
+  try {
+    const datei = path.join(app.getPath('userData'), 'kamera.log')
+    const zeile = `${new Date().toLocaleString('de-DE')} ${teile.map((t) => String(t?.message ?? t)).join(' ')}`.replace(/[\r\n]+/g, ' ').replace(/"?(token|password|passwort|user|authorization)"?\s*[:=]\s*"?[^"&\s,}]*/gi, '$1=…')
+    if (fs.existsSync(datei) && fs.statSync(datei).size > 200_000) fs.renameSync(datei, datei + '.alt')
+    fs.appendFileSync(datei, zeile.slice(0, 500) + '\n')
+  } catch { /* Protokoll ist nur Hilfe */ }
+  console.error(...teile)
+}
 const HUD_PORT = 47820 // fest, damit das Wallpaper Loki findet (nur 127.0.0.1)
 const hud = { schluessel: null }
 /** nur, was das Dauer-HUD anzeigt (Auswahlliste) – von den Amazon-Problemen nur die Anzahl, kein Freitext (Prüf-Agent) */
@@ -223,13 +234,15 @@ if (!app.requestSingleInstanceLock()) {
       const strom = /^kamera-strom\/([01])$/.exec(teil)
       if (strom) {
         if (!kameraLive?.erlaubt(new URL(anfrage.url).searchParams.get('s'))) return new Response('Nicht erlaubt', { status: 403 })
-        return kamera.live(Number(strom[1])).then((s) => {
+        const kanal = Number(strom[1])
+        return kamera.live(kanal).then((s) => {
+          kameraLog(`Live-Strom Objektiv ${kanal + 1}:`, s ? 'geöffnet' : 'keiner (Pause oder Kamera lehnt ab)')
           if (!s) return new Response(null, { status: 204 })
           // bricht das Fenster ab (auch schon während der Anmeldung), sofort die Verbindung zur Kamera schließen
           if (anfrage.signal?.aborted) { s.abbrechen(); return new Response(null, { status: 204 }) }
           anfrage.signal?.addEventListener('abort', () => s.abbrechen(), { once: true })
           return new Response(Readable.toWeb(s.strom), { headers: { 'Content-Type': s.typ } })
-        }, () => new Response(null, { status: 502 }))
+        }, (f) => { kameraLog(`Live-Strom Objektiv ${kanal + 1}: Fehler`, f); return new Response(null, { status: 502 }) })
       }
       const datei = path.normalize(path.join(DIST, teil || 'index.html'))
       if (datei !== DIST && !datei.startsWith(DIST + path.sep)) return new Response('Nicht erlaubt', { status: 403 })
@@ -311,11 +324,12 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('werkstatt-lage', async (e, erzwingen) => (vonFenster(e) ? werkstatt.aktuelleLage(erzwingen ? 0 : 120_000) : null))
 
     // Kamera (Etappe 5/6): Standbild der Reolink im Hauptprozess; Zugangsdaten verschlüsselt, die Oberfläche sieht sie nie
-    const kamera = erstelleKamera({ speicher: verschluesselt(path.join(app.getPath('userData'), 'kamera.bin')) })
+    const kamera = erstelleKamera({ speicher: verschluesselt(path.join(app.getPath('userData'), 'kamera.bin')), protokoll: kameraLog })
     // Live-Bild fürs Dauer-HUD: unsichtbares Fenster spielt die Ströme ab und liefert JPEG-Bilder (kameralive.cjs)
     kameraLive = erstelleKameraLive({
       adresse: (s) => `${APP_URL}kamera-live.html?s=${s}`,
       beimStoppen: () => kamera.liveSchliessen(),
+      protokoll: kameraLog,
       erstelleFenster: (url) => {
         const f = new BrowserWindow({ show: false, width: 640, height: 360, skipTaskbar: true, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true, preload: path.join(__dirname, 'preload-kamera.cjs'), backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' } })
         f.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
@@ -325,6 +339,7 @@ if (!app.requestSingleInstanceLock()) {
       },
     })
     ipcMain.on('kamera-live-bild', (e, kanal, daten) => kameraLive.empfangen(e.sender, kanal, daten))
+    ipcMain.on('kamera-live-meldung', (e, kanal, grund) => kameraLive.meldung(e.sender, kanal, grund))
     void kamera.laden()
     ipcMain.handle('kamera-status', (e) => (vonFenster(e) ? kamera.status() : null))
     ipcMain.handle('kamera-einrichten', async (e, d) => (vonFenster(e) ? kamera.einrichten({ adresse: d?.adresse, benutzer: d?.benutzer, passwort: d?.passwort, name: d?.name }) : null))

@@ -14,7 +14,7 @@ function starten(k) {
   const spieler = mpegts.createPlayer({ type: 'flv', isLive: true, hasAudio: false, url: `app://jarvis/kamera-strom/${k}?s=${schluessel}` },
     { enableStashBuffer: false, liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 1.5, liveBufferLatencyMinRemain: 0.3 })
   spieler.attachMediaElement(video)
-  spieler.on(mpegts.Events.ERROR, () => { stoppen(k) })
+  spieler.on(mpegts.Events.ERROR, () => { window.kameraFenster?.meldung?.(k, 'fehler'); stoppen(k) })
   const leinwand = document.createElement('canvas')
   ob[k] = { spieler, video, zeit: -1, stand: performance.now(), leinwand, g: leinwand.getContext('2d'), laeuft: false }
   try { spieler.load(); void video.play()?.catch(() => {}) } catch { stoppen(k) }
@@ -33,7 +33,7 @@ setInterval(() => {
     if (!o) { if (performance.now() >= wiederAb[k]) starten(k); continue }
     const v = o.video
     // hängt: 8 s kein neues Bild – auch wenn von Anfang an keins kam (Prüf-Agent)
-    if (v.currentTime === o.zeit || v.readyState < 2 || !v.videoWidth) { if (performance.now() - o.stand > 8000) stoppen(k); continue }
+    if (v.currentTime === o.zeit || v.readyState < 2 || !v.videoWidth) { if (performance.now() - o.stand > 8000) { window.kameraFenster?.meldung?.(k, 'haengt'); stoppen(k) } continue }
     if (o.laeuft) continue
     o.zeit = v.currentTime; o.stand = performance.now()
     o.laeuft = true

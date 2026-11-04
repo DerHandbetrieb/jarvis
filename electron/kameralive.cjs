@@ -26,11 +26,12 @@ function erstelleKameraLive({ erstelleFenster, adresse, beimStoppen = () => {}, 
   }
   function starten() {
     if (fenster) return
+    protokoll('Kamera-Fenster auf')
     schluessel = crypto.randomBytes(16).toString('hex') // nur dieses Fenster darf die Ströme öffnen
     fenster = erstelleFenster(adresse(schluessel))
     const f = fenster
     f.on('closed', () => { if (fenster === f) { fenster = null; schluessel = null; clearInterval(uhr); uhr = null; bilder[0] = bilder[1] = null; wecken(0); wecken(1); beimStoppen() } })
-    uhr = setInterval(() => { if (jetzt() - zuletztGefragt > RUHE_MS) stoppen() }, 3000)
+    uhr = setInterval(() => { if (jetzt() - zuletztGefragt > RUHE_MS) { protokoll('Kamera-Fenster zu (15 s keine Nachfrage)'); stoppen() } }, 3000)
   }
   return {
     /** Wallpaper fragt nach einem Bild: startet das Fenster bei Bedarf; null, solange (noch) keins da ist */
@@ -62,6 +63,11 @@ function erstelleKameraLive({ erstelleFenster, adresse, beimStoppen = () => {}, 
       if (buf.length < 4 || buf.length > 2 * 1024 * 1024 || buf[0] !== 0xff || buf[1] !== 0xd8) return
       bilder[kanal] = { daten: buf, zeit: jetzt(), nr: ++nummer[kanal] }
       wecken(kanal)
+    },
+    /** Meldung des Fensters fürs Protokoll (Strom hängt / Abspiel-Fehler) */
+    meldung(sender, kanal, grund) {
+      if (!fenster || sender !== fenster.webContents || ![0, 1].includes(kanal)) return
+      protokoll(`Objektiv ${kanal + 1}: ${grund === 'haengt' ? '8 s kein neues Bild – neu verbinden' : 'Abspiel-Fehler – neu verbinden'}`)
     },
     /** Darf diese Adresse den Live-Strom öffnen? (Schlüssel aus der Adresse des Fensters) */
     erlaubt: (s) => !!schluessel && typeof s === 'string' && s.length === schluessel.length && crypto.timingSafeEqual(Buffer.from(s), Buffer.from(schluessel)),
