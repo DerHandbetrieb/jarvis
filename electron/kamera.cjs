@@ -1,6 +1,9 @@
 // Kamera-Anbindung, Etappe 5 (03.11.2026): Standbild der Reolink Duo PoE fürs Dauer-HUD, alle paar Sekunden neu.
-// Offizieller Weg laut Reolink (support.reolink.com Artikel 360007011233 „How to Capture Live JPEG Image …“):
-//   https://<adresse>/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=<zufall>&user=<benutzer>&password=<passwort>
+// Weg laut Reolink-HTTP-Schnittstelle (Camera HTTP API User Guide v8): erst POST …/api.cgi?cmd=Login (Benutzer/Passwort im
+// Inhalt, nicht in der Adresse) → Token (value.Token.name, leaseTime in s), dann …/api.cgi?cmd=Snap&channel=0&rs=<zufall>&token=<token>.
+// (Bis 0.7.1 standen Benutzer/Passwort in der Snap-Adresse – support.reolink.com Artikel 360007011233; die Kamera des
+// Auftraggebers lehnte das am 04.11.2026 mit „invalid user“ ab.) Nach einer abgelehnten Anmeldung 60 s Pause, damit die
+// Kamera das Konto nicht wegen vieler Fehlversuche sperrt.
 // Entscheidungen Auftraggeber: nur live, keine Aufnahme durch Loki; nur eigenes Grundstück im Bild.
 // Sicherheit: nur HTTPS; die Kamera hat ein selbst ausgestelltes Zertifikat → beim ersten erfolgreichen Abruf wird sein
 // Fingerabdruck gemerkt und danach verlangt (fremdes Gerät mit derselben Adresse → Abbruch); nur Adressen aus privaten
@@ -25,7 +28,7 @@ function istHeimnetz(adresse) {
  * nie die Zugangsdaten. erwartet = gemerkter Fingerabdruck (null nur beim ersten Einrichten).
  * Liefert { status, typ, daten (Buffer), fingerabdruck }.
  */
-function holeHttps(url, { erwartet = null, zeitgrenze = 8000 } = {}) {
+function holeHttps(url, { erwartet = null, zeitgrenze = 8000, koerper = null } = {}) {
   const u = new URL(url)
   return new Promise((fertig, fehler) => {
     let sock = null, req = null, erledigt = false
@@ -38,7 +41,8 @@ function holeHttps(url, { erwartet = null, zeitgrenze = 8000 } = {}) {
       const fp = sock.getPeerCertificate()?.fingerprint256 || null
       if (!fp || (erwartet && fp !== erwartet)) { ende(Object.assign(new Error('fremdes Zertifikat'), { fremd: true })); return }
       // http.request über die fertige TLS-Verbindung (https.request würde eine eigene, ungeprüfte aufbauen)
-      req = http.request({ host: u.hostname, port: Number(u.port || 443), path: u.pathname + u.search, method: 'GET', createConnection: () => sock }, (res) => {
+      req = http.request({ host: u.hostname, port: Number(u.port || 443), path: u.pathname + u.search, method: koerper == null ? 'GET' : 'POST', createConnection: () => sock,
+        headers: koerper == null ? {} : { 'content-type': 'application/json', 'content-length': Buffer.byteLength(koerper) } }, (res) => {
         const teile = []
         let laenge = 0
         res.on('data', (d) => { laenge += d.length; if (laenge > 8 * 1024 * 1024) { ende(new Error('Bild zu groß')); return } teile.push(d) })
@@ -46,7 +50,7 @@ function holeHttps(url, { erwartet = null, zeitgrenze = 8000 } = {}) {
         res.on('error', (f) => ende(f))
       })
       req.on('error', (f) => ende(f))
-      req.end()
+      req.end(koerper ?? undefined)
     })
   })
 }
@@ -58,26 +62,72 @@ function holeHttps(url, { erwartet = null, zeitgrenze = 8000 } = {}) {
 function erstelleKamera({ speicher, holen = holeHttps, jetzt = () => Date.now(), zwischenzeit = 3000, protokoll = console.error }) {
   let konto = null // { adresse, benutzer, passwort, name, fingerabdruck }
   let zuletzt = { bild: null, zeit: 0 }, laeuft = null
+  // Anmeldung je Konto-Objekt (ein alter, noch laufender Abruf kann so nie das Token eines neu eingetragenen Kontos
+  // überschreiben – Prüf-Agent 04.11.2026); Pause je Adresse+Benutzer, gilt auch fürs Eintragen (Kontosperre der Kamera)
+  const sitzungen = new WeakMap() // konto → { wert, bis, fingerabdruck }
+  const pausen = new Map() // 'adresse|benutzer' → Zeitpunkt
+  const pausenSchluessel = (k) => `${k.adresse}|${k.benutzer}`
   let zustand = { eingerichtet: false, name: '', adresse: '', fehler: '', stand: null }
   const oeffentlich = () => ({ ...zustand }) // nie Benutzer/Passwort
 
-  const url = (k) => `https://${k.adresse}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=${crypto.randomBytes(6).toString('hex')}&user=${encodeURIComponent(k.benutzer)}&password=${encodeURIComponent(k.passwort)}`
-  function klartext(f, antwort) {
+  const snapUrl = (k, t) => `https://${k.adresse}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=${crypto.randomBytes(6).toString('hex')}&token=${encodeURIComponent(t)}`
+  /** Fehlerantwort der Kamera lesen: { rspCode, detail } oder null */
+  function kameraFehler(text) {
+    try { const e = JSON.parse(text)?.[0]?.error; return e ? { rspCode: Number(e.rspCode), detail: String(e.detail ?? '').slice(0, 60) } : null } catch { return null }
+  }
+  function klartext(f) {
     if (f?.name === 'TimeoutError' || /timeout|Zeitüberschreitung/i.test(String(f?.message))) return 'Die Kamera antwortet nicht (Zeitüberschreitung). Ist Loki im VPN ausgenommen?'
     if (/ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|ECONNRESET/i.test(String(f?.code ?? f?.message))) return 'Die Kamera ist nicht erreichbar (Adresse? NordVPN-Ausnahme für Loki?).'
     if (f?.fremd) return 'Unter dieser Adresse meldet sich ein anderes Gerät als beim Einrichten – Abruf abgebrochen. Bei Bedarf Kamera neu eintragen.'
-    if (antwort && /"rspCode"\s*:\s*-?\d+/.test(antwort)) return /login|password|invalid user|"rspCode"\s*:\s*-(6|7|27)\b/i.test(antwort) ? 'Benutzer oder Passwort der Kamera stimmt nicht.' : 'Die Kamera hat den Abruf abgelehnt.'
+    if (f?.pause) return `Nach einer abgelehnten Anmeldung wartet Loki kurz, damit die Kamera das Konto nicht sperrt – bitte in ${f.pause} s noch einmal versuchen.`
+    if (f?.unerwartet) return `Unter dieser Adresse antwortet keine Reolink-Kamera wie erwartet (HTTP ${f.unerwartet}).`
+    const e = f?.kamera
+    if (e) {
+      const meldet = e.detail ? ` (Kamera meldet „${e.detail}“, Code ${e.rspCode})` : ` (Code ${e.rspCode})`
+      if (/lock/i.test(e.detail)) return `Die Kamera hat die Anmeldung nach Fehlversuchen vorübergehend gesperrt – bitte etwa eine Stunde warten${meldet}.`
+      if (f.anmeldung && (e.rspCode === -7 || e.rspCode === -27 || /login failed|password|invalid user/i.test(e.detail))) return `Benutzer oder Passwort der Kamera stimmt nicht${meldet}.`
+      if (f.anmeldung) return `Die Kamera hat die Anmeldung abgelehnt${meldet}.`
+      return `Die Kamera hat den Abruf abgelehnt${meldet}.`
+    }
     protokoll('Kamera:', f?.message ?? f)
     return 'Kamerabild konnte nicht geholt werden (Details im Protokoll).'
   }
 
-  /** erwartet = gemerkter Fingerabdruck; holen prüft ihn, bevor die Zugangsdaten gesendet werden */
-  async function abrufen(k, erwartet) {
-    const r = await holen(url(k), { erwartet })
+  /** Anmelden (POST, Zugangsdaten im Inhalt); erwartet = gemerkter Fingerabdruck, holen prüft ihn VOR dem Senden */
+  async function anmelden(k, erwartet) {
+    const rest = (pausen.get(pausenSchluessel(k)) ?? 0) - jetzt()
+    if (rest > 0) throw Object.assign(new Error('Anmeldepause'), { pause: Math.ceil(rest / 1000) })
+    const koerper = JSON.stringify([{ cmd: 'Login', param: { User: { Version: '0', userName: k.benutzer, password: k.passwort } } }])
+    const r = await holen(`https://${k.adresse}/cgi-bin/api.cgi?cmd=Login`, { erwartet, koerper })
     if (!r.fingerabdruck) throw Object.assign(new Error('ohne Zertifikat'), { fremd: true })
-    const istJpeg = r.status === 200 && r.daten.length > 3 && r.daten[0] === 0xff && r.daten[1] === 0xd8
-    if (!istJpeg) { const text = r.daten.toString('utf8', 0, Math.min(400, r.daten.length)); throw Object.assign(new Error(`kein Bild (${r.status})`), { antwort: text }) }
-    return r
+    const text = r.daten.toString('utf8', 0, Math.min(2000, r.daten.length))
+    let wert = null, dauer = 3600
+    try { const t = JSON.parse(text)?.[0]?.value?.Token; wert = t?.name ? String(t.name) : null; dauer = Number(t?.leaseTime) || 3600 } catch { /* unten */ }
+    if (!wert) {
+      const e = kameraFehler(text)
+      if (!e) throw Object.assign(new Error(`unerwartete Antwort (${r.status})`), { unerwartet: r.status })
+      // echte Ablehnung durch die Kamera → 60 s keine neuen Versuche
+      pausen.set(pausenSchluessel(k), jetzt() + 60_000)
+      throw Object.assign(new Error('Anmeldung abgelehnt'), { kamera: e, anmeldung: true })
+    }
+    // eine Minute vor Ablauf neu anmelden
+    return { wert, bis: jetzt() + Math.max(60, dauer - 60) * 1000, fingerabdruck: r.fingerabdruck }
+  }
+
+  /** Bild holen: Token des Kontos wiederverwenden (die Kamera erlaubt nur wenige gleichzeitige Anmeldungen),
+   *  nur bei -6 („please login first“) verwerfen und einmal neu anmelden */
+  async function abrufen(k, erwartet) {
+    for (let versuch = 0; versuch < 2; versuch++) {
+      let t = sitzungen.get(k)
+      if (!t || jetzt() >= t.bis) { t = await anmelden(k, erwartet); sitzungen.set(k, t) }
+      const r = await holen(snapUrl(k, t.wert), { erwartet: t.fingerabdruck })
+      const istJpeg = r.status === 200 && r.daten.length > 3 && r.daten[0] === 0xff && r.daten[1] === 0xd8
+      if (istJpeg) return { ...r, fingerabdruck: t.fingerabdruck }
+      const e = kameraFehler(r.daten.toString('utf8', 0, Math.min(400, r.daten.length)))
+      if (e?.rspCode === -6) { if (sitzungen.get(k) === t) sitzungen.delete(k); if (versuch === 0) continue }
+      throw Object.assign(new Error(`kein Bild (${r.status})`), e ? { kamera: e } : { unerwartet: r.status })
+    }
+    throw new Error('kein Bild')
   }
 
   /** Kamera eintragen: erst testen, nur bei Erfolg (Bild da) verschlüsselt speichern; gibt ein Vorschaubild zurück */
@@ -87,13 +137,16 @@ function erstelleKamera({ speicher, holen = holeHttps, jetzt = () => Date.now(),
     if (!k.benutzer || !k.passwort) { zustand = { ...zustand, fehler: 'Benutzer und Passwort der Kamera fehlen.' }; return { ...oeffentlich(), vorschau: null } }
     try {
       const r = await abrufen(k, null)
-      konto = { ...k, fingerabdruck: r.fingerabdruck }
-      const gespeichert = await speicher.schreiben(JSON.stringify(konto)).catch(() => false)
+      const neu = { ...k, fingerabdruck: r.fingerabdruck }
+      sitzungen.set(neu, sitzungen.get(k)) // eigene Anmeldung weiter nutzen
+      konto = neu; laeuft = null
+      const gespeichert = await speicher.schreiben(JSON.stringify(neu)).catch(() => false)
+      if (konto !== neu) return { ...oeffentlich(), vorschau: null } // inzwischen entfernt oder neu eingetragen
       zuletzt = { bild: r.daten, zeit: jetzt() }
       zustand = { eingerichtet: true, name: k.name, adresse: k.adresse, fehler: gespeichert ? '' : 'Verbunden, aber nicht verschlüsselt speicherbar – nach einem Neustart neu eintragen.', stand: jetzt() }
       return { ...oeffentlich(), vorschau: `data:image/jpeg;base64,${r.daten.toString('base64')}` }
     } catch (f) {
-      zustand = { ...zustand, fehler: klartext(f, f?.antwort) }
+      zustand = { ...zustand, fehler: klartext(f) }
       return { ...oeffentlich(), vorschau: null }
     }
   }
@@ -112,7 +165,9 @@ function erstelleKamera({ speicher, holen = holeHttps, jetzt = () => Date.now(),
           zustand = { ...zustand, fehler: '', stand: zuletzt.zeit }
         } catch (f) {
           if (konto !== k) return null
-          zustand = { ...zustand, fehler: klartext(f, f?.antwort) }; zuletzt = { bild: null, zeit: 0 }
+          // während der Pause die eigentliche Meldung (z. B. „Passwort stimmt nicht“) stehen lassen
+          if (!f?.pause) zustand = { ...zustand, fehler: klartext(f) }
+          zuletzt = { bild: null, zeit: 0 }
         } finally { if (laeuft === lauf) laeuft = null }
         return zuletzt.bild
       })()
