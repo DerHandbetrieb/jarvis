@@ -64,6 +64,11 @@ const gehoer = erstelleLoki({
   toeten: (p) => { if (p.exitCode !== null || p.signalCode !== null) return; if (p.pid) spawn(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'taskkill.exe'), ['/T', '/F', '/PID', String(p.pid)], { windowsHide: true }).on('error', () => p.kill()); else p.kill() },
   log: (...a) => console.log(...a),
 })
+/** Sprachmodell: Stichproben-Werte laut Qwen3-Modellkarte (Modus ohne Nachdenken), presence_penalty gegen Wiederholungen.
+ *  num_ctx 4096 (04.11.2026): Anweisung + Daten + Verlauf sind ca. 2.500 Token; gemessen 5,2 statt 5,9 GB Grafikspeicher –
+ *  sonst lagerte Ollama bei vollem Speicher 0,5 GB in den Arbeitsspeicher aus und wurde langsam. Größe steht im gespraech.log. */
+const OLLAMA_OPTIONEN = { temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0, presence_penalty: 1.5, num_ctx: 4096 }
+const OLLAMA_HALTEN = '3m' // danach gibt Ollama den Grafikspeicher frei (Wunsch Auftraggeber 04.11.2026)
 /** feste Wörter, die Whisper als Hinweis bekommt (Namen und Befehle, die sonst oft falsch ankommen) – eigene aus den Einstellungen dazu */
 // Reihenfolge mit Absicht: „Loki“ steht nicht direkt vor einem Befehlswort – ein Echo der Liste ergäbe sonst „Loki, Lage“ (Prüf-Agent)
 const GRUNDWORTE = 'Neuigkeiten, Etsy, Amazon, Loki, Freigaben, Marketing, Lager, Selbsttest, Emma, Öhringen, Carport, Kerzenständer, Lage'
@@ -313,6 +318,16 @@ function einrichten(hauptfenster, erlaubt) {
   })
   // Etappe 2: freie Fragen an das lokale Sprachmodell (Ollama auf diesem PC, http://127.0.0.1:11434). Der Aufruf läuft
   // hier im Hauptprozess (Node), damit die Oberfläche keine Sonderrechte für localhost braucht. Nur Text rein, Text raus.
+  // Vorwärmen (04.11.2026, Rückmeldung „Grafikspeicher voll, er hakt“): Sobald „Loki“ fällt, lädt das Sprachmodell
+  // schon, während die Frage noch gesprochen wird (gemessen: Laden 2,1 s bei freiem Speicher, 7,3 s bei vollem).
+  // Gleiche Optionen wie die Frage – sonst lädt Ollama das Modell beim eigentlichen Aufruf noch einmal neu.
+  let waermt = null
+  ipcMain.on('jarvis-vorwaermen', (e, m) => {
+    if (!von(e) || waermt || spielAktiv) return // während eines Vollbild-Spiels nichts in den Grafikspeicher laden (Prüf-Agent)
+    const modell = /^[a-z0-9._:-]{1,60}$/i.test(String(m ?? '')) ? String(m) : 'qwen3:8b'
+    waermt = fetch('http://127.0.0.1:11434/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: modell, keep_alive: OLLAMA_HALTEN, options: OLLAMA_OPTIONEN }), signal: AbortSignal.timeout(60_000) })
+      .then((r) => r.body?.cancel()).catch(() => {}).finally(() => { waermt = null })
+  })
   ipcMain.handle('jarvis-frage', async (e, anfrage) => {
     if (!von(e)) return null
     const modell = /^[a-z0-9._:-]{1,60}$/i.test(String(anfrage?.modell ?? '')) ? String(anfrage.modell) : 'qwen3:8b'
@@ -323,14 +338,14 @@ function einrichten(hauptfenster, erlaubt) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         // think: false – Qwen3 würde sonst erst lange „nachdenken“ (zu langsam fürs Gespräch); keep_alive: Modell 3 Minuten im Grafikspeicher halten (Wunsch Auftraggeber 04.11.2026: Speicher schneller freigeben).
         // Stichproben-Werte laut Qwen3-Modellkarte für den Modus ohne Nachdenken (temperature 0.7, top_p 0.8, top_k 20, min_p 0,
-        // presence_penalty 1.5 gegen Wiederholungen); num_ctx 8192 statt 32768 spart ca. 4 GB Grafikspeicher – Rückmeldung Auftraggeber 04.11.2026: Loki wiederholte im Gespräch seine erste Antwort
-        body: JSON.stringify({ model: modell, messages: nachrichten, stream: false, think: false, keep_alive: '3m', options: { temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0, presence_penalty: 1.5, num_ctx: 8192 } }),
+        // presence_penalty 1.5 gegen Wiederholungen); num_ctx siehe OLLAMA_OPTIONEN (oben) – Rückmeldung Auftraggeber 04.11.2026: Loki wiederholte im Gespräch seine erste Antwort
+        body: JSON.stringify({ model: modell, messages: nachrichten, stream: false, think: false, keep_alive: OLLAMA_HALTEN, options: OLLAMA_OPTIONEN }),
         signal: AbortSignal.timeout(60_000),
       })
       if (r.status === 404) return { fehler: 'modell', text: `Das Sprachmodell ${modell} ist noch nicht geladen.` }
       if (!r.ok) return { fehler: 'ollama', text: `Ollama antwortet mit Fehler ${r.status}.` }
       const j = await r.json()
-      return { text: String(j?.message?.content ?? '').replace(/<think>[\s\S]*?<\/think>/g, '').trim() }
+      return { text: String(j?.message?.content ?? '').replace(/<think>[\s\S]*?<\/think>/g, '').trim(), tokens: Number(j?.prompt_eval_count) || 0, ladenS: Math.round((Number(j?.load_duration) || 0) / 1e8) / 10 }
     } catch {
       return { fehler: 'fehlt', text: 'Ollama läuft nicht auf diesem PC.' }
     }

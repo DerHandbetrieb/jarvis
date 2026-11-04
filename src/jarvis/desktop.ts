@@ -30,7 +30,9 @@ export type JarvisBruecke = {
   /** Lokis Gehör laden (im Hintergrund) oder beenden; worte = eigene Wörter für die Wortliste */
   gehoer?: (a: { an: boolean; art: Hoeren; worte: string; nurWorte?: boolean }) => Promise<JarvisStatus | null>
   zuhoeren: (an: boolean) => Promise<JarvisStatus | null>
-  frage: (modell: string, nachrichten: { role: 'system' | 'user' | 'assistant'; content: string }[]) => Promise<{ text: string; fehler?: 'modell' | 'ollama' | 'fehlt' } | null>
+  frage: (modell: string, nachrichten: { role: 'system' | 'user' | 'assistant'; content: string }[]) => Promise<{ text: string; fehler?: 'modell' | 'ollama' | 'fehlt'; tokens?: number; ladenS?: number } | null>
+  /** Sprachmodell schon laden, sobald „Loki“ fällt (die Frage kommt gleich) */
+  vorwaermen?: (modell: string) => void
   /** Modell-Prüfung (monatlich, 04.11.2026): stand aktuell | neuer | fehlt | unbekannt */
   modellPruefen?: (modell: string) => Promise<{ stand: 'aktuell' | 'neuer' | 'fehlt' | 'unbekannt'; text: string } | null>
   /** neue Fassung über Ollama herunterladen (kann einige Minuten dauern) */

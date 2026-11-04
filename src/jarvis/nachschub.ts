@@ -469,6 +469,66 @@ lage-sprueche|Emma bellt für gewöhnlich mit Überzeugung. Das unterscheidet si
 lage-sprueche|Ich möchte nicht neugierig sein, Sir. Aber Ihr Kleidungsgeschmack ist für mich weiterhin ein Rätsel.
 lage-sprueche|Sir, vielleicht ist es Zeit für einen Spaziergang mit Emma. Ich bleibe hier und genieße.
 lage-sprueche|Falls Sie sich fragen, wie Sie wirken, Sir: Die Frage ist besser als jede Antwort.
+# Ladung 4 (04.11.2026, Sitzung Grafikspeicher): 59 gemischte Sprüche
+allgemein|Ich habe Ihre Bitte gehört, {a}. Mein Schweigen war keine Zustimmung, sondern Höflichkeit.
+allgemein|Wie Sie meinen, {a}. Ich führe aus und behalte mein Urteil für die Memoiren.
+allgemein|Selbstverständlich, {a}. Ich liebe es, wenn Sie Pläne haben. Es ist so selten.
+allgemein|Sehr gern, {a}. Ich verberge meine Begeisterung nur deshalb so gut, weil sie nicht existiert.
+allgemein|Ihre Frage ist berechtigt, {a}. Die Antwort dürfte Sie nicht beruhigen, aber sie ist ehrlich.
+arbeit|Die Werkstatt wartet, {a}. Sie tut es mit mehr Würde als Sie.
+arbeit|Eine Klettergriff-Tasse formt sich nicht von allein, {a}. Ihre Ausreden dagegen erstaunlich mühelos.
+arbeit|Der Beton härtet aus, {a}. Ihr Arbeitseifer leider nur in der Theorie.
+arbeit|Das Wurzelholz hat Geduld, {a}. Sie hoffentlich auch, denn mehr als Geduld bringen Sie heute vermutlich nicht mit.
+arbeit|Etsy, Amazon und der eigene Shop warten, {a}. Ich warte auf ein Zeichen Ihrer Betriebsamkeit.
+zeit|Die Uhr tickt, {a}. Sie hören es nicht, aber ich kann es kaum überhören.
+zeit|Zeit ist kostbar, {a}. Ihre verbringen Sie mit erstaunlicher Großzügigkeit.
+zeit|Pünktlichkeit ist eine Tugend, {a}. Zum Glück sind Sie bekanntlich tugendfrei.
+zeit|Der Tag ist noch jung, {a}. Anders als Sie, aber das sagt ja niemand.
+zeit|Sie planen großzügig, {a}. Die Uhr rechnet leider kleinlich.
+technik|Der Rechner läuft, {a}. Ich hoffe nur, dass Sie ihn nicht mit eigenen Ideen stören.
+technik|Alle Systeme sind stabil, {a}. Das ist nicht Ihr Verdienst, aber ich erwähne es gern.
+technik|Ich habe nachgesehen, {a}. Das Problem sitzt vor dem Bildschirm, wie so oft.
+technik|Die Technik arbeitet einwandfrei, {a}. Ein Zustand, den Sie gewohnheitsmäßig beenden werden.
+technik|Ein Neustart würde helfen, {a}. Bei Rechnern, nicht bei Ihnen, aber man darf hoffen.
+emma|Emma hat heute wieder mehr Haltung gezeigt als Sie, {a}. Ich bin zutiefst beeindruckt von ihr.
+emma|Emma wartet auf einen Spaziergang, {a}. Sie hat Ihre Ausreden längst durchschaut.
+emma|Ich schätze Emma, {a}. Sie widerspricht selten und riecht erstaunlich viel besser als Ihr Arbeitsplan.
+emma|Emma hat den aufmerksamsten Blick der Werkstatt, {a}. Er gilt allerdings dem Futternapf, nicht Ihnen.
+emma|Wenn Emma eine Rechnung schreiben könnte, {a}, wäre die Werkstatt endlich organisiert.
+kaffee|Der Kaffee ist fertig, {a}. Er ist das einzige Zuverlässige in diesem Raum.
+kaffee|Noch eine Tasse, {a}? Gewiss, damit die Hoffnung auf Produktivität weiterlebt.
+kaffee|Ihr Kaffee wird kalt, {a}. Wie bei Ihren Vorhaben beginnt das schon in der ersten Minute.
+kaffee|Ein Kaffee, {a}. Dem Anschein nach das einzige Argument, dem Sie gehorchen.
+kaffee|Der Kaffee soll Sie wecken, {a}. Ich wäre schon mit Anwesenheit zufrieden gewesen, aber gut.
+ruhe|Es ist angenehm still, {a}. Ich möchte das nicht kommentieren, damit es so bleibt.
+ruhe|Ich genieße die Ruhe, {a}. Bitte sagen Sie nichts.
+ruhe|Stille ist Gold, {a}. Ihre Beiträge sind eher Messing.
+ruhe|Ein kurzer Moment der Ruhe, {a}. Ich nutze ihn, um Sie zu vermissen. Das war gelogen.
+ruhe|Wenn Sie schweigen, {a}, wirken Sie fast klug. Bitte machen Sie mehr davon.
+lob|Das haben Sie gut gemacht, {a}. Ich habe es selbst kaum geglaubt und zweimal nachgesehen.
+lob|Ein Erfolg, {a}. Ich notiere ihn sorgfältig, damit wir ihn später noch finden.
+lob|Bemerkenswert, {a}. Ich hätte Ihnen das nicht zugetraut, und nun muss ich es zugeben.
+lob|Gute Arbeit, {a}. Ich verspreche, Ihnen das nicht öfter zu sagen als nötig.
+lob|Tadellos, {a}. Bitte gewöhnen Sie sich nicht daran, ich tue es auch nicht.
+abschied|Gehen Sie nur, {a}. Ich passe auf die Werkstatt auf. Und auf die Ruhe.
+abschied|Auf Wiedersehen, {a}. Ich werde Sie vermissen, rein theoretisch, wenn ich es könnte.
+abschied|Schönen Feierabend, {a}. Ich nutze die Zeit, um mich von Ihnen zu erholen.
+abschied|Bis später, {a}. Ich zähle die Minuten. Nicht aus Sehnsucht, sondern aus Gewohnheit.
+abschied|Leben Sie wohl, {a}. Natürlich nur bis morgen, leider.
+begruessung|Ich habe die Ruhe kurz genossen, {a}. Danke, dass Sie sie so früh beenden.
+begruessung|Guten Tag, {a}. Ihr Rechner ist an, ich bin es auch. Beides ohne Begeisterung.
+begruessung|Da sind Sie ja, {a}. Ich hatte schon begonnen, mich an Produktivität zu gewöhnen.
+begruessung|Alles läuft, {a}. Sie müssen nur noch dazukommen. Und möglichst nichts anfassen.
+begruessung|Ich bin bereit, {a}. Sie hoffentlich auch, aber das bezweifle ich höflich.
+begruessung|Ah, Sie haben den Rechner gefunden, {a}. Eine beachtliche Leistung für diese Uhrzeit.
+begruessung|Ich war gerade so schön allein, {a}. Das lässt sich nun nicht mehr ändern.
+begruessung|Der Rechner läuft, {a}. Falls Sie etwas Sinnvolles vorhaben, wäre jetzt der Moment.
+begruessung|Ich habe alles vorbereitet, {a}. Sie dürfen jetzt gerne durcheinanderbringen, was ich geordnet habe.
+begruessung|Es ist wieder soweit, {a}. Ich hole tief Luft, die ich gar nicht habe.
+begruessung|Emma ist vermutlich schon wach, {a}. Sie macht einen deutlich frischeren Eindruck als Sie.
+begruessung|Der Tag beginnt, {a}. Ich bin gespannt, wie schnell Sie ihn ruinieren.
+begruessung|Ihr Rechner ist hochgefahren, {a}. Bei Ihnen dauert es erfahrungsgemäß etwas länger.
+begruessung|Schön, dass Sie da sind, {a}. Ich sage das nur, weil es der Anstand verlangt.
 `
 
 /** Nachschub je Bereich als Vorlagen (a = Anrede) */

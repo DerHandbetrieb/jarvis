@@ -225,11 +225,11 @@ async function frage(text: string) {
   // je Antwort drei wechselnde Anregungen aus dem Spruch-Fundus (Wunsch Auftraggeber 04.11.2026: Sprüche nicht wiederholen)
   const anregungen = e.humor ? `\n\nAnregungen für deinen Seitenhieb (passend auswählen, abwandeln oder eine eigene Pointe finden; höchstens eine je Antwort):\n${ziehe(3, e.anrede || 'Sir').map((s) => `- ${s}`).join('\n')}` : ''
   if (e.humor) meldeSpruchStand()
-  const system = `${charakter(e.anrede || 'Sir', e.humor)}${anregungen}${mitDaten ? `\n\nDaten der App (Stand jetzt):\n${JSON.stringify(daten ?? {})}` : ''}`
+  const system = `${charakter(e.anrede || 'Sir', e.humor)}${anregungen}${mitDaten ? `\n\nDaten der App (Stand jetzt):\n${JSON.stringify(daten ?? {}).slice(0, 4000)}` : ''}`
   const nachrichten = [{ role: 'system' as const, content: system }, ...verlauf.slice(-8), { role: 'user' as const, content: text }]
   const start = Date.now()
   let r = await b.frage(e.modell, nachrichten)
-  protokoll(`  Sprachmodell antwortet nach ${((Date.now() - start) / 1000).toFixed(1)} s${r?.fehler ? ` – Fehler ${r.fehler}` : ''}`)
+  protokoll(`  Sprachmodell antwortet nach ${((Date.now() - start) / 1000).toFixed(1)} s${r?.ladenS ? ` (davon Laden ${r.ladenS} s)` : ''}${r?.tokens ? `, Anfrage ${r.tokens} Token${r.tokens > 3000 ? ' – KNAPP an der Grenze 4096' : ''}` : ''}${r?.fehler ? ` – Fehler ${r.fehler}` : ''}`)
   // Wiederholt sich Loki, einmal neu fragen – OHNE seine alten Antworten (sonst kopiert das Modell sie wieder,
   // Test 04.11.2026), nur mit dem, was der Nutzer bisher gesagt hat
   const frueher = verlauf.filter((v) => v.role === 'assistant').map((v) => v.content)
@@ -307,7 +307,7 @@ async function behandeln(text: string, c: ReturnType<typeof codewort>, begonnen:
       if (jarvisEinstellungen().zuletztLage === heute()) return sprechen([jarvisEinstellungen().humor ? zweitesMal() : 'Guten Morgen, noch einmal. Die Lage habe ich Ihnen heute bereits vorgetragen. Für eine Wiederholung sagen Sie: Loki, Lage.'])
       return morgenLageVortragen()
     }
-    if (c?.art === 'hey') { setze({ wartetBis: 0 }); ohneCodewort = 0; return await ausfuehren(befehl(c.rest)) }
+    if (c?.art === 'hey') { setze({ wartetBis: 0 }); ohneCodewort = 0; if (befehl(c.rest).art === 'frage') bruecke()?.vorwaermen?.(jarvisEinstellungen().modell); return await ausfuehren(befehl(c.rest)) }
     // nach „Hey Loki“ allein bzw. nach einer Antwort im Gespräch: der nächste Satz gilt auch ohne Codewort
     // (nach „Hey Loki“ allein zählt jedes Wort, z. B. „Lage“; im Gespräch nur echte Sätze, keine Whisper-Floskeln)
     if (lage.wartetBis > begonnen && (nachHey || istNachfrage(text))) { setze({ wartetBis: 0 }); if (!nachHey) ohneCodewort++; nachHey = false; return await ausfuehren(befehl(text)) }
