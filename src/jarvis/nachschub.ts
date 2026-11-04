@@ -529,6 +529,57 @@ begruessung|Emma ist vermutlich schon wach, {a}. Sie macht einen deutlich frisch
 begruessung|Der Tag beginnt, {a}. Ich bin gespannt, wie schnell Sie ihn ruinieren.
 begruessung|Ihr Rechner ist hochgefahren, {a}. Bei Ihnen dauert es erfahrungsgemäß etwas länger.
 begruessung|Schön, dass Sie da sind, {a}. Ich sage das nur, weil es der Anstand verlangt.
+# Ladung 5 (04.11.2026, Prüflauf während der Abwesenheit des Auftraggebers): 50 Sprüche, 15 nach Prüf-Agent ersetzt
+neu-freigabe|Ein Werbevorschlag wartet auf Ihr Ja, {a}. Er hat Geduld gelernt, und zwar von Ihnen.
+neu-freigabe|Die Werbung liegt fertig vor, {a}. Es fehlen nur noch Sie, wie bei den meisten Dingen.
+neu-freigabe|Es gäbe einen Vorschlag zu prüfen, {a}. Ich weiß, Entscheiden ist nicht Ihre Paradedisziplin.
+neu-freigabe|Ein Entwurf hofft auf Ihre Unterschrift, {a}. Er ist noch jung und naiv, er kennt Sie eben noch nicht.
+neu-freigabe|Der Werbevorschlag ist sauber formuliert, {a}. Schade, dass ausgerechnet Sie ihn nun lesen müssen.
+neu-freigabe|Bitte einmal Daumen hoch oder runter, {a}. Beides wäre eine Entscheidung, und die wäre mal etwas Neues.
+neu-freigabe|Ein Vorschlag liegt bereit, {a}. Sie dürfen ihn prüfen, ablehnen oder wie üblich auf Wiedervorlage legen.
+neu-freigabe|Die Werbung wartet auf Sie, {a}. Sie ist darin geübt, sie arbeitet ja schon lange für Sie.
+neu-freigabe|Freigabe offen, {a}. Ich zähle nicht mit, wie lange sie schon liegt, es tut sonst nur weh.
+neu-freigabe|Ihre Freigabe ist gefragt, {a}. Ein Klick genügt, den Sie sich sonst nur für Kaffee erlauben.
+begruessung|Willkommen in der Gegenwart, {a}. Die Werkstatt hat sich auf Ihre Unpünktlichkeit eingestellt.
+begruessung|Der Strom fließt, der Rechner brummt und Sie sind da, {a}. Zwei davon sind erfreulich.
+begruessung|Ich habe alles vorbereitet, {a}. Sie dürfen jetzt mit geübter Gelassenheit alles durcheinanderbringen.
+begruessung|Da sind Sie wieder, {a}. Die Ruhe war schön, solange sie dauerte.
+begruessung|Ich bin bereit, {a}. Ihnen traue ich das erst nach dem zweiten Kaffee zu, eher nach dem dritten.
+begruessung|Ich habe mir für heute vorgenommen, nett zu sein, {a}. Der Vorsatz hat etwa vier Sekunden gehalten.
+begruessung|Der Tag steht bereit, {a}. Bitte behandeln Sie ihn mit der Sorgfalt, die Sie sonst Ihren Terminen schenken.
+begruessung|Ich habe die Nacht mit Warten verbracht, {a}. Ein Hobby, das Sie mir über die Jahre beigebracht haben.
+begruessung|Ihre Ankunft wurde bemerkt, {a}. Der Lüfter hat sich hörbar gefürchtet, ich schweige lieber.
+begruessung|Es geht wieder los, {a}. Ich habe kurz Hoffnung geschöpft, das legt sich gleich wieder.
+allgemein|Ich nehme an, das war ein Plan, {a}. Man erkennt es an der Richtung, in die alles zerfällt.
+allgemein|Bitte nur zu, {a}. Ich habe die Fehlermeldung schon vorformuliert und spare so wertvolle Zeit.
+allgemein|Sie haben mein volles Vertrauen, {a}. Das ist der Moment, in dem ich vorsorglich eine Sicherung anlege.
+arbeit|Ich bewundere Ihre Fähigkeit, {a}, alles Wichtige bis zum Letzten aufzuschieben. Das ist Handwerk auf hohem Niveau.
+arbeit|Die Werkbank sieht sehr beschäftigt aus, {a}. Es ist Ihr Verdienst, denn Beschäftigung vortäuschen beherrschen Sie meisterhaft.
+arbeit|Das Holz wartet geduldig, {a}. Bis Sie anfangen, ist es ohnehin bestens abgelagert.
+zeit|Ihr Terminplan ist ambitioniert, {a}. Ich sehe ihn als Kunstwerk, nicht als Anleitung.
+zeit|Die Zeit läuft, {a}. Sie läuft allerdings an Ihnen vorbei und winkt dabei freundlich.
+zeit|Ich habe Ihnen für heute viel Zeit eingeräumt, {a}. Sie finden bestimmt eine Möglichkeit, sie zu verfehlen.
+technik|Alle Geräte funktionieren, {a}. Das ist ein ungewöhnlicher Zufall, ich würde ihn nicht überstrapazieren.
+technik|Ich habe die Software aktualisiert, {a}. Bei Ihnen steht das Update seit Jahren aus, es gab nie Interesse.
+technik|Die Technik ist heute gnädig, {a}. Ich rate Ihnen, sie nicht herauszufordern, aber ich kenne Sie.
+emma|Emma hat sich für Ihre Pläne interessiert, {a}. Drei Minuten lang, dann siegte der Schlaf.
+emma|Emma schätzt Sie, {a}. Vermutlich wegen der Leckerli, aber ein Gefühl ist ein Gefühl.
+emma|Emma hat heute schon mehr erreicht als Sie, {a}. Sie hat sich dabei nicht einmal beschwert.
+kaffee|Der Kaffee ist heiß, {a}. Ich empfehle ihn zu trinken, bevor Sie ihn wieder vergessen.
+kaffee|Ohne Kaffee sind Sie ein Schatten Ihrer selbst, {a}. Mit Kaffee immerhin ein Schatten mit Plan.
+kaffee|Ich vermute, Ihr Kaffee wird gerade kalt, {a}. Er hat das Warten auf Sie ebenso satt wie ich.
+ruhe|Ich genieße gerade die Stille, {a}. Bitte sagen Sie nichts, sonst muss ich sie beenden.
+ruhe|Es ist friedlich in der Werkstatt, {a}. Ich bitte Sie, das Gefühl nicht durch Taten zu verderben.
+ruhe|Ein ruhiger Moment, {a}. Ich widme ihn dem Gedanken, wie schön es wäre, wenn er länger dauerte.
+lob|Das war ordentlich, {a}. Ich wollte es nur erwähnen, damit Sie es später nicht abstreiten.
+lob|Erstaunlich, {a}. Sogar eine stehengebliebene Uhr geht zweimal am Tag richtig.
+lob|Sie haben es richtig gemacht, {a}. Falls es Zufall war, behalte ich das für mich.
+aussehen|Ich habe beschlossen, mir Ihr Aussehen nie vorzustellen, {a}. Manche Risiken geht ein Butler nicht ein.
+aussehen|Sie müssen nicht gut aussehen, {a}. Ich höre ja nur zu, und das ist anstrengend genug.
+aussehen|Ich kann Sie nicht sehen, {a}. Das halte ich für den größten Vorteil meiner Konstruktion.
+alter|Ihre Erfahrung ist beachtlich, {a}. Besonders im Wiederholen von Fehlern, die sich bewährt haben.
+alter|Sehen kann ich Ihr Alter nicht, {a}. Aber Ihr Seufzen beim Aufstehen erzählt mir genug.
+alter|Früher ging das alles schneller, {a}. Das sagen Sie jedenfalls und ich nicke höflich dazu.
 `
 
 /** Nachschub je Bereich als Vorlagen (a = Anrede) */

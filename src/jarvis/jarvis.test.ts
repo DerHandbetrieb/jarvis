@@ -28,7 +28,7 @@ describe('Morgen-Lage', () => {
     expect(s).toContain('Amazon meldet Probleme bei Kuh-Kucks-Uhr.')
     expect(s).toContain('Knapp werden: A, B, C und zwei weitere.')
     expect(s).toContain('Gestern kamen drei Bestellungen mit vier Artikeln, zusammen etwa 123 Euro.')
-    expect(s).toContain('wartet ein Vorschlag auf Ihre Freigabe')
+    expect(s).toContain('wartet ein Werbe-Vorschlag auf Ihre Freigabe')
   })
   it('abgeschaltete Bausteine fehlen, Humor nur wenn an', () => {
     const s = morgenLage(basis({ bausteine: new Set(['aufgaben']), wetter: { grad: 1, text: null }, aufgaben: { anzahl: 0, wichtigste: [], neu: 0 } }))
@@ -190,7 +190,7 @@ describe('Neuigkeiten ansagen (04.11.2026)', () => {
       { art: 'amazon' as const, titel: 'Amazon-Problem: Bild fehlt', von: null, faellig: null },
       { art: 'bestellung' as const, kanal: 'Etsy', stueck: 1, cent: 1500, artikel: [] },
     ]
-    expect(ansage(liste, { anrede: 'Sir', humor: false, weg: false })).toEqual(['Neues Amazon-Problem: Bild fehlt.', 'Neue Bestellung bei Etsy, 15 Euro.', 'Zwei neue Freigaben im Marketing warten auf Sie.'])
+    expect(ansage(liste, { anrede: 'Sir', humor: false, weg: false })).toEqual(['Neues Amazon-Problem: Bild fehlt.', 'Neue Bestellung bei Etsy, 15 Euro.', 'Zwei neue Werbe-Freigaben warten unter Abarbeiten auf Sie.'])
     const weg = ansage(liste, { anrede: 'Sir', humor: true, weg: true, spitze: (b) => `SPITZE ${b}` })
     expect(weg).toEqual(['Während Sie weg waren, Sir: eine neue Bestellung über 15 Euro und zwei neue Freigaben.', 'Neues Amazon-Problem: Bild fehlt.', 'SPITZE zurueck'])
   })

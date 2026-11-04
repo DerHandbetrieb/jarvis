@@ -89,12 +89,13 @@ export type Befehl =
 
 /** Seiten, die per Sprache geöffnet werden können */
 const SEITEN: { muster: RegExp; pfad: string; name: string }[] = [
-  { muster: /\b(abarbeiten|aufgaben|todo|to do|tudu)\b/, pfad: '/abarbeiten', name: 'Abarbeiten' },
+  // Werkstatt 0.145.0: Freigaben stehen unter Abarbeiten, Zahlen unter Auswertung, Marketing heißt Werbung
+  { muster: /\b(abarbeiten|aufgaben|todo|to do|tudu|freigaben)\b/, pfad: '/abarbeiten', name: 'Abarbeiten' },
   { muster: /\b(whiteboard|waitbord|pinnwand)\b/, pfad: '/karten', name: 'Whiteboard' },
   { muster: /\b(lager|bestand|bestaende)/, pfad: '/lager', name: 'Lager' },
   { muster: /\b(produkte|produkt)/, pfad: '/produkte', name: 'Produkte' },
-  { muster: /\b(statistik|zahlen|umsatz|verkaeufe)\b/, pfad: '/statistik', name: 'Statistik' },
-  { muster: /\b(marketing|freigaben)\b/, pfad: '/marketing', name: 'Marketing' },
+  { muster: /\b(auswertung|statistik|zahlen|umsatz|verkaeufe)\b/, pfad: '/auswertung', name: 'Auswertung' },
+  { muster: /\b(werbung|marketing)\b/, pfad: '/werbung/amazon', name: 'Werbung' },
   { muster: /\b(ideen|ideenschmiede)\b/, pfad: '/recherche', name: 'Ideenschmiede' },
   { muster: /\b(maschinen|werkstatt)\b/, pfad: '/maschinen', name: 'Maschinen' },
   { muster: /\b(materialien|material)\b/, pfad: '/materialien', name: 'Materialien' },
