@@ -12,6 +12,10 @@ const jarvis = require('./jarvis.cjs')
 const { erstelleWerkstatt, leseKonfig } = require('./werkstatt.cjs')
 const { erstelleHudServer, hudSchluessel } = require('./hudserver.cjs')
 const { erstelleKamera } = require('./kamera.cjs')
+const { erstelleKameraLive } = require('./kameralive.cjs')
+const { ueberwachen } = require('./vollbild.cjs')
+const { Readable } = require('node:stream')
+let kameraLive = null // Live-Bild fürs Dauer-HUD (04.11.2026)
 const { findeWallpaperEngine, einrichten } = require('./wallpaper.cjs')
 const { execFileSync } = require('node:child_process')
 const HUD_PORT = 47820 // fest, damit das Wallpaper Loki findet (nur 127.0.0.1)
@@ -43,7 +47,7 @@ const istAutostart = process.argv.includes(AUTOSTART_ARG)
 let beenden = false // erst true, wenn wirklich beendet werden soll (Menü „Beenden“, Windows fährt herunter)
 let tray = null
 let trayZustand = { zustand: 'aus', mikrofon: false }
-protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }])
+protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 
 /** Nur diese Adressen darf das Fenster selbst ansteuern (alles andere öffnet den normalen Browser). */
 function istAppAdresse(url) {
@@ -215,6 +219,18 @@ if (!app.requestSingleInstanceLock()) {
     protocol.handle('app', (anfrage) => {
       let teil = ''
       try { teil = decodeURIComponent(new URL(anfrage.url).pathname).replace(/^\/+/, '') } catch { return new Response('Ungültige Adresse', { status: 400 }) }
+      // Live-Strom der Kamera nur für das unsichtbare Kamera-Fenster (Schlüssel in seiner Adresse, kameralive.cjs)
+      const strom = /^kamera-strom\/([01])$/.exec(teil)
+      if (strom) {
+        if (!kameraLive?.erlaubt(new URL(anfrage.url).searchParams.get('s'))) return new Response('Nicht erlaubt', { status: 403 })
+        return kamera.live(Number(strom[1])).then((s) => {
+          if (!s) return new Response(null, { status: 204 })
+          // bricht das Fenster ab (auch schon während der Anmeldung), sofort die Verbindung zur Kamera schließen
+          if (anfrage.signal?.aborted) { s.abbrechen(); return new Response(null, { status: 204 }) }
+          anfrage.signal?.addEventListener('abort', () => s.abbrechen(), { once: true })
+          return new Response(Readable.toWeb(s.strom), { headers: { 'Content-Type': s.typ } })
+        }, () => new Response(null, { status: 502 }))
+      }
       const datei = path.normalize(path.join(DIST, teil || 'index.html'))
       if (datei !== DIST && !datei.startsWith(DIST + path.sep)) return new Response('Nicht erlaubt', { status: 403 })
       const istDatei = fs.existsSync(datei) && fs.statSync(datei).isFile()
@@ -247,6 +263,9 @@ if (!app.requestSingleInstanceLock()) {
     const hauptfenster = fensterErstellen()
     hauptRef = hauptfenster
     jarvis.einrichten(hauptfenster, istAppAdresse)
+    // bei Vollbild-Spielen Grafikspeicher freigeben (Stimme + Sprachmodell), danach Stimme wieder laden
+    const vollbildAus = ueberwachen((an) => { if (an && sequenzFenster && !sequenzFenster.isDestroyed()) return; void jarvis.spielLaeuft(an) })
+    app.on('will-quit', () => vollbildAus())
 
     const vonFenster = (e) => e.sender === hauptfenster.webContents && istAppAdresse(e.senderFrame?.url ?? '')
     tray = new Tray(nativeImage.createFromPath(path.join(__dirname, 'symbol', SYMBOL.aus)))
@@ -293,6 +312,19 @@ if (!app.requestSingleInstanceLock()) {
 
     // Kamera (Etappe 5/6): Standbild der Reolink im Hauptprozess; Zugangsdaten verschlüsselt, die Oberfläche sieht sie nie
     const kamera = erstelleKamera({ speicher: verschluesselt(path.join(app.getPath('userData'), 'kamera.bin')) })
+    // Live-Bild fürs Dauer-HUD: unsichtbares Fenster spielt die Ströme ab und liefert JPEG-Bilder (kameralive.cjs)
+    kameraLive = erstelleKameraLive({
+      adresse: (s) => `${APP_URL}kamera-live.html?s=${s}`,
+      beimStoppen: () => kamera.liveSchliessen(),
+      erstelleFenster: (url) => {
+        const f = new BrowserWindow({ show: false, width: 640, height: 360, skipTaskbar: true, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true, preload: path.join(__dirname, 'preload-kamera.cjs'), backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' } })
+        f.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+        f.webContents.on('will-navigate', (event) => event.preventDefault())
+        f.loadURL(url)
+        return f
+      },
+    })
+    ipcMain.on('kamera-live-bild', (e, kanal, daten) => kameraLive.empfangen(e.sender, kanal, daten))
     void kamera.laden()
     ipcMain.handle('kamera-status', (e) => (vonFenster(e) ? kamera.status() : null))
     ipcMain.handle('kamera-einrichten', async (e, d) => (vonFenster(e) ? kamera.einrichten({ adresse: d?.adresse, benutzer: d?.benutzer, passwort: d?.passwort, name: d?.name }) : null))
@@ -317,6 +349,7 @@ if (!app.requestSingleInstanceLock()) {
     try { hud.schluessel = hudSchluessel(fs, path.join(app.getPath('userData'), 'hud-schluessel')) } catch (f) { console.error('Dauer-HUD-Schlüssel:', f?.message); hud.schluessel = require('node:crypto').randomBytes(32).toString('hex') }
     const hudServer = erstelleHudServer({
       port: HUD_PORT, schluessel: hud.schluessel,
+      liveBild: async (kanal) => (kamera.status().eingerichtet ? kameraLive.bild(kanal) : null),
       daten: async () => {
         const l = werkstatt.lage()
         const k = kamera.status()
@@ -333,7 +366,7 @@ if (!app.requestSingleInstanceLock()) {
       kamera: () => kamera.bild(),
     })
     hudServer.start().catch(() => { /* Port belegt – Dauer-HUD zeigt dann „Loki nicht verbunden“ */ })
-    app.on('will-quit', () => { void hudServer.stop() })
+    app.on('will-quit', () => { void hudServer.stop(); kameraLive?.stoppen() })
     // Knopf „Dauer-HUD in Wallpaper Engine einrichten“: legt das Wallpaper als lokales Projekt an (ändert nicht das aktive)
     ipcMain.handle('hud-einrichten', (e) => {
       if (!vonFenster(e)) return null

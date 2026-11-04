@@ -2,7 +2,7 @@
 // Wallpaper darf http://127.0.0.1 abfragen). Loki liefert hier nur fertige Anzeige-Daten: Werkstatt-Lage (Zahlen und
 // Titel, keine Anmeldedaten), Wetter, Uhrzeit. Sicherheit: lauscht NUR auf 127.0.0.1 (nicht im Netzwerk erreichbar),
 // jede Anfrage braucht den Zugriffsschlüssel im Kopf „x-loki-schluessel“ (zufällig, liegt nur im Wallpaper-Ordner und in
-// Lokis Datenordner), nur GET /hud, kleine Antworten, kein Zugriff auf Dateien oder Befehle.
+// Lokis Datenordner), nur GET /hud, /kamera, /bild/0|1 und POST /stumm, kein Zugriff auf Dateien oder Befehle.
 const http = require('node:http')
 const crypto = require('node:crypto')
 
@@ -13,14 +13,16 @@ function gleich(a, b) {
 
 /** daten: async () => Objekt für die Anzeige; kamera: async () => JPEG-Buffer|null (Etappe 6, GET /kamera);
  *  stumm: async () => Objekt (POST /stumm – roter Knopf im Wallpaper: Loki stumm/wieder an, Wunsch 03.11.2026);
+ *  liveBild: async (kanal) => JPEG-Buffer|null (GET /bild/0 bzw. /bild/1 – aktuelles Bild aus dem Live-Strom je Objektiv,
+ *        04.11.2026; nur im Arbeitsspeicher);
  *  schluessel: Zugriffsschlüssel; port: fester Port auf 127.0.0.1 */
-function erstelleHudServer({ port, schluessel, daten, kamera = async () => null, stumm = async () => null, protokoll = console.error }) {
+function erstelleHudServer({ port, schluessel, daten, kamera = async () => null, stumm = async () => null, liveBild = async () => null, protokoll = console.error }) {
   let server = null
   const kopf = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'x-loki-schluessel', 'Access-Control-Allow-Methods': 'GET, POST', 'Cache-Control': 'no-store' }
   async function antwort(req, res) {
     if (req.method === 'OPTIONS') { res.writeHead(204, kopf); res.end(); return }
     const pfad = String(req.url ?? '').split('?')[0]
-    const erlaubt = (req.method === 'GET' && (pfad === '/hud' || pfad === '/kamera')) || (req.method === 'POST' && pfad === '/stumm')
+    const erlaubt = (req.method === 'GET' && (pfad === '/hud' || pfad === '/kamera' || pfad === '/bild/0' || pfad === '/bild/1')) || (req.method === 'POST' && pfad === '/stumm')
     if (!erlaubt) { res.writeHead(404, kopf); res.end(); return }
     // nur Aufrufe an 127.0.0.1/localhost annehmen (zusätzlicher Schutz gegen „DNS-Rebinding“ fremder Webseiten)
     if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(String(req.headers.host ?? ''))) { res.writeHead(403, kopf); res.end(); return }
@@ -32,8 +34,8 @@ function erstelleHudServer({ port, schluessel, daten, kamera = async () => null,
         res.end(JSON.stringify((await stumm()) ?? {}))
         return
       }
-      if (pfad === '/kamera') {
-        const b = await kamera()
+      if (pfad === '/kamera' || pfad.startsWith('/bild/')) {
+        const b = pfad === '/kamera' ? await kamera() : await liveBild(Number(pfad.slice(6)))
         if (!b) { res.writeHead(204, kopf); res.end(); return }
         res.writeHead(200, { ...kopf, 'Content-Type': 'image/jpeg' })
         res.end(b)

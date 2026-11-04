@@ -24,6 +24,10 @@ export type JarvisBruecke = {
   stimme: (an: boolean) => Promise<JarvisStatus | null>
   zuhoeren: (an: boolean) => Promise<JarvisStatus | null>
   frage: (modell: string, nachrichten: { role: 'system' | 'user' | 'assistant'; content: string }[]) => Promise<{ text: string; fehler?: 'modell' | 'ollama' | 'fehlt' } | null>
+  /** Modell-Prüfung (monatlich, 04.11.2026): stand aktuell | neuer | fehlt | unbekannt */
+  modellPruefen?: (modell: string) => Promise<{ stand: 'aktuell' | 'neuer' | 'fehlt' | 'unbekannt'; text: string } | null>
+  /** neue Fassung über Ollama herunterladen (kann einige Minuten dauern) */
+  modellHolen?: (modell: string) => Promise<{ ok: boolean; text?: string } | null>
   ton: (stueck: Float32Array) => void
   beiErkannt: (fn: (d: { text: string; sekunden: number }) => void) => () => void
   beiFortschritt: (fn: (d: { name: string; anteil: number }) => void) => () => void
@@ -91,6 +95,8 @@ export type JarvisEinstellungen = {
   /** eigene Aussprache-Einträge, eine Zeile je „Wort = Aussprache“ – nur für Piper */
   aussprache: string
   modell: string
+  /** letzte Modell-Prüfung (JJJJ-MM-TT) – höchstens alle 30 Tage */
+  zuletztModellPruefung: string
   /** Morgen-Lage am Tag schon vorgetragen (JJJJ-MM-TT) – damit „Guten Morgen“ später nur noch kurz antwortet */
   zuletztLage: string
   /** Nummer der letzten Begrüßung beim Rechnerstart (-1 = noch keine) – damit nie zweimal dieselbe kommt */
@@ -102,7 +108,7 @@ export type JarvisEinstellungen = {
 }
 
 const STANDARD: JarvisEinstellungen = {
-  an: false, anrede: 'Sir', humor: true, stimme: 'loki', tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
+  an: false, anrede: 'Sir', humor: true, stimme: 'loki', tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
 }
 const SCHLUESSEL = 'jarvis.einstellungen'
 const zuhoerer = new Set<() => void>()

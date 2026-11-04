@@ -52,5 +52,5 @@ function startSequenzToene(): Plugin {
 export default defineConfig({
   plugins: [react(), tailwindcss(), sicherheitsRegel(), startSequenzToene()],
   server: { port: 5174, strictPort: true },
-  build: { rollupOptions: { input: { main: path.resolve('index.html'), startsequenz: path.resolve('start-sequenz.html') } } },
+  build: { rollupOptions: { input: { main: path.resolve('index.html'), startsequenz: path.resolve('start-sequenz.html'), kameralive: path.resolve('kamera-live.html') } } },
 })

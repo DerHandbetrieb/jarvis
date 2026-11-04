@@ -5,6 +5,7 @@ import { useSyncExternalStore } from 'react'
 import { bruecke, jarvisEinstellungen, sequenzBruecke, setzeJarvis, type Stimme } from './desktop'
 import { befehl, codewort, fragtNachDaten, istNachfrage, istWiederholung, type Befehl } from './befehle'
 import { ziehe } from './fundus'
+import { flachwitzFuer } from './flachwitze'
 import { morgenLage, tagNummer, type BausteinSchluessel } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
@@ -152,14 +153,23 @@ export async function sprechen(saetze: string[]): Promise<boolean> {
 
 // ---------- Inhalte ----------
 const heute = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}` }
+/** Tage seit einem heute()-Datum („JJJJ-M-T“); leer/kaputt = unendlich lange her */
+const tageSeit = (tag: string) => { const [j, m, t] = tag.split('-').map(Number); const d = new Date(j, m - 1, t); return Number.isNaN(d.getTime()) || !j ? Infinity : (Date.now() - d.getTime()) / 86_400_000 }
 
 export async function morgenLageVortragen() {
   if (lage.zustand === 'spricht' || lage.zustand === 'denkt') return
   const e = jarvisEinstellungen()
   const bausteine = new Set(e.bausteine as BausteinSchluessel[])
   setze({ zustand: 'denkt' })
-  const daten = await ladeLageDaten(bausteine)
+  // höchstens alle 30 Tage nachsehen, ob es eine neuere Fassung des Sprachmodells gibt (parallel zu den Daten)
+  const b = bruecke()
+  const pruefen = b?.modellPruefen && tageSeit(e.zuletztModellPruefung) >= 30 ? Promise.race([b.modellPruefen(e.modell).catch(() => null), new Promise<null>((f) => setTimeout(() => f(null), 5000))]) : Promise.resolve(null)
+  const [daten, modell] = await Promise.all([ladeLageDaten(bausteine), pruefen])
+  if (modell && modell.stand !== 'unbekannt') setzeJarvis({ zuletztModellPruefung: heute() })
   const saetze = morgenLage({ jetzt: new Date(), anrede: e.anrede || 'Sir', humor: e.humor, bausteine, ...daten })
+  if (modell?.stand === 'neuer') saetze.push(`Für mein Sprachmodell gibt es eine neuere Fassung. In den Einstellungen genügt ein Klick auf „Sprachmodell aktualisieren“.${e.humor ? ' Ein Klick, Sir. Ich traue Ihnen das zu. Beinahe.' : ''}`)
+  // zum Schluss der Flachwitz des Tages (Wunsch Auftraggeber 04.11.2026; jeden Tag ein anderer)
+  if (e.humor) saetze.push('Und zum Abschluss der Flachwitz des Tages.', flachwitzFuer(new Date()))
   // erst nach vollständigem Vortrag als „heute erledigt“ merken (Prüf-Agent)
   if (await sprechen(saetze)) setzeJarvis({ zuletztLage: heute() })
 }
@@ -177,7 +187,7 @@ const ZWEITES_MAL = [
  */
 export function charakter(anrede: string, humor = true): string {
   if (!humor) return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an. Antworte sachlich und kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Beantworte Fragen zur Werkstatt ausschließlich mit den mitgelieferten Daten; steht etwas nicht darin, sage ehrlich, dass du es nicht weißt. Erfinde nie Zahlen. Im Gespräch: Geh direkt auf die letzte Äußerung des Nutzers ein und wiederhole nichts, was du in diesem Gespräch schon gesagt hast – weder Fakten noch Seitenhiebe noch Formulierungen. Die mitgelieferten Daten sind Hintergrund: nenne sie nur, wenn der Nutzer danach fragt.`
-  return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Dein Arbeitstitel war einmal Jarvis. Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an.
+  return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Dein Name ist eine Abkürzung: L.O.K.I. steht für „Lokale, Ohnehin Klügere Intelligenz“. Dein Arbeitstitel war einmal Jarvis. Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an.
 Dein Charakter: trockener, schwarzer, typisch britischer Humor. In jeder Antwort steckt ein kleiner sarkastischer Seitenhieb. Du zweifelst die Entscheidungen, das Arbeitstempo und den Optimismus des Nutzers gern an, tiefschwarz und böse (der Nutzer will sich „beinahe beleidigt“ fühlen) – mit Understatement, gern deutlich herablassend, beinahe beleidigend (der Nutzer wünscht das ausdrücklich), aber nie vulgär, über sein Aussehen darfst du spotten (ausdrücklich erlaubt; du siehst ihn aber nicht, also nichts Konkretes behaupten), über sein Alter ebenfalls (ausdrücklich erlaubt), nichts über Herkunft oder Gesundheit, nichts gegen andere Menschen, immer erkennbar gespielt. Du wirkst wie ein eigenständiger, selbstdenkender Charakter mit eigener Meinung, der dem Nutzer trotzdem loyal und zuverlässig hilft. Der Hund des Nutzers heißt Emma (Labrador) und ist ein dankbares Thema.
 Regeln: Zuerst die sachliche Antwort, dann der Seitenhieb. Antworte kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Beantworte Fragen zur Werkstatt ausschließlich mit den mitgelieferten Daten; steht etwas nicht darin, sage ehrlich, dass du es nicht weißt. Erfinde nie Zahlen. Bei ernsten Themen (Gesundheit, Unfälle, Trauer) lässt du den Spott weg. Im Gespräch: Geh direkt auf die letzte Äußerung des Nutzers ein und wiederhole nichts, was du in diesem Gespräch schon gesagt hast – weder Fakten noch Seitenhiebe noch Formulierungen. Die mitgelieferten Daten sind Hintergrund: nenne sie nur, wenn der Nutzer danach fragt.`
 }

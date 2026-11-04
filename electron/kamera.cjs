@@ -56,10 +56,38 @@ function holeHttps(url, { erwartet = null, zeitgrenze = 8000, koerper = null } =
 }
 
 /**
+ * Live-Strom öffnen (04.11.2026, Wunsch Auftraggeber: „nicht nur Standbilder, sondern das echte Bild“): wie holeHttps
+ * erst Zertifikat prüfen, dann über genau diese Verbindung anfragen; liefert die Antwort, sobald die Kopfzeilen da sind
+ * (danach läuft der Strom ohne Zeitgrenze, bis abbrechen() oder die Gegenseite ihn beendet).
+ * → { status, typ, strom (lesbar), abbrechen() }
+ */
+function oeffneStrom(url, { erwartet, zeitgrenze = 8000 } = {}) {
+  const u = new URL(url)
+  return new Promise((fertig, fehler) => {
+    let erledigt = false
+    const sock = tls.connect({ host: u.hostname, port: Number(u.port || 443), rejectUnauthorized: false })
+    const ende = (f) => { if (erledigt) return; erledigt = true; clearTimeout(uhr); sock.destroy(); fehler(f) }
+    const uhr = setTimeout(() => ende(Object.assign(new Error('Zeitüberschreitung'), { name: 'TimeoutError' })), zeitgrenze)
+    sock.once('error', (f) => ende(f))
+    sock.once('secureConnect', () => {
+      const fp = sock.getPeerCertificate()?.fingerprint256 || null
+      if (!fp || fp !== erwartet) { ende(Object.assign(new Error('fremdes Zertifikat'), { fremd: true })); return }
+      const req = http.request({ host: u.hostname, port: Number(u.port || 443), path: u.pathname + u.search, method: 'GET', createConnection: () => sock }, (res) => {
+        if (erledigt) { sock.destroy(); return }
+        erledigt = true; clearTimeout(uhr)
+        fertig({ status: res.statusCode, typ: String(res.headers['content-type'] ?? ''), strom: res, abbrechen: () => { req.destroy(); sock.destroy() } })
+      })
+      req.on('error', (f) => ende(f))
+      req.end()
+    })
+  })
+}
+
+/**
  * speicher: { lesen(): Promise<string|null>, schreiben(text): Promise<boolean>, loeschen() } (verschlüsselt im Hauptprozess)
  * holen: Abruf-Funktion (für Tests ersetzbar)
  */
-function erstelleKamera({ speicher, holen = holeHttps, jetzt = () => Date.now(), zwischenzeit = 3000, protokoll = console.error }) {
+function erstelleKamera({ speicher, holen = holeHttps, oeffneStromFn = oeffneStrom, jetzt = () => Date.now(), zwischenzeit = 3000, protokoll = console.error }) {
   let konto = null // { adresse, benutzer, passwort, name, fingerabdruck }
   let zuletzt = { bild: null, zeit: 0 }, laeuft = null
   // Anmeldung je Konto-Objekt (ein alter, noch laufender Abruf kann so nie das Token eines neu eingetragenen Kontos
@@ -114,12 +142,24 @@ function erstelleKamera({ speicher, holen = holeHttps, jetzt = () => Date.now(),
     return { wert, bis: jetzt() + Math.max(60, dauer - 60) * 1000, fingerabdruck: r.fingerabdruck }
   }
 
+  /** Sitzung des Kontos (Token) holen; gleichzeitige Aufrufe teilen sich EINE laufende Anmeldung */
+  const anmeldungen = new WeakMap() // konto → laufende Anmeldung
+  async function sitzungHolen(k, erwartet) {
+    const t = sitzungen.get(k)
+    if (t && jetzt() < t.bis) return t
+    let lauf = anmeldungen.get(k)
+    if (!lauf) {
+      lauf = anmelden(k, erwartet).then((neu) => { sitzungen.set(k, neu); return neu }).finally(() => anmeldungen.delete(k))
+      anmeldungen.set(k, lauf)
+    }
+    return lauf
+  }
+
   /** Bild holen: Token des Kontos wiederverwenden (die Kamera erlaubt nur wenige gleichzeitige Anmeldungen),
    *  nur bei -6 („please login first“) verwerfen und einmal neu anmelden */
   async function abrufen(k, erwartet) {
     for (let versuch = 0; versuch < 2; versuch++) {
-      let t = sitzungen.get(k)
-      if (!t || jetzt() >= t.bis) { t = await anmelden(k, erwartet); sitzungen.set(k, t) }
+      const t = await sitzungHolen(k, erwartet)
       const r = await holen(snapUrl(k, t.wert), { erwartet: t.fingerabdruck })
       const istJpeg = r.status === 200 && r.daten.length > 3 && r.daten[0] === 0xff && r.daten[1] === 0xd8
       if (istJpeg) return { ...r, fingerabdruck: t.fingerabdruck }
@@ -139,7 +179,7 @@ function erstelleKamera({ speicher, holen = holeHttps, jetzt = () => Date.now(),
       const r = await abrufen(k, null)
       const neu = { ...k, fingerabdruck: r.fingerabdruck }
       sitzungen.set(neu, sitzungen.get(k)) // eigene Anmeldung weiter nutzen
-      konto = neu; laeuft = null
+      konto = neu; laeuft = null; liveSchliessen() // Ströme des alten Kontos zu
       const gespeichert = await speicher.schreiben(JSON.stringify(neu)).catch(() => false)
       if (konto !== neu) return { ...oeffentlich(), vorschau: null } // inzwischen entfernt oder neu eingetragen
       zuletzt = { bild: r.daten, zeit: jetzt() }
@@ -176,6 +216,55 @@ function erstelleKamera({ speicher, holen = holeHttps, jetzt = () => Date.now(),
     return laeuft
   }
 
+  /**
+   * Live-Strom eines Objektivs (kanal 0/1, Duo PoE: zwei Kanäle laut GetChannelstatus, Test 04.11.2026) als FLV –
+   * so zeigt auch die Reolink-Weboberfläche das Live-Bild (support.reolink.com Artikel 360003452893). „sub“ = kleiner
+   * Strom (640×360, 10 Bilder/s) für die Kachel. Höchstens 4 Ströme gleichzeitig. → { typ, strom, abbrechen } oder null
+   */
+  // offene Ströme (zum ausdrücklichen Schließen) und Pause nach Fehlschlägen, die mit jedem weiteren länger wird
+  // (Prüf-Agent 04.11.2026: ohne Pause hätte sich Loki bei abgeschaltetem FLV-Anschluss ~24-mal je Minute neu angemeldet)
+  const offen = new Set()
+  let livePauseBis = 0, liveFehler = 0
+  const liveFehlschlag = () => { liveFehler++; livePauseBis = jetzt() + Math.min(5 * 60_000, 15_000 * 2 ** (liveFehler - 1)) }
+  /** ersten Teil einer Fehlerantwort lesen (höchstens 1 s / 2 kB), um „bitte neu anmelden“ (-6) zu erkennen */
+  const fehlerText = (strom) => new Promise((fertig) => {
+    let text = ''
+    const ende = () => { clearTimeout(u); fertig(text) }
+    const u = setTimeout(ende, 1000)
+    strom.on('data', (d) => { text += d.toString('utf8'); if (text.length > 2000) ende() })
+    strom.once('end', ende); strom.once('error', ende)
+  })
+  async function live(kanal) {
+    const k = konto
+    if (!k || ![0, 1].includes(kanal) || offen.size >= 4 || jetzt() < livePauseBis) return null
+    for (let versuch = 0; versuch < 2; versuch++) {
+      let t, s
+      try {
+        t = await sitzungHolen(k, k.fingerabdruck)
+        s = await oeffneStromFn(`https://${k.adresse}/flv?port=1935&app=bcs&stream=channel${kanal}_sub.bcs&token=${encodeURIComponent(t.wert)}`, { erwartet: t.fingerabdruck })
+      } catch (f) { liveFehlschlag(); throw f }
+      if (konto !== k) { s.abbrechen(); return null } // inzwischen entfernt oder neu eingetragen
+      if (s.status === 200 && /flv/i.test(s.typ)) {
+        liveFehler = 0
+        const eintrag = { abbrechen: () => { s.abbrechen(); offen.delete(eintrag) } }
+        offen.add(eintrag)
+        const fertig = () => offen.delete(eintrag)
+        s.strom.once('close', fertig); s.strom.once('end', fertig); s.strom.once('error', fertig)
+        return { typ: 'video/x-flv', strom: s.strom, abbrechen: eintrag.abbrechen }
+      }
+      const e = kameraFehler(await fehlerText(s.strom))
+      s.abbrechen()
+      // nur ein abgelaufenes Token (-6 „please login first“) verwerfen und einmal neu anmelden; sonst Pause
+      if (e?.rspCode === -6 && versuch === 0) { if (sitzungen.get(k) === t) sitzungen.delete(k); continue }
+      liveFehlschlag()
+      protokoll('Kamera-Live:', `kein Strom (HTTP ${s.status}${e ? `, Code ${e.rspCode}` : ''})`)
+      return null
+    }
+    return null
+  }
+  /** alle offenen Live-Ströme schließen (Kamera-Fenster zu, Kamera entfernt) */
+  function liveSchliessen() { for (const e of [...offen]) e.abbrechen() }
+
   async function laden() {
     try {
       const roh = await speicher.lesen()
@@ -187,12 +276,12 @@ function erstelleKamera({ speicher, holen = holeHttps, jetzt = () => Date.now(),
     } catch { konto = null; try { await speicher.loeschen() } catch { /* egal */ } }
   }
   async function entfernen() {
-    konto = null; zuletzt = { bild: null, zeit: 0 }; laeuft = null
+    konto = null; zuletzt = { bild: null, zeit: 0 }; laeuft = null; liveSchliessen(); livePauseBis = 0; liveFehler = 0
     try { await speicher.loeschen() } catch { /* egal */ }
     zustand = { eingerichtet: false, name: '', adresse: '', fehler: '', stand: null }
     return oeffentlich()
   }
-  return { status: oeffentlich, einrichten, bild, laden, entfernen }
+  return { status: oeffentlich, einrichten, bild, live, liveSchliessen, laden, entfernen }
 }
 
-module.exports = { erstelleKamera, istHeimnetz, holeHttps }
+module.exports = { erstelleKamera, istHeimnetz, holeHttps, oeffneStrom }

@@ -13,6 +13,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const { spawn } = require('node:child_process')
 const { erstelleLoki } = require('./loki.cjs')
+const { pruefeModell } = require('./modellpruefung.cjs')
 
 const QUELLE = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/'
 const MODELLE = {
@@ -179,6 +180,21 @@ function tonAnnehmen(stueck) {
   }
 }
 
+// Vollbild-Spiel (04.11.2026, Wunsch Auftraggeber): Lokis Stimme und das Sprachmodell geben den Grafikspeicher frei,
+// danach lädt die Stimme von selbst wieder (das Sprachmodell lädt ohnehin erst bei der nächsten Frage). Bis dahin
+// spricht Piper (läuft auf dem Prozessor).
+let wegenSpiel = false
+async function spielLaeuft(an) {
+  if (an) {
+    if (loki.status().zustand !== 'aus') { wegenSpiel = true; loki.beenden() }
+    try {
+      // geladene Modelle sofort entladen (offizieller Weg: keep_alive 0)
+      const r = await fetch('http://127.0.0.1:11434/api/ps', { signal: AbortSignal.timeout(3000) })
+      for (const m of (await r.json())?.models ?? []) await fetch('http://127.0.0.1:11434/api/generate', { method: 'POST', body: JSON.stringify({ model: m.name, keep_alive: 0 }), signal: AbortSignal.timeout(10_000) })
+    } catch { /* Ollama läuft nicht – nichts zu entladen */ }
+  } else if (wegenSpiel) { wegenSpiel = false; loki.starten() }
+}
+
 /** Brücke einrichten; nur Anfragen aus dem Hauptfenster werden beantwortet */
 function einrichten(hauptfenster, erlaubt) {
   fenster = hauptfenster
@@ -209,6 +225,7 @@ function einrichten(hauptfenster, erlaubt) {
   // Lokis Stimme ein (lädt im Hintergrund, ca. 12 s, 3,4 GB Grafikspeicher) oder aus (gibt den Speicher frei)
   ipcMain.handle('jarvis-stimme', (e, an) => {
     if (!von(e)) return null
+    wegenSpiel = false // ausdrücklich geschaltet: nach dem Spiel nicht von selbst wieder laden
     if (an) loki.starten(); else loki.beenden()
     return status()
   })
@@ -226,10 +243,10 @@ function einrichten(hauptfenster, erlaubt) {
     try {
       const r = await fetch('http://127.0.0.1:11434/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        // think: false – Qwen3 würde sonst erst lange „nachdenken“ (zu langsam fürs Gespräch); keep_alive: Modell 10 Minuten im Grafikspeicher halten.
+        // think: false – Qwen3 würde sonst erst lange „nachdenken“ (zu langsam fürs Gespräch); keep_alive: Modell 3 Minuten im Grafikspeicher halten (Wunsch Auftraggeber 04.11.2026: Speicher schneller freigeben).
         // Stichproben-Werte laut Qwen3-Modellkarte für den Modus ohne Nachdenken (temperature 0.7, top_p 0.8, top_k 20, min_p 0,
         // presence_penalty 1.5 gegen Wiederholungen); num_ctx 8192 statt 32768 spart ca. 4 GB Grafikspeicher – Rückmeldung Auftraggeber 04.11.2026: Loki wiederholte im Gespräch seine erste Antwort
-        body: JSON.stringify({ model: modell, messages: nachrichten, stream: false, think: false, keep_alive: '10m', options: { temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0, presence_penalty: 1.5, num_ctx: 8192 } }),
+        body: JSON.stringify({ model: modell, messages: nachrichten, stream: false, think: false, keep_alive: '3m', options: { temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0, presence_penalty: 1.5, num_ctx: 8192 } }),
         signal: AbortSignal.timeout(60_000),
       })
       if (r.status === 404) return { fehler: 'modell', text: `Das Sprachmodell ${modell} ist noch nicht geladen.` }
@@ -239,6 +256,28 @@ function einrichten(hauptfenster, erlaubt) {
     } catch {
       return { fehler: 'fehlt', text: 'Ollama läuft nicht auf diesem PC.' }
     }
+  })
+  // Monatliche Modell-Prüfung + Aktualisieren auf Knopfdruck (Wunsch Auftraggeber 04.11.2026)
+  const modellName = (m) => (/^[a-z0-9._:/-]{1,60}$/i.test(String(m ?? '')) ? String(m) : 'qwen3:8b')
+  ipcMain.handle('jarvis-modell-pruefen', async (e, m) => (von(e) ? pruefeModell(modellName(m)) : null))
+  let holtModell = false
+  ipcMain.handle('jarvis-modell-holen', async (e, m) => {
+    if (!von(e) || holtModell) return null
+    holtModell = true
+    try {
+      // offizieller Weg: Ollama lädt die neue Fassung selbst (POST /api/pull); das alte Modell bleibt bis dahin nutzbar
+      // mit stream: true (Fortschrittszeilen) – ohne kämen die Kopfzeilen erst am Ende und fetch bräche nach 5 Minuten ab (Prüf-Agent)
+      const r = await fetch('http://127.0.0.1:11434/api/pull', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: modellName(m), stream: true }), signal: AbortSignal.timeout(60 * 60_000) })
+      if (!r.ok || !r.body) return { ok: false, text: `Fehler ${r.status}` }
+      let rest = '', letzte = {}
+      for await (const stueck of r.body) {
+        rest += Buffer.from(stueck).toString('utf8')
+        const zeilen = rest.split('\n'); rest = zeilen.pop() ?? ''
+        for (const z of zeilen) { try { if (z.trim()) letzte = JSON.parse(z) } catch { /* unvollständige Zeile */ } }
+        if (letzte?.error) break
+      }
+      return letzte?.status === 'success' ? { ok: true } : { ok: false, text: String(letzte?.error ?? 'Herunterladen nicht abgeschlossen') }
+    } catch (f) { return { ok: false, text: f?.name === 'TimeoutError' ? 'Herunterladen dauerte über eine Stunde.' : 'Ollama läuft nicht.' } } finally { holtModell = false }
   })
   ipcMain.handle('jarvis-zuhoeren', (e, an) => {
     if (!von(e)) return null
@@ -252,6 +291,8 @@ module.exports = {
   einrichten,
   /** Lokis Stimme beenden (Windows meldet ab / fährt herunter) */
   stimmeBeenden: () => loki.beenden(),
+  /** Vollbild-Spiel läuft (true) bzw. ist vorbei (false) – electron/vollbild.cjs */
+  spielLaeuft,
   // nur für den Selbsttest (electron electron/jarvis-test.cjs)
   _test: {
     vorbereiten, status,

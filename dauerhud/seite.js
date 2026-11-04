@@ -47,10 +47,10 @@ async function holen() {
   hintenNeu()
 }
 
-// Kamera: alle 3 Sekunden ein frisches Standbild von Loki (der holt es von der Kamera; nichts wird gespeichert)
+// Kamera: alle 3 Sekunden ein frisches Standbild (Ersatz, solange kein Live-Bild läuft) von Loki (der holt es von der Kamera; nichts wird gespeichert)
 let kamLaeuft = false
 async function kameraHolen() {
-  if (pausiert || kamLaeuft) return
+  if (pausiert || kamLaeuft || liveFrisch(0)) return
   kamLaeuft = true
   try {
     const r = await fetch(`http://127.0.0.1:${zugang.port}/kamera`, { headers: { 'x-loki-schluessel': zugang.schluessel }, signal: AbortSignal.timeout(8000) })
@@ -59,8 +59,33 @@ async function kameraHolen() {
     // 204 = keine Kamera eingetragen bzw. kein Bild; 200 = Kamera da (auch ohne auf holen() zu warten)
     if (r.status === 200 && !zustand.kam) zustand = { ...zustand, kam: { name: 'Kamera' } }
   } catch { kamBild?.close?.(); kamBild = null } finally { kamLaeuft = false }
-  if (zustand.kamBild !== !!kamBild) { zustand = { ...zustand, kamBild: !!kamBild }; hintenNeu() }
+  bildDa()
 }
+/** Kachel-Rahmen „LIVE“ statt „KEIN SIGNAL“, sobald Standbild oder Live-Bild da ist */
+function bildDa() {
+  const an = !!kamBild || liveFrisch(0) || liveFrisch(1)
+  if (zustand.kamBild !== an) { zustand = { ...zustand, kamBild: an }; hintenNeu() }
+}
+
+// Live-Bild beider Objektive (Wunsch Auftraggeber 04.11.2026: „nicht nur Standbilder, sondern das echte Bild“).
+// Wallpaper Engine kann kein H.264 (gemessen 04.11.2026) – darum spielt Loki die Ströme selbst ab und liefert hier
+// fertige JPEG-Bilder (GET /bild/0 und /bild/1, etwa 8 je Sekunde). Bei Pause fragt das Wallpaper nicht mehr; Loki
+// schließt die Kamera-Verbindung dann nach 15 s von selbst. Ohne Live-Bild bleibt das Standbild (alle 3 s) als Ersatz.
+const live = [null, null] // { bild: ImageBitmap, zeit }
+const liveHolt = [false, false]
+async function liveHolen(k) {
+  if (pausiert || liveHolt[k] || !zustand.kam) return
+  liveHolt[k] = true
+  try {
+    const r = await fetch(`http://127.0.0.1:${zugang.port}/bild/${k}`, { headers: { 'x-loki-schluessel': zugang.schluessel }, signal: AbortSignal.timeout(4000) })
+    if (r.status === 200) { const neu = await createImageBitmap(await r.blob()); live[k]?.bild.close?.(); live[k] = { bild: neu, zeit: performance.now() } }
+  } catch { /* nächster Versuch gleich wieder */ } finally { liveHolt[k] = false }
+}
+const liveFrisch = (k) => live[k] && performance.now() - live[k].zeit < 3000
+/** Bildquelle je Objektiv: Live-Bild, sonst (nur Objektiv 1) das letzte Standbild */
+function kamQuellen() { return liveFrisch(0) || liveFrisch(1) ? [liveFrisch(0) ? live[0].bild : null, liveFrisch(1) ? live[1].bild : null] : [kamBild] }
+setInterval(() => { void liveHolen(0); void liveHolen(1) }, 120)
+setInterval(() => bildDa(), 2000)
 
 // Roter Knopf (Wunsch Auftraggeber 03.11.2026): Klick = Loki stumm (Mikrofon aus, hört nichts mehr), nochmal = wieder an.
 // Wallpaper Engine gibt Klicks auf den freien Desktop an das Wallpaper weiter.
@@ -92,7 +117,7 @@ function schleife(ms) {
   const jetzt = new Date()
   const uhrzeit = jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' })
   if (datumText(jetzt) !== zustand.datum) { zustand = { ...zustand, datum: datumText(jetzt) }; hintenNeu() }
-  zeichneVorne(g, { hinten, schild, t: ms / 1000, uhrzeit, ton: performance.now() - letzterTon < 2000 ? ton : null, versatz: nurMitte ? B : 0, kamBild, loki })
+  zeichneVorne(g, { hinten, schild, t: ms / 1000, uhrzeit, ton: performance.now() - letzterTon < 2000 ? ton : null, versatz: nurMitte ? B : 0, kamBilder: kamQuellen(), loki })
 }
 
 hintenNeu()

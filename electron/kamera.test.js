@@ -179,6 +179,28 @@ describe('Kamera-Anbindung', () => {
     expect(w.status()).toMatchObject({ eingerichtet: false, fehler: '' })
     expect(await w.bild()).toBeNull()
   })
+  it('Live-Strom: kein FLV → Pause statt Anmelde-Schleife; offene Ströme werden geschlossen', async () => {
+    const { Readable } = await import('node:stream')
+    let zeit = 0
+    const sp = speicher()
+    await sp.schreiben(JSON.stringify({ adresse: '192.168.1.50', benutzer: 'a', passwort: 'b', fingerabdruck: 'AA:BB' }))
+    const holen = vi.fn(async () => anmeldungOk())
+    const antworten = [{ status: 404, typ: 'text/html', text: '<html>aus</html>' }, { status: 200, typ: 'video/x-flv', text: 'FLV' }, { status: 200, typ: 'video/x-flv', text: 'FLV' }]
+    const abgebrochen = []
+    const oeffneStromFn = vi.fn(async () => { const a = antworten.shift(); const strom = Readable.from([Buffer.from(a.text)]); strom.pause(); const s = { status: a.status, typ: a.typ, strom, abbrechen: () => { abgebrochen.push(a.status); strom.destroy() } }; return s })
+    const w = erstelleKamera({ speicher: sp, holen, oeffneStromFn, jetzt: () => zeit, protokoll: () => {} })
+    await w.laden()
+    expect(await w.live(0)).toBeNull()
+    expect(await w.live(1)).toBeNull() // in der Pause: gar kein neuer Versuch
+    expect(oeffneStromFn).toHaveBeenCalledTimes(1)
+    expect(holen).toHaveBeenCalledTimes(1) // Token nicht verworfen, keine zweite Anmeldung
+    zeit = 20_000
+    const [s0, s1] = await Promise.all([w.live(0), w.live(1)])
+    expect(s0?.typ).toBe('video/x-flv'); expect(s1?.typ).toBe('video/x-flv')
+    expect(holen).toHaveBeenCalledTimes(1) // gemeinsame Sitzung
+    w.liveSchliessen()
+    expect(abgebrochen).toEqual([404, 200, 200])
+  })
   it('laden/entfernen: gespeicherte Kamera nach Neustart, defekte Daten werden gelöscht', async () => {
     const sp = speicher()
     await sp.schreiben(JSON.stringify({ adresse: '192.168.1.50', benutzer: 'a', passwort: 'b', name: 'Hof', fingerabdruck: 'x' }))

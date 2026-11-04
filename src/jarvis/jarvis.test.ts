@@ -159,3 +159,14 @@ describe('Spruch-Fundus', () => {
     expect(ziehe(1, 'Mylord', () => 0, { getItem: () => 'kaputt', setItem: () => {} })[0]).toBeTypeOf('string')
   })
 })
+
+describe('Flachwitz des Tages', () => {
+  it('jeden Tag im Jahr ein anderer', async () => {
+    const { flachwitzFuer, FLACHWITZE } = await import('./flachwitze')
+    expect(new Set(FLACHWITZE).size).toBe(366)
+    const jahr = new Set<string>()
+    for (let t = 0; t < 366; t++) jahr.add(flachwitzFuer(new Date(2028, 0, 1 + t)))
+    expect(jahr.size).toBe(366)
+    expect(flachwitzFuer(new Date(2026, 10, 4, 23, 59))).toBe(flachwitzFuer(new Date(2026, 10, 4, 0, 1)))
+  })
+})

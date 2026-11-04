@@ -64,6 +64,8 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     stimme: (an) => ipcRenderer.invoke('jarvis-stimme', !!an),
     zuhoeren: (an) => ipcRenderer.invoke('jarvis-zuhoeren', !!an),
     frage: (modell, nachrichten) => ipcRenderer.invoke('jarvis-frage', { modell: String(modell), nachrichten }),
+    modellPruefen: (modell) => ipcRenderer.invoke('jarvis-modell-pruefen', String(modell)),
+    modellHolen: (modell) => ipcRenderer.invoke('jarvis-modell-holen', String(modell)),
     ton: (stueck) => { if (stueck instanceof Float32Array) ipcRenderer.send('jarvis-ton', stueck) },
     beiErkannt: (fn) => {
       const h = (_e, d) => fn({ text: String(d?.text ?? ''), sekunden: Number(d?.sekunden ?? 0) })

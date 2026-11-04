@@ -6,6 +6,7 @@ import { bruecke, sequenzBruecke, setzeJarvis, useJarvisEinstellungen, type Auto
 import { sprechen, startSequenzJetzt, stimmeWaehlen, useJarvis } from './dienst'
 import WerkstattVerbindung from './WerkstattVerbindung'
 import KameraVerbindung from './KameraVerbindung'
+import ModellPruefung from './ModellPruefung'
 
 // Was gerade mit Lokis Stimme los ist (Piper springt ein, solange sie nicht bereit ist)
 const LOKI_TEXT: Record<string, string> = {
@@ -39,7 +40,7 @@ export default function JarvisEinstellungen() {
   useEffect(() => { void window.jarvisDesktop?.autostart.lesen().then(setAutostart) }, [])
   const umschalten = (b: BausteinSchluessel) => setzeJarvis({ bausteine: e.bausteine.includes(b) ? e.bausteine.filter((x) => x !== b) : [...e.bausteine, b] })
   return (
-    <Abschnitt titel="L.O.K.I. (Sprachassistent)">
+    <Abschnitt titel="L.O.K.I. – Lokale, Ohnehin Klügere Intelligenz">
       {!da ? (
         <p className="text-sm text-neutral-500">Jarvis läuft nur im Windows-Programm – dort laufen Stimme und Spracherkennung kostenlos auf dem PC. Im normalen Browser fehlt die Verbindung dazu.</p>
       ) : (
@@ -99,6 +100,7 @@ export default function JarvisEinstellungen() {
           <label className="block">Sprachmodell für freie Fragen (Ollama auf diesem PC)<br />
             <input className="mt-1 w-56 rounded-lg border border-neutral-300 px-2 py-1.5 font-mono" value={e.modell} onChange={(x) => setzeJarvis({ modell: x.target.value.trim() })} />
           </label>
+          <ModellPruefung modell={e.modell} />
         </div>
       )}
     </Abschnitt>
