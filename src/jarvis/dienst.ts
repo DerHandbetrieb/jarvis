@@ -86,7 +86,7 @@ async function mikrofonAus() {
  */
 let stumm = false
 export async function stummUmschalten() {
-  if (lage.mikrofon) { stumm = true; verlauf = []; setze({ wartetBis: 0 }); stopp(); await mikrofonAus(); return }
+  if (lage.mikrofon) { stumm = true; verlauf = []; nachgereicht = null; setze({ wartetBis: 0 }); stopp(); await mikrofonAus(); return }
   stumm = false
   if (lage.zustand === 'laedt') return // öffnet das Mikrofon nach dem Laden selbst
   if (lage.zustand === 'aus' || lage.zustand === 'fehler') { await einschalten(); return }
@@ -194,16 +194,25 @@ Regeln: Zuerst die sachliche Antwort, dann der Seitenhieb. Antworte kurz (höchs
 
 // Freies Gespräch (Wunsch Auftraggeber 03.11.2026): Loki merkt sich die letzten Wechsel (höchstens 5 Minuten Pause) und
 // hört nach seiner Antwort 10 Sekunden ohne Codewort weiter zu – man kann also einfach weiterreden.
-// Ohne Codewort höchstens 3 Nachfragen hintereinander – sonst könnte Werkstatt-Lärm eine endlose Kette auslösen.
-const GESPRAECH_PAUSE = 5 * 60_000, NACHFRAGE_MS = 12_000, NACHFRAGEN_MAX = 3
+// Ohne Codewort höchstens 12 Nachfragen hintereinander – sonst könnte Werkstatt-Lärm eine endlose Kette auslösen.
+// (Rückmeldung Auftraggeber 04.11.2026: mit 3 hörte Loki mitten im Gespräch einfach auf – jetzt 12, und er sagt es an.)
+const GESPRAECH_PAUSE = 5 * 60_000, NACHFRAGE_MS = 12_000, NACHFRAGEN_MAX = 12
 let verlauf: { role: 'user' | 'assistant'; content: string }[] = [], verlaufZeit = 0, ohneCodewort = 0, nachHey = false
+/** eine Zeile ins Gesprächs-Protokoll (nur auf diesem PC, gespraech.log) */
+const protokoll = (zeile: string) => { try { bruecke()?.protokoll?.(zeile) } catch { /* egal */ } }
+/** Satz, der kam, während Loki noch nachdachte – wird gleich danach behandelt statt verworfen (Rückmeldung 04.11.2026) */
+let nachgereicht: { text: string; zeit: number } | null = null
+const NACHREICHEN_MS = 30_000 // älter = veraltet, nicht mehr ausführen
+/** „Loki, stopp“ während des Nachdenkens: die gleich eintreffende Antwort nicht mehr sprechen */
+let antwortVerwerfen = false
 
 async function frage(text: string) {
   const b = bruecke()
   if (!b) return
   const e = jarvisEinstellungen()
   setze({ zustand: 'denkt' })
-  if (Date.now() - verlaufZeit > GESPRAECH_PAUSE) verlauf = []
+  antwortVerwerfen = false
+  if (Date.now() - verlaufZeit > GESPRAECH_PAUSE) { verlauf = []; ohneCodewort = 0 }
   // Daten nur zu Gesprächsbeginn oder bei passender Frage – sonst baut das Modell sie in jede Antwort ein
   // (Test 04.11.2026: „7 Grad und bedeckt“ in jeder Antwort)
   const mitDaten = verlauf.length === 0 || fragtNachDaten(text)
@@ -212,7 +221,9 @@ async function frage(text: string) {
   const anregungen = e.humor ? `\n\nAnregungen für deinen Seitenhieb (passend auswählen, abwandeln oder eine eigene Pointe finden; höchstens eine je Antwort):\n${ziehe(3, e.anrede || 'Sir').map((s) => `- ${s}`).join('\n')}` : ''
   const system = `${charakter(e.anrede || 'Sir', e.humor)}${anregungen}${mitDaten ? `\n\nDaten der App (Stand jetzt):\n${JSON.stringify(daten ?? {})}` : ''}`
   const nachrichten = [{ role: 'system' as const, content: system }, ...verlauf.slice(-8), { role: 'user' as const, content: text }]
+  const start = Date.now()
   let r = await b.frage(e.modell, nachrichten)
+  protokoll(`  Sprachmodell antwortet nach ${((Date.now() - start) / 1000).toFixed(1)} s${r?.fehler ? ` – Fehler ${r.fehler}` : ''}`)
   // Wiederholt sich Loki, einmal neu fragen – OHNE seine alten Antworten (sonst kopiert das Modell sie wieder,
   // Test 04.11.2026), nur mit dem, was der Nutzer bisher gesagt hat
   const frueher = verlauf.filter((v) => v.role === 'assistant').map((v) => v.content)
@@ -225,9 +236,13 @@ async function frage(text: string) {
   if (r.fehler === 'modell') return sprechen([`Das Sprachmodell ${e.modell} ist auf diesem Rechner noch nicht geladen.${e.humor ? ' Ich denke also gerade mit halber Kraft. Damit bin ich Ihnen immer noch weit voraus.' : ''}`])
   if (r.fehler) return sprechen([`Mein Sprachmodell hat gerade Schwierigkeiten.${e.humor ? ' Es passiert den Besten. Darum kennen Sie das Gefühl vermutlich nicht.' : ''} Ich versuche es gern später noch einmal.`])
   // inzwischen stumm oder ausgeschaltet: Verlauf nicht wieder füllen (sprechen() schweigt dann ohnehin)
-  if (stumm || lage.zustand === 'aus') { if (lage.zustand === 'denkt') setze({ zustand: 'bereit' }); return }
+  if (stumm || antwortVerwerfen || lage.zustand === 'aus') { antwortVerwerfen = false; if (lage.zustand === 'denkt') setze({ zustand: 'bereit' }); return }
   verlauf = [...verlauf, { role: 'user' as const, content: text }, { role: 'assistant' as const, content: r.text }].slice(-8); verlaufZeit = Date.now()
-  if (await sprechen(r.text.split(/(?<=[.!?])\s+/).filter(Boolean)) && ohneCodewort < NACHFRAGEN_MAX) { nachHey = false; setze({ wartetBis: Date.now() + NACHFRAGE_MS }) }
+  protokoll(`  Loki antwortet (${r.text.length} Zeichen)`)
+  // Grenze erreicht: ehrlich ansagen, statt einfach nicht mehr zu reagieren
+  const saetze = r.text.split(/(?<=[.!?])\s+/).filter(Boolean)
+  if (ohneCodewort >= NACHFRAGEN_MAX) saetze.push(`Wenn Sie weiterreden wollen, sprechen Sie mich bitte wieder mit Loki an, ${e.anrede || 'Sir'}.`)
+  if (await sprechen(saetze) && ohneCodewort < NACHFRAGEN_MAX) { nachHey = false; setze({ wartetBis: Date.now() + NACHFRAGE_MS }) }
 }
 
 async function ausfuehren(bf: Befehl) {
@@ -247,11 +262,40 @@ async function ausfuehren(bf: Befehl) {
 /** Erkannter Satz vom Windows-Programm */
 // sekunden = Länge des gesprochenen Stücks: das Nachfrage-Fenster zählt ab dem Beginn des Sprechens, nicht ab dem Ende
 // der Erkennung – sonst verfällt eine längere, rechtzeitig begonnene Nachfrage (Rückmeldung Auftraggeber 03.11.2026)
-async function erkannt(text: string, sekunden = 0) {
+async function erkannt(text: string, sekunden = 0, art = '') {
   const begonnen = Date.now() - sekunden * 1000 - 1500
   setze({ gehoert: text })
-  if (lage.zustand === 'spricht' || lage.zustand === 'denkt') return
   const c = codewort(text)
+  const woerter = text.split(/\s+/).filter(Boolean).length
+  const quelle = art ? ` (${art === 'turbo' ? 'Grafikkarte' : 'klein'}, ${sekunden.toFixed(1)} s)` : ''
+  if (lage.zustand === 'denkt') {
+    // „Loki, stopp/sei still“ wirkt sofort: die ausstehende Antwort wird nicht mehr gesprochen (Prüf-Agent)
+    const sofort = c?.art === 'hey' ? befehl(c.rest) : null
+    if (sofort && (sofort.art === 'stopp' || sofort.art === 'still')) { antwortVerwerfen = true; nachgereicht = null; protokoll(`gehört${quelle} während Loki nachdenkt: ${text} → sofort ausgeführt`); return void ausfuehren(sofort).catch(() => null) }
+    // noch am Nachdenken: den Satz nicht wegwerfen, sondern gleich danach behandeln (mehrere werden zusammengefügt)
+    nachgereicht = { text: nachgereicht && Date.now() - nachgereicht.zeit < NACHREICHEN_MS ? `${nachgereicht.text} ${text}` : text, zeit: Date.now() }
+    protokoll(`gehört${quelle} während Loki nachdenkt (kommt gleich danach dran): ${text}`)
+    return
+  }
+  // Datenschutz: nicht angesprochene Sätze (Gespräche anderer in der Werkstatt) nur zählen, nicht aufschreiben
+  if (lage.zustand === 'spricht') { protokoll(`gehört während Loki spricht → verworfen (${woerter} Wörter)`); return }
+  const imFenster = lage.wartetBis > begonnen
+  const nimmt = !!c || (imFenster && (nachHey || istNachfrage(text)))
+  protokoll(nimmt ? `gehört${quelle}: ${text} → ${c ? `Codewort (${c.art})` : 'Nachfrage im Gespräch'}`
+    : `gehört${quelle} → verworfen (${woerter} Wörter): ${imFenster ? 'Floskel oder nur ein Wort' : ohneCodewort >= NACHFRAGEN_MAX ? 'ohne „Loki“, Grenze von 12 Nachfragen erreicht' : 'ohne „Loki“ und kein Gespräch offen'}`)
+  try {
+    await behandeln(text, c, begonnen)
+  } catch (e) {
+    protokoll(`Fehler: ${(e as Error).message}`)
+  } finally {
+    const n = nachgereicht
+    nachgereicht = null
+    // nur, wenn noch frisch und Loki weder stumm noch aus ist (Prüf-Agent)
+    if (n && !stumm && Date.now() - n.zeit < NACHREICHEN_MS && (lage.zustand as Zustand) === 'bereit') await erkannt(n.text, 0)
+  }
+}
+
+async function behandeln(text: string, c: ReturnType<typeof codewort>, begonnen: number) {
   try {
     if (c?.art === 'morgen') {
       if (jarvisEinstellungen().zuletztLage === heute()) return sprechen([jarvisEinstellungen().humor ? ZWEITES_MAL[tagNummer(new Date()) % ZWEITES_MAL.length] : 'Guten Morgen, noch einmal. Die Lage habe ich Ihnen heute bereits vorgetragen. Für eine Wiederholung sagen Sie: Loki, Lage.'])
@@ -278,7 +322,7 @@ export async function einschalten() {
   const meiner = ++lauf
   setze({ zustand: 'laedt', fehler: '' })
   aus.forEach((f) => f())
-  aus = [b.beiFortschritt((f) => setze({ fortschritt: f })), b.beiErkannt((d) => void erkannt(d.text, d.sekunden))]
+  aus = [b.beiFortschritt((f) => setze({ fortschritt: f })), b.beiErkannt((d) => void erkannt(d.text, d.sekunden, d.art ?? ''))]
   try {
     // Lokis Stimme lädt parallel im Hintergrund (ca. 12 s) – bis dahin spricht Piper
     if (jarvisEinstellungen().stimme === 'loki') void b.stimme(true).catch(() => null)
@@ -303,6 +347,7 @@ export async function ausschalten() {
   // Zuhörer sofort abmelden (vor dem ersten Warten) – ein gleich folgendes Einschalten meldet eigene an (Prüf-Agent)
   aus.forEach((f) => f()); aus = []
   verlauf = []
+  nachgereicht = null
   stopp()
   await mikrofonAus()
   // gibt den Grafikspeicher frei – aber nicht, wenn inzwischen schon wieder eingeschaltet wurde

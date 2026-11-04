@@ -34,6 +34,8 @@ export type JarvisBruecke = {
   modellPruefen?: (modell: string) => Promise<{ stand: 'aktuell' | 'neuer' | 'fehlt' | 'unbekannt'; text: string } | null>
   /** neue Fassung über Ollama herunterladen (kann einige Minuten dauern) */
   modellHolen?: (modell: string) => Promise<{ ok: boolean; text?: string } | null>
+  /** eine Zeile ins Gesprächs-Protokoll (gespraech.log im Datenordner) */
+  protokoll?: (zeile: string) => void
   ton: (stueck: Float32Array) => void
   beiErkannt: (fn: (d: { text: string; sekunden: number; art?: Hoeren }) => void) => () => void
   beiFortschritt: (fn: (d: { name: string; anteil: number }) => void) => () => void

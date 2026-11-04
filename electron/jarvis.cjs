@@ -292,6 +292,16 @@ function einrichten(hauptfenster, erlaubt) {
     if (an) gehoer.starten(); else gehoer.beenden()
     return status()
   })
+  // Gesprächs-Protokoll (04.11.2026, Rückmeldung „irgendwann hat er nicht mehr geantwortet“): was gehört wurde und was
+  // L.O.K.I. damit gemacht hat, nach %APPDATA%\Jarvis\gespraech.log (nur auf diesem PC, höchstens ca. 200 kB, dann neu)
+  ipcMain.on('jarvis-protokoll', (e, zeile) => {
+    if (!von(e)) return
+    try {
+      const datei = path.join(app.getPath('userData'), 'gespraech.log')
+      if (fs.existsSync(datei) && fs.statSync(datei).size > 200_000) fs.renameSync(datei, datei + '.alt')
+      fs.appendFileSync(datei, `${new Date().toLocaleString('de-DE')} ${String(zeile ?? '').replace(/[\r\n]+/g, ' ').slice(0, 600)}\n`)
+    } catch { /* Protokoll ist nur Hilfe */ }
+  })
   ipcMain.on('jarvis-ton', (e, stueck) => {
     if (!von(e) || !(stueck instanceof Float32Array)) return
     tonAnnehmen(stueck)
