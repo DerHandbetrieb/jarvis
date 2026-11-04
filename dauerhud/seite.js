@@ -72,19 +72,28 @@ function bildDa() {
 // fertige JPEG-Bilder (GET /bild/0 und /bild/1, etwa 8 je Sekunde). Bei Pause fragt das Wallpaper nicht mehr; Loki
 // schließt die Kamera-Verbindung dann nach 15 s von selbst. Ohne Live-Bild bleibt das Standbild (alle 3 s) als Ersatz.
 const live = [null, null] // { bild: ImageBitmap, zeit }
-const liveHolt = [false, false]
-async function liveHolen(k) {
-  if (pausiert || liveHolt[k] || !zustand.kam) return
-  liveHolt[k] = true
-  try {
-    const r = await fetch(`http://127.0.0.1:${zugang.port}/bild/${k}`, { headers: { 'x-loki-schluessel': zugang.schluessel }, signal: AbortSignal.timeout(4000) })
-    if (r.status === 200) { const neu = await createImageBitmap(await r.blob()); live[k]?.bild.close?.(); live[k] = { bild: neu, zeit: performance.now() } }
-  } catch { /* nächster Versuch gleich wieder */ } finally { liveHolt[k] = false }
+const nr = [0, 0]
+const warte = (ms) => new Promise((f) => setTimeout(f, ms))
+// je Objektiv: nächstes Bild abholen – Loki antwortet, sobald es da ist (bis zu 1,5 s Warten), also so schnell wie die Kamera
+async function liveSchleife(k) {
+  for (;;) {
+    if (pausiert || !zustand.kam) { await warte(500); continue }
+    try {
+      const r = await fetch(`http://127.0.0.1:${zugang.port}/bild/${k}?nach=${nr[k]}`, { headers: { 'x-loki-schluessel': zugang.schluessel }, signal: AbortSignal.timeout(5000) })
+      if (r.status !== 200) { await warte(300); continue }
+      const neuNr = Number(r.headers.get('x-bild-nr')) || 0
+      if (neuNr === nr[k] || !neuNr) await warte(40) // Nummer fehlt/gleich: nicht ohne Pause weiterfragen (Prüf-Agent)
+      nr[k] = neuNr
+      const neu = await createImageBitmap(await r.blob())
+      live[k]?.bild.close?.(); live[k] = { bild: neu, zeit: performance.now() }
+    } catch { await warte(1000) }
+  }
 }
-const liveFrisch = (k) => live[k] && performance.now() - live[k].zeit < 3000
-/** Bildquelle je Objektiv: Live-Bild, sonst (nur Objektiv 1) das letzte Standbild */
-function kamQuellen() { return liveFrisch(0) || liveFrisch(1) ? [liveFrisch(0) ? live[0].bild : null, liveFrisch(1) ? live[1].bild : null] : [kamBild] }
-setInterval(() => { void liveHolen(0); void liveHolen(1) }, 120)
+// letztes Bild bis 10 s stehen lassen – kurze Aussetzer sollen nicht springen (Rückmeldung Auftraggeber 04.11.2026)
+const liveFrisch = (k) => live[k] && performance.now() - live[k].zeit < 10_000
+/** Bildquelle je Objektiv – feste Aufteilung: immer zwei Plätze; ohne Live-Bild links das Standbild, rechts „verbinde“ */
+function kamQuellen() { return [liveFrisch(0) ? live[0].bild : kamBild, liveFrisch(1) ? live[1].bild : null] }
+void liveSchleife(0); void liveSchleife(1)
 setInterval(() => bildDa(), 2000)
 
 // Roter Knopf (Wunsch Auftraggeber 03.11.2026): Klick = Loki stumm (Mikrofon aus, hört nichts mehr), nochmal = wieder an.

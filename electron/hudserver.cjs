@@ -13,12 +13,12 @@ function gleich(a, b) {
 
 /** daten: async () => Objekt für die Anzeige; kamera: async () => JPEG-Buffer|null (Etappe 6, GET /kamera);
  *  stumm: async () => Objekt (POST /stumm – roter Knopf im Wallpaper: Loki stumm/wieder an, Wunsch 03.11.2026);
- *  liveBild: async (kanal) => JPEG-Buffer|null (GET /bild/0 bzw. /bild/1 – aktuelles Bild aus dem Live-Strom je Objektiv,
- *        04.11.2026; nur im Arbeitsspeicher);
+ *  liveBild: async (kanal, nach) => { daten, nr }|null (GET /bild/0|1?nach=<nr> – nächstes Bild aus dem Live-Strom je
+ *        Objektiv, wartet bis 1,5 s darauf; Nummer im Kopf x-bild-nr; 04.11.2026; nur im Arbeitsspeicher);
  *  schluessel: Zugriffsschlüssel; port: fester Port auf 127.0.0.1 */
 function erstelleHudServer({ port, schluessel, daten, kamera = async () => null, stumm = async () => null, liveBild = async () => null, protokoll = console.error }) {
   let server = null
-  const kopf = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'x-loki-schluessel', 'Access-Control-Allow-Methods': 'GET, POST', 'Cache-Control': 'no-store' }
+  const kopf = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'x-loki-schluessel', 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Expose-Headers': 'x-bild-nr', 'Cache-Control': 'no-store' }
   async function antwort(req, res) {
     if (req.method === 'OPTIONS') { res.writeHead(204, kopf); res.end(); return }
     const pfad = String(req.url ?? '').split('?')[0]
@@ -34,8 +34,16 @@ function erstelleHudServer({ port, schluessel, daten, kamera = async () => null,
         res.end(JSON.stringify((await stumm()) ?? {}))
         return
       }
-      if (pfad === '/kamera' || pfad.startsWith('/bild/')) {
-        const b = pfad === '/kamera' ? await kamera() : await liveBild(Number(pfad.slice(6)))
+      if (pfad.startsWith('/bild/')) {
+        const nach = Number(new URL(String(req.url), 'http://x').searchParams.get('nach')) || 0
+        const b = await liveBild(Number(pfad.slice(6)), nach)
+        if (!b) { res.writeHead(204, kopf); res.end(); return }
+        res.writeHead(200, { ...kopf, 'Content-Type': 'image/jpeg', 'x-bild-nr': String(b.nr) })
+        res.end(b.daten)
+        return
+      }
+      if (pfad === '/kamera') {
+        const b = await kamera()
         if (!b) { res.writeHead(204, kopf); res.end(); return }
         res.writeHead(200, { ...kopf, 'Content-Type': 'image/jpeg' })
         res.end(b)

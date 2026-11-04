@@ -218,14 +218,15 @@ function erstelleKamera({ speicher, holen = holeHttps, oeffneStromFn = oeffneStr
 
   /**
    * Live-Strom eines Objektivs (kanal 0/1, Duo PoE: zwei Kanäle laut GetChannelstatus, Test 04.11.2026) als FLV –
-   * so zeigt auch die Reolink-Weboberfläche das Live-Bild (support.reolink.com Artikel 360003452893). „sub“ = kleiner
-   * Strom (640×360, 10 Bilder/s) für die Kachel. Höchstens 4 Ströme gleichzeitig. → { typ, strom, abbrechen } oder null
+   * so zeigt auch die Reolink-Weboberfläche das Live-Bild (support.reolink.com Artikel 360003452893). „main“ = Hauptstrom
+   * (2560×1440, 25 Bilder/s) – der „sub“-Strom (640×360, 10 Bilder/s) ruckelte zu sehr (Auftraggeber 04.11.2026). Höchstens 4 Ströme gleichzeitig. → { typ, strom, abbrechen } oder null
    */
   // offene Ströme (zum ausdrücklichen Schließen) und Pause nach Fehlschlägen, die mit jedem weiteren länger wird
   // (Prüf-Agent 04.11.2026: ohne Pause hätte sich Loki bei abgeschaltetem FLV-Anschluss ~24-mal je Minute neu angemeldet)
   const offen = new Set()
-  let livePauseBis = 0, liveFehler = 0
-  const liveFehlschlag = () => { liveFehler++; livePauseBis = jetzt() + Math.min(5 * 60_000, 15_000 * 2 ** (liveFehler - 1)) }
+  // je Objektiv getrennt – ein gestörtes Objektiv bremst das andere nicht (Rückmeldung Auftraggeber 04.11.2026: „das zweite ist weg“)
+  const livePauseBis = [0, 0], liveFehler = [0, 0]
+  const liveFehlschlag = (k) => { liveFehler[k]++; livePauseBis[k] = jetzt() + Math.min(5 * 60_000, 15_000 * 2 ** (liveFehler[k] - 1)) }
   /** ersten Teil einer Fehlerantwort lesen (höchstens 1 s / 2 kB), um „bitte neu anmelden“ (-6) zu erkennen */
   const fehlerText = (strom) => new Promise((fertig) => {
     let text = ''
@@ -236,16 +237,16 @@ function erstelleKamera({ speicher, holen = holeHttps, oeffneStromFn = oeffneStr
   })
   async function live(kanal) {
     const k = konto
-    if (!k || ![0, 1].includes(kanal) || offen.size >= 4 || jetzt() < livePauseBis) return null
+    if (!k || ![0, 1].includes(kanal) || offen.size >= 4 || jetzt() < livePauseBis[kanal]) return null
     for (let versuch = 0; versuch < 2; versuch++) {
       let t, s
       try {
         t = await sitzungHolen(k, k.fingerabdruck)
-        s = await oeffneStromFn(`https://${k.adresse}/flv?port=1935&app=bcs&stream=channel${kanal}_sub.bcs&token=${encodeURIComponent(t.wert)}`, { erwartet: t.fingerabdruck })
-      } catch (f) { liveFehlschlag(); throw f }
+        s = await oeffneStromFn(`https://${k.adresse}/flv?port=1935&app=bcs&stream=channel${kanal}_main.bcs&token=${encodeURIComponent(t.wert)}`, { erwartet: t.fingerabdruck })
+      } catch (f) { liveFehlschlag(kanal); throw f }
       if (konto !== k) { s.abbrechen(); return null } // inzwischen entfernt oder neu eingetragen
       if (s.status === 200 && /flv/i.test(s.typ)) {
-        liveFehler = 0
+        liveFehler[kanal] = 0
         const eintrag = { abbrechen: () => { s.abbrechen(); offen.delete(eintrag) } }
         offen.add(eintrag)
         const fertig = () => offen.delete(eintrag)
@@ -256,7 +257,7 @@ function erstelleKamera({ speicher, holen = holeHttps, oeffneStromFn = oeffneStr
       s.abbrechen()
       // nur ein abgelaufenes Token (-6 „please login first“) verwerfen und einmal neu anmelden; sonst Pause
       if (e?.rspCode === -6 && versuch === 0) { if (sitzungen.get(k) === t) sitzungen.delete(k); continue }
-      liveFehlschlag()
+      liveFehlschlag(kanal)
       protokoll('Kamera-Live:', `kein Strom (HTTP ${s.status}${e ? `, Code ${e.rspCode}` : ''})`)
       return null
     }
@@ -276,7 +277,7 @@ function erstelleKamera({ speicher, holen = holeHttps, oeffneStromFn = oeffneStr
     } catch { konto = null; try { await speicher.loeschen() } catch { /* egal */ } }
   }
   async function entfernen() {
-    konto = null; zuletzt = { bild: null, zeit: 0 }; laeuft = null; liveSchliessen(); livePauseBis = 0; liveFehler = 0
+    konto = null; zuletzt = { bild: null, zeit: 0 }; laeuft = null; liveSchliessen(); livePauseBis.fill(0); liveFehler.fill(0)
     try { await speicher.loeschen() } catch { /* egal */ }
     zustand = { eingerichtet: false, name: '', adresse: '', fehler: '', stand: null }
     return oeffentlich()

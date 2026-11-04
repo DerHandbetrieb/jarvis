@@ -191,12 +191,12 @@ describe('Kamera-Anbindung', () => {
     const w = erstelleKamera({ speicher: sp, holen, oeffneStromFn, jetzt: () => zeit, protokoll: () => {} })
     await w.laden()
     expect(await w.live(0)).toBeNull()
-    expect(await w.live(1)).toBeNull() // in der Pause: gar kein neuer Versuch
+    expect(await w.live(0)).toBeNull() // in der Pause: gar kein neuer Versuch für dieses Objektiv
     expect(oeffneStromFn).toHaveBeenCalledTimes(1)
     expect(holen).toHaveBeenCalledTimes(1) // Token nicht verworfen, keine zweite Anmeldung
+    expect((await w.live(1))?.typ).toBe('video/x-flv') // das andere Objektiv ist nicht gebremst
     zeit = 20_000
-    const [s0, s1] = await Promise.all([w.live(0), w.live(1)])
-    expect(s0?.typ).toBe('video/x-flv'); expect(s1?.typ).toBe('video/x-flv')
+    expect((await w.live(0))?.typ).toBe('video/x-flv')
     expect(holen).toHaveBeenCalledTimes(1) // gemeinsame Sitzung
     w.liveSchliessen()
     expect(abgebrochen).toEqual([404, 200, 200])

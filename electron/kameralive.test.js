@@ -37,6 +37,18 @@ describe('Live-Bild der Kamera', () => {
     expect(erstelleFenster).toHaveBeenCalledTimes(1)
     vi.useRealTimers()
   })
+  it('bildNach: wartet auf das nächste Bild, liefert es mit Nummer, sofort wenn schon neuer', async () => {
+    const { live, fenster } = aufbau()
+    const warten = live.bildNach(0, 0)
+    live.empfangen(fenster[0].webContents, 0, JPEG)
+    expect(await warten).toMatchObject({ nr: 1 })
+    expect(await live.bildNach(0, 0)).toMatchObject({ nr: 1 }) // schon neuer als 0 → sofort
+    expect(await live.bildNach(0, 7)).toMatchObject({ nr: 1 }) // Wallpaper „voraus“ (Loki neu gestartet) → aktuelles Bild
+    const zweites = live.bildNach(0, 1)
+    live.empfangen(fenster[0].webContents, 0, JPEG)
+    expect(await zweites).toMatchObject({ nr: 2 })
+    live.stoppen()
+  })
   it('schließt nach Ruhe und danach gilt der alte Schlüssel nicht mehr', () => {
     vi.useFakeTimers()
     const { live, fenster, setze } = aufbau()

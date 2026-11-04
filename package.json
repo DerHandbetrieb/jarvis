@@ -2,7 +2,7 @@
   "name": "jarvis",
   "productName": "Jarvis",
   "private": true,
-  "version": "0.7.4",
+  "version": "0.7.5",
   "description": "Jarvis – lokaler Sprachassistent für den PC (später Hausassistent), Der Handbetrieb (Bloßfeld und Jungk GbR)",
   "author": "Bloßfeld und Jungk GbR",
   "type": "module",

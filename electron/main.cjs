@@ -349,7 +349,7 @@ if (!app.requestSingleInstanceLock()) {
     try { hud.schluessel = hudSchluessel(fs, path.join(app.getPath('userData'), 'hud-schluessel')) } catch (f) { console.error('Dauer-HUD-Schlüssel:', f?.message); hud.schluessel = require('node:crypto').randomBytes(32).toString('hex') }
     const hudServer = erstelleHudServer({
       port: HUD_PORT, schluessel: hud.schluessel,
-      liveBild: async (kanal) => (kamera.status().eingerichtet ? kameraLive.bild(kanal) : null),
+      liveBild: async (kanal, nach) => (kamera.status().eingerichtet ? kameraLive.bildNach(kanal, nach) : null),
       daten: async () => {
         const l = werkstatt.lage()
         const k = kamera.status()

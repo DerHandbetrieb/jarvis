@@ -102,12 +102,13 @@ export function zeichneVorne(g, { hinten, schild, t, uhrzeit, ton, versatz = 0, 
   g.setTransform(1, 0, 0, 1, -versatz, 0) // versatz = 1920: nur der mittlere Bildschirm
   g.drawImage(hinten, 0, 0)
   if (versatz === 0 && kamBilder.some(Boolean)) {
-    // zwei Objektive nebeneinander (Duo PoE), je ganzes Bild eingepasst; nur eins da → es bekommt die ganze Kachel
-    const f = KAMERA_FELD, da = kamBilder.filter(Boolean), spalt = 16, bw = da.length > 1 ? (f.w - spalt) / 2 : f.w
-    da.forEach((q, i) => {
-      const qw = q.videoWidth || q.width, qh = q.videoHeight || q.height
-      if (!qw || !qh) return
-      const m = Math.min(bw / qw, f.h / qh), w = qw * m, h = qh * m, x0 = f.x + i * (bw + spalt)
+    // zwei Objektive nebeneinander (Duo PoE), feste Plätze – fehlt eins kurz, springt nichts (Auftraggeber 04.11.2026)
+    const f = KAMERA_FELD, spalt = 16, bw = (f.w - spalt) / 2
+    kamBilder.slice(0, 2).forEach((q, i) => {
+      const x0 = f.x + i * (bw + spalt)
+      const qw = q?.width, qh = q?.height
+      if (!q || !qw || !qh) { g.fillStyle = 'rgba(5,9,13,0.92)'; g.fillRect(x0, f.y, bw, f.h); W.txt(g, 'VERBINDE …', x0 + bw / 2, f.y + f.h / 2, W.fb(S.haupt, 0.7), { gr: 16, gew: 600, aus: 'center', sp: 3 }); return }
+      const m = Math.min(bw / qw, f.h / qh), w = qw * m, h = qh * m
       g.drawImage(q, x0 + (bw - w) / 2, f.y + (f.h - h) / 2, w, h)
     })
   }
