@@ -56,6 +56,24 @@ def main():
         return
     senden({"bereit": True, "sekunden": round(time.time() - start, 1)})
 
+    # Reserve aufräumen (04.11.2026, Wunsch Auftraggeber: Speicher sparen ohne Qualitätsverlust): PyTorch hält nach dem
+    # Sprechen bis zu ~1,4 GB Grafikspeicher „auf Vorrat“ (gemessen: belegt 2,4 GB, reserviert bis 3,8 GB). 20 s nach dem
+    # letzten Satz wird diese Reserve freigegeben – der nächste Satz braucht dann ca. 0,25 s länger (gemessen).
+    import threading, torch
+    sperre = threading.Lock()
+    zuletzt = [time.time(), False]  # [Zeit des letzten Satzes, schon aufgeräumt]
+
+    def aufraeumen():
+        while True:
+            time.sleep(5)
+            if not zuletzt[1] and time.time() - zuletzt[0] > 20 and sperre.acquire(blocking=False):
+                try:
+                    torch.cuda.empty_cache()
+                    zuletzt[1] = True
+                finally:
+                    sperre.release()
+    threading.Thread(target=aufraeumen, daemon=True).start()
+
     # ausdrücklich UTF-8 lesen (Windows nimmt sonst die alte Codepage – Umlaute kämen kaputt an); „utf-8-sig“ entfernt ein
     # Byte-Order-Mark, das Windows PowerShell 5.1 beim Weiterleiten voranstellt (Probelauf in einrichten.ps1)
     for roh in sys.stdin.buffer:
@@ -70,7 +88,9 @@ def main():
             text = str(auftrag.get("text", "")).strip()[:2000]
             if not text:
                 raise ValueError("kein Text")
-            wavs, sr = modell.generate_voice_clone(text=text, **ref)
+            with sperre:  # nie während des Aufräumens sprechen
+                wavs, sr = modell.generate_voice_clone(text=text, **ref)
+                zuletzt[0], zuletzt[1] = time.time(), False
             ton = np.asarray(wavs[0], dtype=np.float32)
             senden({"id": nr, "sr": int(sr), "ton": base64.b64encode(ton.tobytes()).decode("ascii")})
         except Exception as e:

@@ -228,26 +228,56 @@ async function erkennen(samples) {
   return { text: String(r?.text ?? '').trim(), art: 'klein' }
 }
 
-// Vollbild-Spiel (04.11.2026, Wunsch Auftraggeber): Lokis Stimme und das Sprachmodell geben den Grafikspeicher frei,
-// danach lädt die Stimme von selbst wieder (das Sprachmodell lädt ohnehin erst bei der nächsten Frage). Bis dahin
-// spricht Piper (läuft auf dem Prozessor).
-let wegenSpiel = false
-let gehoerWegenSpiel = false
+// Stimme und Gehör vorübergehend aus – bei einem Vollbild-Spiel (04.11.2026: Grafikspeicher fürs Spiel) oder im
+// Abwesenheits-Modus (04.11.2026, Wunsch Auftraggeber: Speicher sparen ohne Qualitätsverlust; 20 min ohne Maus/Tastatur
+// und ohne dass er L.O.K.I. angesprochen hat → gemessen 4,9 GB Grafik-, ca. 3 GB Arbeitsspeicher frei). Was dabei aus-
+// geschaltet wurde, lädt wieder, sobald weder Spiel noch Abwesenheit gilt – ein gemeinsamer Weg, damit nichts hängen
+// bleibt (Prüf-Agent). Nur was lief (bereit/lädt), wird gemerkt – eine gestörte Stimme startet so nicht ungefragt neu.
+// Kamera-Wache und Neuigkeiten laufen im Hauptprozess weiter; Whisper small hört weiter zu, Piper spricht solange.
+let weg = false
+let lokiZurueck = false, gehoerZurueck = false
+const laeuft = (z) => z === 'bereit' || z === 'laedt'
+function vorlaeufigAus() {
+  if (laeuft(loki.status().zustand)) { lokiZurueck = true; loki.beenden() }
+  if (laeuft(gehoer.status().zustand)) { gehoerZurueck = true; gehoer.beenden() }
+}
+function wiederLaden() {
+  if (spielAktiv || weg) return
+  if (lokiZurueck) { lokiZurueck = false; loki.starten() }
+  if (gehoerZurueck) { gehoerZurueck = false; if (hoerArt === 'turbo') gehoer.starten() }
+}
 async function spielLaeuft(an) {
   if (an) {
-    if (loki.status().zustand !== 'aus') { wegenSpiel = true; loki.beenden() }
     spielAktiv = true
-    if (gehoer.status().zustand !== 'aus') { gehoerWegenSpiel = true; gehoer.beenden() } // small hört weiter
+    vorlaeufigAus() // small hört weiter, Piper spricht
     try {
       // geladene Modelle sofort entladen (offizieller Weg: keep_alive 0)
       const r = await fetch('http://127.0.0.1:11434/api/ps', { signal: AbortSignal.timeout(3000) })
       for (const m of (await r.json())?.models ?? []) await fetch('http://127.0.0.1:11434/api/generate', { method: 'POST', body: JSON.stringify({ model: m.name, keep_alive: 0 }), signal: AbortSignal.timeout(10_000) })
     } catch { /* Ollama läuft nicht – nichts zu entladen */ }
-  } else {
-    if (wegenSpiel) { wegenSpiel = false; loki.starten() }
-    spielAktiv = false
-    if (gehoerWegenSpiel) { gehoerWegenSpiel = false; if (hoerArt === 'turbo') gehoer.starten() }
-  }
+  } else { spielAktiv = false; wiederLaden() }
+}
+function abwesend(an) {
+  if (an === weg) return
+  weg = an
+  if (an) { vorlaeufigAus(); protokoll('Abwesend: Stimme und Gehör beendet (Speicher frei)') }
+  else { wiederLaden(); protokoll('Zurück: Stimme und Gehör laden wieder') }
+}
+/** eine Zeile ins Gesprächs-Protokoll (gespraech.log) aus dem Hauptprozess */
+function protokoll(zeile) {
+  try {
+    const datei = path.join(app.getPath('userData'), 'gespraech.log')
+    if (fs.existsSync(datei) && fs.statSync(datei).size > 200_000) fs.renameSync(datei, datei + '.alt')
+    fs.appendFileSync(datei, `${new Date().toLocaleString('de-DE')} ${String(zeile).replace(/[\r\n]+/g, ' ').slice(0, 600)}\n`)
+  } catch { /* Protokoll ist nur Hilfe */ }
+}
+// er hat L.O.K.I. angesprochen (Codewort oder Nachfrage) – dann ist er da, auch ohne Maus/Tastatur; Lokis eigene
+// Ansagen zählen nicht (sonst hielte eine Neuigkeit ihn „anwesend“, Prüf-Agent)
+let zuletztAngesprochen = 0
+/** Ruhezeit von Maus/Tastatur (alle 10 s aus vollbild.cjs) → abwesend nach 20 min, zurück bei Bewegung */
+function ruheMelden(sekunden) {
+  if (!weg && sekunden >= 20 * 60 && Date.now() - zuletztAngesprochen > 20 * 60_000) abwesend(true)
+  else if (weg && sekunden < 60) abwesend(false)
 }
 
 /** Brücke einrichten; nur Anfragen aus dem Hauptfenster werden beantwortet */
@@ -280,10 +310,13 @@ function einrichten(hauptfenster, erlaubt) {
   // Lokis Stimme ein (lädt im Hintergrund, ca. 12 s, 3,4 GB Grafikspeicher) oder aus (gibt den Speicher frei)
   ipcMain.handle('jarvis-stimme', (e, an) => {
     if (!von(e)) return null
-    wegenSpiel = false // ausdrücklich geschaltet: nach dem Spiel nicht von selbst wieder laden
-    if (an) loki.starten(); else loki.beenden()
+    // ausdrücklich geschaltet: das Gemerkte gilt nicht mehr (aus bleibt aus – auch nach Spiel/Abwesenheit, Prüf-Agent)
+    lokiZurueck = !!an && (spielAktiv || weg)
+    if (an && !lokiZurueck) loki.starten(); else if (!an) loki.beenden()
     return status()
   })
+  // er hat L.O.K.I. angesprochen → anwesend (auch ohne Maus/Tastatur), aus dem Abwesenheits-Modus zurück
+  ipcMain.on('jarvis-nutzer-aktiv', (e) => { if (!von(e)) return; zuletztAngesprochen = Date.now(); if (weg) abwesend(false) })
   // Lokis Gehör: an (lädt im Hintergrund, ca. 5–30 s, ca. 1,2 GB Grafikspeicher) oder aus; art turbo/klein, eigene Wörter
   ipcMain.handle('jarvis-gehoer', (e, a) => {
     if (!von(e)) return null
@@ -292,8 +325,8 @@ function einrichten(hauptfenster, erlaubt) {
     worte = [GRUNDWORTE, ...eigene].join(', ').slice(0, 400)
     if (a?.nurWorte) return status() // Tippen in der Wortliste: nur die Wörter übernehmen, nichts starten (Prüf-Agent)
     const an = !!a?.an && hoerArt === 'turbo'
-    if (spielAktiv) { gehoerWegenSpiel = an; gehoer.beenden(); return status() } // nach dem Spiel lädt es von selbst
-    gehoerWegenSpiel = false // ausdrücklich geschaltet
+    if (spielAktiv || weg) { gehoerZurueck = an; gehoer.beenden(); return status() } // danach lädt es von selbst
+    gehoerZurueck = false // ausdrücklich geschaltet
     if (an) gehoer.starten(); else gehoer.beenden()
     return status()
   })
@@ -386,6 +419,8 @@ module.exports = {
   stimmeBeenden: () => { loki.beenden(); gehoer.beenden() },
   /** Vollbild-Spiel läuft (true) bzw. ist vorbei (false) – electron/vollbild.cjs */
   spielLaeuft,
+  /** Ruhezeit von Maus/Tastatur in Sekunden (Abwesenheits-Modus) */
+  ruheMelden,
   // nur für den Selbsttest (electron electron/jarvis-test.cjs)
   _test: {
     vorbereiten, status,

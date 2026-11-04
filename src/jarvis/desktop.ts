@@ -33,6 +33,8 @@ export type JarvisBruecke = {
   frage: (modell: string, nachrichten: { role: 'system' | 'user' | 'assistant'; content: string }[]) => Promise<{ text: string; fehler?: 'modell' | 'ollama' | 'fehlt'; tokens?: number; ladenS?: number } | null>
   /** Sprachmodell schon laden, sobald „Loki“ fällt (die Frage kommt gleich) */
   vorwaermen?: (modell: string) => void
+  /** er hat L.O.K.I. angesprochen (für den Abwesenheits-Modus) */
+  nutzerAktiv?: () => void
   /** Modell-Prüfung (monatlich, 04.11.2026): stand aktuell | neuer | fehlt | unbekannt */
   modellPruefen?: (modell: string) => Promise<{ stand: 'aktuell' | 'neuer' | 'fehlt' | 'unbekannt'; text: string } | null>
   /** neue Fassung über Ollama herunterladen (kann einige Minuten dauern) */

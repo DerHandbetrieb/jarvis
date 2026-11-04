@@ -289,6 +289,7 @@ async function erkannt(text: string, sekunden = 0, art = '') {
   const nimmt = !!c || (imFenster && (nachHey || istNachfrage(text)))
   protokoll(nimmt ? `gehört${quelle}: ${text} → ${c ? `Codewort (${c.art})` : 'Nachfrage im Gespräch'}`
     : `gehört${quelle} → verworfen (${woerter} Wörter): ${imFenster ? 'Floskel oder nur ein Wort' : ohneCodewort >= NACHFRAGEN_MAX ? 'ohne „Loki“, Grenze von 12 Nachfragen erreicht' : 'ohne „Loki“ und kein Gespräch offen'}`)
+  if (nimmt) bruecke()?.nutzerAktiv?.() // er spricht mit L.O.K.I. → anwesend
   try {
     await behandeln(text, c, begonnen)
   } catch (e) {
@@ -375,6 +376,7 @@ function neuigkeitenStarten(): (() => void)[] {
 }
 
 let neuLaeuft = false
+let stimmeWartetSeit = 0 // seit wann eine Ansage auf Lokis Stimme wartet (nach dem Abwesenheits-Modus)
 async function neuAnsagen() {
   const b = bruecke(), e = jarvisEinstellungen()
   if (neuLaeuft || !b) return
@@ -393,8 +395,15 @@ async function neuAnsagen() {
     if (!neuSchlange.length) return
     const a = await b.anwesenheit?.().catch(() => null)
     if (!a) return
-    if (a.ruhe >= ABWESEND_S) { neuSchlange.forEach((x) => { x.verpasst = true }); return }
-    if (a.spiel || stumm || !lage.mikrofon || lage.zustand !== 'bereit' || lage.wartetBis > Date.now() || nachgereicht) return
+    if (a.ruhe >= ABWESEND_S) { neuSchlange.forEach((x) => { x.verpasst = true }); stimmeWartetSeit = 0; return }
+    if (a.spiel || stumm || !lage.mikrofon || lage.zustand !== 'bereit' || lage.wartetBis > Date.now() || nachgereicht) { stimmeWartetSeit = 0; return }
+    // gerade zurück aus dem Abwesenheits-Modus: bis zu 60 s auf Lokis eigene Stimme warten, statt mit Piper anzusagen
+    const st = e.stimme === 'loki' ? await b.status().catch(() => null) : null
+    if (st?.loki?.zustand === 'laedt') {
+      if (!stimmeWartetSeit) stimmeWartetSeit = Date.now()
+      if (Date.now() - stimmeWartetSeit < 60_000) return
+    }
+    stimmeWartetSeit = 0
     const jetzt = neuSchlange.splice(0)
     // eine Person „nähert sich“ nur, wenn es frisch ist (≤ 90 s) – sonst Zusammenfassung „war jemand vor der Kamera“ (Prüf-Agent)
     const weg = jetzt.some((x) => x.verpasst || Date.now() - x.zeit > (x.n.art === 'person' ? 90_000 : VERPASST_MS))

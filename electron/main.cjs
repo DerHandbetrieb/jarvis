@@ -282,7 +282,7 @@ if (!app.requestSingleInstanceLock()) {
     // Anwesenheit für die Neuigkeiten (04.11.2026): wie lange Maus/Tastatur unbenutzt sind, und ob ein Spiel läuft
     // ohne frische Messung (Programm gerade gestartet, PowerShell hängt) gilt er als abwesend – nie in den leeren Raum reden (Prüf-Agent)
     const anwesenheit = { ruhe: 0, gemessen: 0, spiel: false }
-    const vollbildAus = ueberwachen((an) => { if (an && sequenzFenster && !sequenzFenster.isDestroyed()) return; anwesenheit.spiel = an; void jarvis.spielLaeuft(an) }, { beiRuhe: (s) => { anwesenheit.ruhe = s; anwesenheit.gemessen = Date.now() } })
+    const vollbildAus = ueberwachen((an) => { if (an && sequenzFenster && !sequenzFenster.isDestroyed()) return; anwesenheit.spiel = an; void jarvis.spielLaeuft(an) }, { beiRuhe: (s) => { anwesenheit.ruhe = s; anwesenheit.gemessen = Date.now(); jarvis.ruheMelden(s) } })
     app.on('will-quit', () => vollbildAus())
 
     const vonFenster = (e) => e.sender === hauptfenster.webContents && istAppAdresse(e.senderFrame?.url ?? '')
