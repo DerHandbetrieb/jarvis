@@ -142,7 +142,7 @@ describe('Nachfrage ohne Codewort (freies Gespräch)', () => {
   it('nimmt echte Sätze, verwirft Whisper-Floskeln und Ein-Wort-Fetzen', () => {
     expect(istNachfrage('Und was hältst du davon?')).toBe(true)
     expect(istNachfrage('Erzähl mir mehr über Emma.')).toBe(true)
-    for (const f of ['Vielen Dank.', 'Untertitel im Auftrag des ZDF, 2020', 'Danke fürs Zuschauen!', 'Ja.', 'Tschüss', 'Bis zum nächsten Mal.', 'Untertitelung. BR 2018']) expect(istNachfrage(f)).toBe(false)
+    for (const f of ['Vielen Dank.', 'Untertitel im Auftrag des ZDF, 2020', 'Danke fürs Zuschauen!', 'Ja.', 'Tschüss', 'Bis zum nächsten Mal.', 'Untertitelung. BR 2018', 'www.feyyaz.tv', 'www.youtube.com']) expect(istNachfrage(f)).toBe(false)
   })
 })
 

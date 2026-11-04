@@ -1,6 +1,8 @@
 // Verbindung zu Lokis Stimme (03.11.2026, Entscheidung Auftraggeber: Probe S): startet stimme/loki_stimme.py als
 // Hintergrund-Programm und spricht mit ihm nur über Ein- und Ausgabe (je Zeile ein JSON) – kein Netzwerk-Anschluss.
 // Ohne Electron-Abhängigkeit, damit die Tests (loki.test.js) es mit einem nachgebauten Programm prüfen können.
+// Seit 04.11.2026 auch für Lokis Gehör (gehoer/loki_gehoer.py, Whisper turbo auf der Grafikkarte) – gleiche Abläufe,
+// andere Texte/Dateien über die Optionen bezeichnung, fehltText, noetig, argumente; Aufträge über auftrag().
 // Zustände: aus → laedt → bereit; „fehlt“ = Python-Umgebung, Skript, Vorlage oder Modell nicht da; „fehler“ = abgestürzt,
 // hängt oder Laden misslungen. Nach einem Absturz im Betrieb startet die Stimme einmal von selbst neu (Prüf-Agent).
 const fs = require('node:fs')
@@ -15,9 +17,13 @@ const satzZeit = (text) => Math.min(60_000, 5_000 + 60 * text.length)
 
 /**
  * @param {{ python: () => string | null, skript: string, starten: (befehl: string, argumente: string[], optionen: object) => any,
- *   toeten?: (p: any) => void, log?: (...a: any[]) => void }} o
+ *   toeten?: (p: any) => void, log?: (...a: any[]) => void, bezeichnung?: string, fehltText?: string, noetig?: string[],
+ *   argumente?: string[] }} o
  */
 function erstelleLoki(o) {
+  const name = o.bezeichnung ?? 'Die Stimme von L.O.K.I.'
+  // erst beim Starten ermitteln (Pfade aus app.getPath stehen beim Laden des Moduls evtl. noch nicht fest)
+  const noetig = () => o.noetig ?? [path.join(path.dirname(o.skript), 'loki-vorlage.wav')]
   let prozess = null
   let zustand = 'aus'
   let fehler = ''
@@ -42,7 +48,7 @@ function erstelleLoki(o) {
   function stoerung(grund) {
     zustand = 'fehler'
     fehler = grund
-    log('Loki-Stimme:', grund)
+    log(`${name}:`, grund)
     const p = prozess
     prozess = null
     clearTimeout(ladeWecker)
@@ -57,8 +63,8 @@ function erstelleLoki(o) {
 
   function zeileVerarbeiten(zeile) {
     let d
-    try { d = JSON.parse(zeile) } catch { log('Loki-Stimme, unlesbare Antwort:', zeile.slice(0, 200)); return }
-    if (d.bereit) { clearTimeout(ladeWecker); zustand = 'bereit'; neustartErlaubt = true; log(`Loki-Stimme bereit nach ${d.sekunden} s`); return }
+    try { d = JSON.parse(zeile) } catch { log(`${name}, unlesbare Antwort:`, zeile.slice(0, 200)); return }
+    if (d.bereit) { clearTimeout(ladeWecker); zustand = 'bereit'; neustartErlaubt = true; log(`${name} bereit nach ${d.sekunden} s`); return }
     if (d.id == null) {
       if (d.fehlt) { clearTimeout(ladeWecker); zustand = 'fehlt'; fehler = String(d.fehlt); beendenStill(); return }
       if (d.fehler) stoerung(String(d.fehler))
@@ -69,10 +75,7 @@ function erstelleLoki(o) {
     wartend.delete(d.id)
     clearTimeout(w.wecker)
     if (d.fehler) return w.abbruch(new Error(String(d.fehler)))
-    const b = Buffer.from(String(d.ton ?? ''), 'base64')
-    // eigene Kopie, damit die Werte sauber an 4 Byte ausgerichtet sind
-    const samples = new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength - (b.byteLength % 4)))
-    w.fertig({ samples, sampleRate: Number(d.sr) || 24000 })
+    w.fertig(d)
   }
 
   /** Hintergrund-Programm starten (nur einmal; kehrt sofort zurück, Laden läuft weiter) */
@@ -80,12 +83,11 @@ function erstelleLoki(o) {
     clearTimeout(neustartWecker)
     if (prozess) return
     const py = o.python()
-    const vorlage = path.join(path.dirname(o.skript), 'loki-vorlage.wav')
-    if (!py || !fs.existsSync(o.skript) || !fs.existsSync(vorlage)) { zustand = 'fehlt'; fehler = 'Die Stimme von L.O.K.I. ist auf diesem PC nicht eingerichtet (stimme/einrichten.ps1).'; return }
+    if (!py || !fs.existsSync(o.skript) || !noetig().every((d) => fs.existsSync(d))) { zustand = 'fehlt'; fehler = o.fehltText ?? 'Die Stimme von L.O.K.I. ist auf diesem PC nicht eingerichtet (stimme/einrichten.ps1).'; return }
     zustand = 'laedt'
     fehler = ''
     // HF_HUB_OFFLINE: zur Laufzeit nie etwas aus dem Internet nachladen
-    const p = o.starten(py, ['-I', o.skript], { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, HF_HUB_OFFLINE: '1' } })
+    const p = o.starten(py, ['-I', o.skript, ...(o.argumente ?? [])], { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, HF_HUB_OFFLINE: '1' } })
     prozess = p
     // nur Zeilen des aktuellen Programms zählen – nach Aus/Ein können noch Reste des alten ankommen (Prüf-Agent)
     readline.createInterface({ input: p.stdout }).on('line', (z) => { if (prozess === p) zeileVerarbeiten(z) })
@@ -95,17 +97,17 @@ function erstelleLoki(o) {
     p.on('error', (e) => { if (prozess === p) stoerung(e.message) })
     p.on('exit', (code) => {
       if (prozess !== p) return
-      log('Loki-Stimme beendet:', code, letzte.join('\n'))
-      stoerung(`Die Stimme von L.O.K.I. hat sich beendet (Code ${code}).`)
+      log(`${name} beendet:`, code, letzte.join('\n'))
+      stoerung(`${name} hat sich beendet (Code ${code}).`)
     })
-    ladeWecker = setTimeout(() => { if (prozess === p && zustand === 'laedt') stoerung('Die Stimme von L.O.K.I. lädt zu lange.') }, LADE_ZEIT_MS)
+    ladeWecker = setTimeout(() => { if (prozess === p && zustand === 'laedt') stoerung(`${name} lädt zu lange.`) }, LADE_ZEIT_MS)
   }
 
   function beendenStill() {
     clearTimeout(ladeWecker)
     const p = prozess
     prozess = null
-    allesAbbrechen('Die Stimme von L.O.K.I. wurde ausgeschaltet.')
+    allesAbbrechen(`${name} wurde ausgeschaltet.`)
     if (p) { try { p.stdin.end() } catch { /* schon zu */ } toeten(p) }
   }
 
@@ -118,20 +120,29 @@ function erstelleLoki(o) {
     beendenStill()
   }
 
-  /** Einen Satz sprechen lassen → { samples, sampleRate }; wirft, wenn Loki nicht bereit ist oder zu lange braucht */
-  function sprechen(text) {
-    if (zustand !== 'bereit' || !prozess) return Promise.reject(new Error('Die Stimme von L.O.K.I. ist nicht bereit.'))
-    const t = String(text).slice(0, 2000)
+  /** Einen Auftrag schicken (daten + id als eine JSON-Zeile) → Antwort-Objekt; wirft, wenn nicht bereit oder zu langsam */
+  function auftrag(daten, zeitMs) {
+    if (zustand !== 'bereit' || !prozess) return Promise.reject(new Error(`${name} ist nicht bereit.`))
     const id = ++nr
     return new Promise((fertig, abbruch) => {
-      // hängt die Stimme, warten sonst alle folgenden Sätze dahinter – darum Störung + Neustart, Piper übernimmt (Prüf-Agent)
-      const wecker = setTimeout(() => { wartend.delete(id); abbruch(new Error('Die Stimme von L.O.K.I. antwortet nicht.')); stoerung('Die Stimme von L.O.K.I. hat nicht rechtzeitig geantwortet.') }, satzZeit(t))
+      // hängt das Programm, warten sonst alle folgenden Aufträge dahinter – darum Störung + Neustart, der Ersatz übernimmt (Prüf-Agent)
+      const wecker = setTimeout(() => { wartend.delete(id); abbruch(new Error(`${name} antwortet nicht.`)); stoerung(`${name} hat nicht rechtzeitig geantwortet.`) }, zeitMs)
       wartend.set(id, { fertig, abbruch, wecker })
-      prozess.stdin.write(JSON.stringify({ id, text: t }) + '\n')
+      prozess.stdin.write(JSON.stringify({ ...daten, id }) + '\n')
     })
   }
 
-  return { starten, beenden, sprechen, status: () => ({ zustand, fehler }) }
+  /** Einen Satz sprechen lassen → { samples, sampleRate }; wirft, wenn Loki nicht bereit ist oder zu lange braucht */
+  async function sprechen(text) {
+    const t = String(text).slice(0, 2000)
+    const d = await auftrag({ text: t }, satzZeit(t))
+    const b = Buffer.from(String(d.ton ?? ''), 'base64')
+    // eigene Kopie, damit die Werte sauber an 4 Byte ausgerichtet sind
+    const samples = new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength - (b.byteLength % 4)))
+    return { samples, sampleRate: Number(d.sr) || 24000 }
+  }
+
+  return { starten, beenden, sprechen, auftrag, status: () => ({ zustand, fehler }) }
 }
 
 module.exports = { erstelleLoki, satzZeit }

@@ -142,5 +142,5 @@ export function istNachfrage(text: string): boolean {
   const t = vereinfachen(text)
   if (t.split(/\s+/).filter(Boolean).length < 2) return false
   // vereinfachen() macht aus ä/ü/ß ae/ue/ss
-  return !/untertitel|amara|zdf|swr|^vielen dank( fuers zuschauen| fuer ihre aufmerksamkeit)?$|danke fuers zuschauen|bis zum naechsten mal|tschuess|copyright|abonnier/.test(t)
+  return !/untertitel|amara|zdf|swr|^vielen dank( fuers zuschauen| fuer ihre aufmerksamkeit)?$|danke fuers zuschauen|bis zum naechsten mal|tschuess|copyright|abonnier|\bwww\b/.test(t)
 }

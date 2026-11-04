@@ -2,8 +2,8 @@
 import { Abschnitt } from '../ui/Abschnitt'
 import { useEffect, useState } from 'react'
 import { BAUSTEINE, type BausteinSchluessel } from './morgenlage'
-import { bruecke, sequenzBruecke, setzeJarvis, useJarvisEinstellungen, type Autostart, type JarvisStatus, type Stimme } from './desktop'
-import { sprechen, startSequenzJetzt, stimmeWaehlen, useJarvis } from './dienst'
+import { bruecke, sequenzBruecke, setzeJarvis, useJarvisEinstellungen, type Autostart, type Hoeren, type JarvisStatus, type Stimme } from './desktop'
+import { gehoerSchalten, hoerenWaehlen, sprechen, startSequenzJetzt, stimmeWaehlen, useJarvis } from './dienst'
 import WerkstattVerbindung from './WerkstattVerbindung'
 import KameraVerbindung from './KameraVerbindung'
 import ModellPruefung from './ModellPruefung'
@@ -15,6 +15,15 @@ const LOKI_TEXT: Record<string, string> = {
   bereit: 'L.O.K.I. spricht mit seiner eigenen Stimme.',
   fehlt: 'Die Stimme von L.O.K.I. ist auf diesem PC nicht eingerichtet – es spricht Piper.',
   fehler: 'Die Stimme von L.O.K.I. hat eine Störung – es spricht Piper.',
+}
+
+// Was gerade mit Lokis Gehör los ist (Whisper small springt ein, solange es nicht bereit ist)
+const GEHOER_TEXT: Record<string, string> = {
+  aus: 'Lädt, sobald L.O.K.I. eingeschaltet wird (ca. 5–30 Sekunden, bis dahin hört das kleine Modell).',
+  laedt: 'Das Gehör von L.O.K.I. lädt … bis dahin hört das kleine Modell.',
+  bereit: 'L.O.K.I. hört mit dem genauen Modell auf der Grafikkarte.',
+  fehlt: 'Das genaue Gehör ist auf diesem PC nicht eingerichtet – es hört das kleine Modell.',
+  fehler: 'Das Gehör von L.O.K.I. hat eine Störung – es hört das kleine Modell.',
 }
 
 const PROBE = 'Guten Tag, Sir. Ich bin bereit. Ob Sie es auch sind, wird sich zeigen. Ich bin vorsichtig optimistisch. Sehr vorsichtig.'
@@ -35,6 +44,7 @@ export default function JarvisEinstellungen() {
     return () => { weg = true; clearInterval(t) }
   }, [])
   const lz = st?.loki?.zustand ?? 'aus'
+  const gz = st?.gehoer?.zustand ?? 'aus'
   // Autostart mit Windows (nur im installierten Programm)
   const [autostart, setAutostart] = useState<Autostart | null>(null)
   useEffect(() => { void window.jarvisDesktop?.autostart.lesen().then(setAutostart) }, [])
@@ -85,6 +95,25 @@ export default function JarvisEinstellungen() {
               {LOKI_TEXT[lz]}{lz === 'fehler' && st?.loki?.fehler ? ` (${st.loki.fehler})` : ''}{' '}
               {lz === 'fehler' && j.zustand !== 'aus' && j.zustand !== 'fehler' &&<button type="button" className="underline" onClick={() => void bruecke()?.stimme(true)}>Neu starten</button>}
             </p>
+          )}
+          <div className="flex flex-wrap items-end gap-4">
+            <label className="block">Spracherkennung<br />
+              <select className="mt-1 rounded-lg border border-neutral-300 px-2 py-1.5" value={e.hoeren} onChange={(x) => void hoerenWaehlen({ hoeren: x.target.value as Hoeren })}>
+                <option value="turbo">Genau (Grafikkarte, ca. 1,2 GB)</option>
+                <option value="klein">Klein (Prozessor, alter Stand)</option>
+              </select>
+            </label>
+            {e.hoeren === 'turbo' && (
+              <p className="text-neutral-600">
+                {GEHOER_TEXT[gz]}{gz === 'fehler' && st?.gehoer?.fehler ? ` (${st.gehoer.fehler})` : ''}{' '}
+                {gz === 'fehler' && j.zustand !== 'aus' && j.zustand !== 'fehler' && <button type="button" className="underline" onClick={() => void gehoerSchalten(true)}>Neu starten</button>}
+              </p>
+            )}
+          </div>
+          {e.hoeren === 'turbo' && (
+            <label className="block">Wörter, die L.O.K.I. besser verstehen soll (Namen, Produkte – durch Komma getrennt; L.O.K.I., Lage, Neuigkeiten, Etsy, Amazon, Emma u. a. sind schon drin)<br />
+              <input className="mt-1 w-full rounded-lg border border-neutral-300 px-2 py-1.5" value={e.wortliste} placeholder="Kasuwa, Billbee, Boulder-Tasse" onChange={(x) => void hoerenWaehlen({ wortliste: x.target.value })} />
+            </label>
           )}
           <div>
             <p className="font-medium text-neutral-700">Inhalte der Morgen-Lage</p>

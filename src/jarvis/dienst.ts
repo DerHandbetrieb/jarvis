@@ -2,7 +2,7 @@
 // Codewort/Befehl → Antwort als Sätze → Stimme (Loki = Qwen3-TTS bzw. Piper als Ersatz, beides lokal) → Lautsprecher. Ein einziger Dienst für die ganze App,
 // die Anzeige liest seinen Zustand über useJarvis(). Während Jarvis spricht, hört er nicht zu (sonst hört er sich selbst).
 import { useSyncExternalStore } from 'react'
-import { bruecke, jarvisEinstellungen, sequenzBruecke, setzeJarvis, type Stimme } from './desktop'
+import { bruecke, jarvisEinstellungen, sequenzBruecke, setzeJarvis, type JarvisEinstellungen, type Stimme } from './desktop'
 import { befehl, codewort, fragtNachDaten, istNachfrage, istWiederholung, type Befehl } from './befehle'
 import { ziehe } from './fundus'
 import { flachwitzFuer } from './flachwitze'
@@ -282,6 +282,7 @@ export async function einschalten() {
   try {
     // Lokis Stimme lädt parallel im Hintergrund (ca. 12 s) – bis dahin spricht Piper
     if (jarvisEinstellungen().stimme === 'loki') void b.stimme(true).catch(() => null)
+    void gehoerSchalten(true)
     await b.vorbereiten()
     if (meiner !== lauf) return // währenddessen ausgeschaltet
     setze({ zustand: 'bereit', fortschritt: null })
@@ -292,6 +293,7 @@ export async function einschalten() {
     if (meiner !== lauf) return
     setze({ zustand: 'fehler', fortschritt: null, fehler: (e as Error).message })
     await b.stimme(false).catch(() => null) // Jarvis läuft nicht – Grafikspeicher freigeben (Prüf-Agent)
+    await gehoerSchalten(false)
   }
 }
 
@@ -304,7 +306,20 @@ export async function ausschalten() {
   stopp()
   await mikrofonAus()
   // gibt den Grafikspeicher frei – aber nicht, wenn inzwischen schon wieder eingeschaltet wurde
-  if (meiner === lauf) await bruecke()?.stimme(false)
+  if (meiner === lauf) { await bruecke()?.stimme(false); await gehoerSchalten(false) }
+}
+
+/** Lokis Gehör (Grafikkarte) laden bzw. beenden – mit der Wahl und den eigenen Wörtern aus den Einstellungen */
+export async function gehoerSchalten(an: boolean, nurWorte = false) {
+  const e = jarvisEinstellungen()
+  await bruecke()?.gehoer?.({ an: an && e.hoeren === 'turbo', art: e.hoeren, worte: e.wortliste, nurWorte }).catch(() => null)
+}
+
+/** Spracherkennung wählen bzw. Wortliste geändert: gleich übernehmen, wenn Jarvis gerade an ist */
+export async function hoerenWaehlen(neu: Partial<Pick<JarvisEinstellungen, 'hoeren' | 'wortliste'>>) {
+  setzeJarvis(neu)
+  // nur die Wortliste geändert (jeder Tastendruck): Wörter übernehmen, aber nichts starten/neu starten (Prüf-Agent)
+  if (lage.zustand !== 'aus' && lage.zustand !== 'fehler') await gehoerSchalten(true, !('hoeren' in neu))
 }
 
 /** Stimme wählen: Loki gleich laden bzw. beenden, wenn Jarvis gerade an ist */

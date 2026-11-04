@@ -23,6 +23,16 @@ app.whenReady().then(async () => {
       console.log('Loki gesprochen:', (l.samples.length / l.sampleRate).toFixed(1), 's Ton in', Date.now() - t2, 'ms')
       console.log('LOKI-TEST erkannt:', JSON.stringify(await j.erkennen(l.samples, l.sampleRate)))
     }
+    // Lokis Gehör (04.11.2026): Whisper turbo auf der Grafikkarte laden und den Piper-Satz wiedererkennen
+    const t3 = Date.now()
+    j.gehoer.starten()
+    while (j.gehoer.status().zustand === 'laedt' && Date.now() - t3 < 180_000) await new Promise((w) => setTimeout(w, 300))
+    console.log('GEHOER', JSON.stringify(j.gehoer.status()), 'nach', Date.now() - t3, 'ms')
+    if (j.gehoer.status().zustand === 'bereit') {
+      const auf16 = new Float32Array(Math.floor((a.samples.length * 16000) / a.sampleRate)).map((_, i) => a.samples[Math.floor((i * a.sampleRate) / 16000)])
+      const t4 = Date.now()
+      console.log('GEHOER-TEST erkannt:', JSON.stringify(await j.erkennenTurbo(auf16)), 'in', Date.now() - t4, 'ms')
+    }
     // nach dem Ausschalten darf kein Python der Stimme mehr Grafikspeicher belegen (python.exe ist nur ein Starter)
     const smi = (...a) => require('node:child_process').execFileSync('nvidia-smi', [...a, '--format=csv,noheader'], { encoding: 'utf8' })
     const gpu = () => ({
@@ -31,8 +41,9 @@ app.whenReady().then(async () => {
     })
     console.log('Grafikkarte vorher:', JSON.stringify(gpu()))
     j.loki.beenden()
+    j.gehoer.beenden()
     await new Promise((w) => setTimeout(w, 3000))
-    console.log('LOKI-BEENDEN Grafikkarte nachher:', JSON.stringify(gpu()), JSON.stringify(j.loki.status()))
+    console.log('LOKI-BEENDEN Grafikkarte nachher:', JSON.stringify(gpu()), JSON.stringify(j.loki.status()), JSON.stringify(j.gehoer.status()))
   } catch (e) {
     console.log('JARVIS-TEST Fehler:', e && e.stack || e)
   }

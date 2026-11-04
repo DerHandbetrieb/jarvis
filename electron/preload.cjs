@@ -62,13 +62,14 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     vorbereiten: () => ipcRenderer.invoke('jarvis-vorbereiten'),
     sprechen: (a) => ipcRenderer.invoke('jarvis-sprechen', { text: String(a?.text ?? ''), piperText: String(a?.piperText ?? ''), tempo: Number(a?.tempo), stimme: a?.stimme === 'loki' ? 'loki' : 'piper' }),
     stimme: (an) => ipcRenderer.invoke('jarvis-stimme', !!an),
+    gehoer: (a) => ipcRenderer.invoke('jarvis-gehoer', { an: !!a?.an, nurWorte: !!a?.nurWorte, art: a?.art === 'klein' ? 'klein' : 'turbo', worte: String(a?.worte ?? '').slice(0, 1000) }),
     zuhoeren: (an) => ipcRenderer.invoke('jarvis-zuhoeren', !!an),
     frage: (modell, nachrichten) => ipcRenderer.invoke('jarvis-frage', { modell: String(modell), nachrichten }),
     modellPruefen: (modell) => ipcRenderer.invoke('jarvis-modell-pruefen', String(modell)),
     modellHolen: (modell) => ipcRenderer.invoke('jarvis-modell-holen', String(modell)),
     ton: (stueck) => { if (stueck instanceof Float32Array) ipcRenderer.send('jarvis-ton', stueck) },
     beiErkannt: (fn) => {
-      const h = (_e, d) => fn({ text: String(d?.text ?? ''), sekunden: Number(d?.sekunden ?? 0) })
+      const h = (_e, d) => fn({ text: String(d?.text ?? ''), sekunden: Number(d?.sekunden ?? 0), art: d?.art === 'turbo' ? 'turbo' : 'klein' })
       ipcRenderer.on('jarvis-erkannt', h)
       return () => ipcRenderer.removeListener('jarvis-erkannt', h)
     },

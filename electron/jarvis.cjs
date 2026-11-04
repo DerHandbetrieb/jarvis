@@ -3,7 +3,7 @@
 // offiziellen sherpa-onnx-Veröffentlichungen auf GitHub in den App-Datenordner:
 // - Stimme: Piper „Thorsten high“ (Stimme CC0, Programm GPL-3.0 bzw. sherpa-onnx Apache-2.0)
 // - Sprechpausen-Erkennung: Silero VAD (MIT)
-// - Spracherkennung: Whisper small, int8 (MIT)
+// - Spracherkennung: Whisper small, int8 (MIT) – seit 04.11.2026 nur noch Ersatz, siehe Lokis Gehör unten
 // Lokis eigentliche Stimme (Qwen3-TTS, Probe S) läuft als eigenes Python-Programm (loki.cjs); Piper springt ein, solange
 // sie lädt, fehlt oder abstürzt – Loki bleibt nie stumm.
 // Die Oberfläche schickt Mikrofon-Ton (16 kHz) über die Brücke; erkannte Sätze gehen als Text zurück.
@@ -47,7 +47,33 @@ const loki = erstelleLoki({
   toeten: (p) => { if (p.exitCode !== null || p.signalCode !== null) return; if (p.pid) spawn(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'taskkill.exe'), ['/T', '/F', '/PID', String(p.pid)], { windowsHide: true }).on('error', () => p.kill()); else p.kill() },
   log: (...a) => console.log(...a),
 })
-app.on('will-quit', () => loki.beenden())
+// Lokis Gehör (04.11.2026, Rückmeldung Auftraggeber „versteht mich oft schlecht“, Entscheidung „Ja, einbauen“):
+// Whisper large-v3-turbo auf der Grafikkarte (faster-whisper, gehoer/loki_gehoer.py) mit Wortliste – gemessen ca. ein
+// Drittel der Fehler von small und 0,11 s je Satz, ca. 1,2 GB Grafikspeicher. Eigene Python-Umgebung aus
+// gehoer/einrichten.ps1 (%APPDATA%\Jarvis\gehoer-python), Modell in jarvis\faster-whisper. Whisper small (oben, Prozessor)
+// bleibt geladen und springt ein, solange das Gehör lädt, fehlt, gestört ist, ein Vollbild-Spiel läuft oder „Klein“ gewählt ist.
+const gehoerModelle = () => path.join(ordner(), 'faster-whisper')
+const gehoer = erstelleLoki({
+  bezeichnung: 'Das Gehör von L.O.K.I.',
+  fehltText: 'Das Gehör von L.O.K.I. ist auf diesem PC nicht eingerichtet (gehoer/einrichten.ps1).',
+  python: () => { const p = path.join(app.getPath('userData'), 'gehoer-python', 'Scripts', 'python.exe'); return fs.existsSync(p) ? p : null }, // beim Entwickeln dieselbe Einrichtung
+  skript: app.isPackaged ? path.join(process.resourcesPath, 'gehoer', 'loki_gehoer.py') : path.join(projekt, 'gehoer', 'loki_gehoer.py'),
+  get noetig() { return [gehoerModelle()] },
+  get argumente() { return [gehoerModelle()] },
+  starten: spawn,
+  toeten: (p) => { if (p.exitCode !== null || p.signalCode !== null) return; if (p.pid) spawn(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'taskkill.exe'), ['/T', '/F', '/PID', String(p.pid)], { windowsHide: true }).on('error', () => p.kill()); else p.kill() },
+  log: (...a) => console.log(...a),
+})
+/** feste Wörter, die Whisper als Hinweis bekommt (Namen und Befehle, die sonst oft falsch ankommen) – eigene aus den Einstellungen dazu */
+// Reihenfolge mit Absicht: „Loki“ steht nicht direkt vor einem Befehlswort – ein Echo der Liste ergäbe sonst „Loki, Lage“ (Prüf-Agent)
+const GRUNDWORTE = 'Neuigkeiten, Etsy, Amazon, Loki, Freigaben, Marketing, Lager, Selbsttest, Emma, Öhringen, Carport, Kerzenständer, Lage'
+let hoerArt = 'turbo' // turbo = Grafikkarte, klein = Whisper small auf dem Prozessor
+let worte = GRUNDWORTE
+/** längste Wartezeit je Satz: gemessen 0,11 s im Mittel – großzügig 8 s + 0,5 s je Sekunde Ton (Grafikkarte kann gerade
+ *  von Stimme/Sprachmodell belegt sein), danach gilt das Gehör als gestört und small übernimmt */
+const hoerZeit = (sekunden) => 8_000 + 500 * sekunden
+let spielAktiv = false // während eines Vollbild-Spiels das Gehör nie laden (Prüf-Agent)
+app.on('will-quit', () => { loki.beenden(); gehoer.beenden() })
 
 function sherpaLaden() {
   if (!sherpa) sherpa = require('sherpa-onnx-node')
@@ -67,6 +93,7 @@ function status() {
     zuhoeren,
     groesseMb: Object.values(MODELLE).reduce((s, m) => s + m.mb, 0),
     loki: loki.status(),
+    gehoer: { ...gehoer.status(), art: hoerArt },
   }
 }
 
@@ -171,28 +198,51 @@ function tonAnnehmen(stueck) {
     samples.set(seg.samples)
     // nacheinander erkennen, damit Sätze in der richtigen Reihenfolge ankommen
     erkennt = erkennt.then(async () => {
-      const st = erkenner.createStream()
-      st.acceptWaveform({ samples, sampleRate: 16000 })
-      const r = await erkenner.decodeAsync(st)
-      const text = String(r?.text ?? '').trim()
-      if (text && fenster && !fenster.isDestroyed()) fenster.webContents.send('jarvis-erkannt', { text, sekunden: samples.length / 16000 })
+      const { text, art } = await erkennen(samples)
+      if (text && fenster && !fenster.isDestroyed()) fenster.webContents.send('jarvis-erkannt', { text, sekunden: samples.length / 16000, art })
     }).catch((e) => console.error('Jarvis-Erkennung:', e))
   }
+}
+
+/** Ein Sprachstück (16 kHz) erkennen: mit dem Gehör auf der Grafikkarte, wenn gewählt und bereit – sonst (oder bei einem
+ *  Fehler) mit Whisper small. → { text, art: 'turbo' | 'klein' } */
+async function erkennen(samples) {
+  if (hoerArt === 'turbo' && gehoer.status().zustand === 'bereit') {
+    try {
+      const ton = Buffer.from(samples.buffer, samples.byteOffset, samples.byteLength).toString('base64')
+      const d = await gehoer.auftrag({ ton, worte }, hoerZeit(samples.length / 16000))
+      const text = String(d?.text ?? '').trim()
+      // leer trotz ≥ 1 s Ton (z. B. als Einbildung oder zu unsicher verworfen): small hört zur Sicherheit noch einmal hin,
+      // damit L.O.K.I. bei leiser Sprache im Lärm nicht taub wirkt (Prüf-Agent); dessen Floskeln filtert istNachfrage
+      if (text || samples.length < 16000 * 1.5) return { text, art: 'turbo' }
+    } catch (f) { console.error('Gehör, Whisper small springt ein:', f.message) }
+  }
+  const st = erkenner.createStream()
+  st.acceptWaveform({ samples, sampleRate: 16000 })
+  const r = await erkenner.decodeAsync(st)
+  return { text: String(r?.text ?? '').trim(), art: 'klein' }
 }
 
 // Vollbild-Spiel (04.11.2026, Wunsch Auftraggeber): Lokis Stimme und das Sprachmodell geben den Grafikspeicher frei,
 // danach lädt die Stimme von selbst wieder (das Sprachmodell lädt ohnehin erst bei der nächsten Frage). Bis dahin
 // spricht Piper (läuft auf dem Prozessor).
 let wegenSpiel = false
+let gehoerWegenSpiel = false
 async function spielLaeuft(an) {
   if (an) {
     if (loki.status().zustand !== 'aus') { wegenSpiel = true; loki.beenden() }
+    spielAktiv = true
+    if (gehoer.status().zustand !== 'aus') { gehoerWegenSpiel = true; gehoer.beenden() } // small hört weiter
     try {
       // geladene Modelle sofort entladen (offizieller Weg: keep_alive 0)
       const r = await fetch('http://127.0.0.1:11434/api/ps', { signal: AbortSignal.timeout(3000) })
       for (const m of (await r.json())?.models ?? []) await fetch('http://127.0.0.1:11434/api/generate', { method: 'POST', body: JSON.stringify({ model: m.name, keep_alive: 0 }), signal: AbortSignal.timeout(10_000) })
     } catch { /* Ollama läuft nicht – nichts zu entladen */ }
-  } else if (wegenSpiel) { wegenSpiel = false; loki.starten() }
+  } else {
+    if (wegenSpiel) { wegenSpiel = false; loki.starten() }
+    spielAktiv = false
+    if (gehoerWegenSpiel) { gehoerWegenSpiel = false; if (hoerArt === 'turbo') gehoer.starten() }
+  }
 }
 
 /** Brücke einrichten; nur Anfragen aus dem Hauptfenster werden beantwortet */
@@ -227,6 +277,19 @@ function einrichten(hauptfenster, erlaubt) {
     if (!von(e)) return null
     wegenSpiel = false // ausdrücklich geschaltet: nach dem Spiel nicht von selbst wieder laden
     if (an) loki.starten(); else loki.beenden()
+    return status()
+  })
+  // Lokis Gehör: an (lädt im Hintergrund, ca. 5–30 s, ca. 1,2 GB Grafikspeicher) oder aus; art turbo/klein, eigene Wörter
+  ipcMain.handle('jarvis-gehoer', (e, a) => {
+    if (!von(e)) return null
+    hoerArt = a?.art === 'klein' ? 'klein' : 'turbo'
+    const eigene = String(a?.worte ?? '').split(/[\n,;]+/).map((w) => w.trim().replace(/[^\p{L}\p{N} .'-]/gu, '').slice(0, 40)).filter(Boolean)
+    worte = [GRUNDWORTE, ...eigene].join(', ').slice(0, 400)
+    if (a?.nurWorte) return status() // Tippen in der Wortliste: nur die Wörter übernehmen, nichts starten (Prüf-Agent)
+    const an = !!a?.an && hoerArt === 'turbo'
+    if (spielAktiv) { gehoerWegenSpiel = an; gehoer.beenden(); return status() } // nach dem Spiel lädt es von selbst
+    gehoerWegenSpiel = false // ausdrücklich geschaltet
+    if (an) gehoer.starten(); else gehoer.beenden()
     return status()
   })
   ipcMain.on('jarvis-ton', (e, stueck) => {
@@ -290,7 +353,7 @@ function einrichten(hauptfenster, erlaubt) {
 module.exports = {
   einrichten,
   /** Lokis Stimme beenden (Windows meldet ab / fährt herunter) */
-  stimmeBeenden: () => loki.beenden(),
+  stimmeBeenden: () => { loki.beenden(); gehoer.beenden() },
   /** Vollbild-Spiel läuft (true) bzw. ist vorbei (false) – electron/vollbild.cjs */
   spielLaeuft,
   // nur für den Selbsttest (electron electron/jarvis-test.cjs)
@@ -298,6 +361,8 @@ module.exports = {
     vorbereiten, status,
     sprechen: async (text) => tts.generateAsync({ text, sid: 0, speed: 0.88, enableExternalBuffer: false }),
     loki,
+    gehoer,
+    erkennenTurbo: async (samples) => { const mit = new Float32Array(samples.length + 8000); mit.set(samples); const d = await gehoer.auftrag({ ton: Buffer.from(mit.buffer).toString('base64'), worte }, 20_000); return String(d?.text ?? '') },
     erkennen: async (samples, rate) => { const st = erkenner.createStream(); const mit = new Float32Array(samples.length + rate / 2); mit.set(samples); st.acceptWaveform({ samples: mit, sampleRate: rate }); return (await erkenner.decodeAsync(st)).text },
   },
 }

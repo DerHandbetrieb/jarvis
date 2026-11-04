@@ -193,4 +193,36 @@ describe('Lokis Stimme (Verbindung)', () => {
       expect(programme[1].kill).not.toHaveBeenCalled()
     } finally { vi.useRealTimers() }
   })
+
+  it('Gehör (04.11.2026): eigene Dateien/Argumente, Aufträge mit beliebigen Daten, Wartezeit je Auftrag', async () => {
+    vi.useFakeTimers()
+    try {
+      const p = falschesProgramm()
+      const starten = vi.fn(() => p)
+      const g = erstelleLoki({ python: () => 'python.exe', skript: SKRIPT, starten, bezeichnung: 'Das Gehör', fehltText: 'Gehör fehlt', noetig: [SKRIPT], argumente: ['C:/modelle'] })
+      g.starten()
+      expect(starten.mock.calls[0][1]).toEqual(['-I', SKRIPT, 'C:/modelle'])
+      p.sende({ bereit: true, sekunden: 3 })
+      await vi.advanceTimersByTimeAsync(1)
+      const antwort = g.auftrag({ ton: 'AAAA', worte: 'Loki' }, 5000)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(p.auftraege[0]).toEqual({ ton: 'AAAA', worte: 'Loki', id: 1 })
+      p.sende({ id: 1, text: 'Loki, Lage.' })
+      expect(await antwort).toEqual({ id: 1, text: 'Loki, Lage.' })
+      // antwortet nicht rechtzeitig → Fehler, Störung (der Ersatz übernimmt)
+      const zuSpaet = g.auftrag({ ton: 'BBBB' }, 5000)
+      const pruefung = expect(zuSpaet).rejects.toThrow('Das Gehör antwortet nicht.')
+      await vi.advanceTimersByTimeAsync(5001)
+      await pruefung
+      expect(g.status().zustand).toBe('fehler')
+    } finally { vi.useRealTimers() }
+  })
+
+  it('Gehör fehlt, wenn das Modell nicht da ist', () => {
+    const starten = vi.fn()
+    const g = erstelleLoki({ python: () => 'python.exe', skript: SKRIPT, starten, fehltText: 'Gehör fehlt', noetig: ['C:/gibt-es-nicht/modell'] })
+    g.starten()
+    expect(g.status()).toEqual({ zustand: 'fehlt', fehler: 'Gehör fehlt' })
+    expect(starten).not.toHaveBeenCalled()
+  })
 })

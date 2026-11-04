@@ -5,8 +5,12 @@ import { BAUSTEINE, type BausteinSchluessel } from './morgenlage'
 
 /** Lokis Stimme (Qwen3-TTS als eigenes Python-Programm): fehlt = nicht eingerichtet, fehler = abgestürzt/Laden misslungen */
 export type LokiZustand = 'aus' | 'laedt' | 'bereit' | 'fehlt' | 'fehler'
-export type JarvisStatus = { verfuegbar: boolean; modelle: Record<string, boolean>; bereit: boolean; zuhoeren: boolean; groesseMb: number; loki?: { zustand: LokiZustand; fehler: string } }
+export type JarvisStatus = { verfuegbar: boolean; modelle: Record<string, boolean>; bereit: boolean; zuhoeren: boolean; groesseMb: number; loki?: { zustand: LokiZustand; fehler: string }
+  /** Lokis Gehör (Whisper turbo auf der Grafikkarte, 04.11.2026) – gleiche Zustände wie die Stimme */
+  gehoer?: { zustand: LokiZustand; fehler: string; art: Hoeren } }
 export type Stimme = 'loki' | 'piper'
+/** Spracherkennung: turbo = Grafikkarte (genauer), klein = Whisper small auf dem Prozessor (alter Stand, immer als Ersatz da) */
+export type Hoeren = 'turbo' | 'klein'
 /** Autostart mit Windows – nur im installierten Programm verfügbar */
 export type Autostart = { verfuegbar: boolean; an: boolean }
 export type JarvisBruecke = {
@@ -22,6 +26,8 @@ export type JarvisBruecke = {
   sprechen: (a: { text: string; piperText: string; tempo: number; stimme: Stimme }) => Promise<{ samples: Float32Array; sampleRate: number; stimme: Stimme } | null>
   /** Lokis Stimme laden (im Hintergrund) oder beenden (gibt den Grafikspeicher frei) */
   stimme: (an: boolean) => Promise<JarvisStatus | null>
+  /** Lokis Gehör laden (im Hintergrund) oder beenden; worte = eigene Wörter für die Wortliste */
+  gehoer?: (a: { an: boolean; art: Hoeren; worte: string; nurWorte?: boolean }) => Promise<JarvisStatus | null>
   zuhoeren: (an: boolean) => Promise<JarvisStatus | null>
   frage: (modell: string, nachrichten: { role: 'system' | 'user' | 'assistant'; content: string }[]) => Promise<{ text: string; fehler?: 'modell' | 'ollama' | 'fehlt' } | null>
   /** Modell-Prüfung (monatlich, 04.11.2026): stand aktuell | neuer | fehlt | unbekannt */
@@ -29,7 +35,7 @@ export type JarvisBruecke = {
   /** neue Fassung über Ollama herunterladen (kann einige Minuten dauern) */
   modellHolen?: (modell: string) => Promise<{ ok: boolean; text?: string } | null>
   ton: (stueck: Float32Array) => void
-  beiErkannt: (fn: (d: { text: string; sekunden: number }) => void) => () => void
+  beiErkannt: (fn: (d: { text: string; sekunden: number; art?: Hoeren }) => void) => () => void
   beiFortschritt: (fn: (d: { name: string; anteil: number }) => void) => () => void
 }
 
@@ -89,6 +95,10 @@ export type JarvisEinstellungen = {
   humor: boolean
   /** loki = neue Stimme (Probe S), piper = alte Computerstimme Thorsten */
   stimme: Stimme
+  /** Spracherkennung: turbo (Grafikkarte, Standard) oder klein (Prozessor) */
+  hoeren: Hoeren
+  /** eigene Wörter, die L.O.K.I. besser verstehen soll (Produkt- und Namen), durch Komma oder Zeile getrennt */
+  wortliste: string
   /** Sprechtempo – nur für Piper, Loki hat sein Tempo aus der Vorlage */
   tempo: number
   bausteine: BausteinSchluessel[]
@@ -108,7 +118,7 @@ export type JarvisEinstellungen = {
 }
 
 const STANDARD: JarvisEinstellungen = {
-  an: false, anrede: 'Sir', humor: true, stimme: 'loki', tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
+  an: false, anrede: 'Sir', humor: true, stimme: 'loki', hoeren: 'turbo', wortliste: '', tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
 }
 const SCHLUESSEL = 'jarvis.einstellungen'
 const zuhoerer = new Set<() => void>()

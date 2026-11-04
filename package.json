@@ -2,7 +2,7 @@
   "name": "jarvis",
   "productName": "Jarvis",
   "private": true,
-  "version": "0.7.6",
+  "version": "0.8.0",
   "description": "Jarvis – lokaler Sprachassistent für den PC (später Hausassistent), Der Handbetrieb (Bloßfeld und Jungk GbR)",
   "author": "Bloßfeld und Jungk GbR",
   "type": "module",
@@ -61,6 +61,15 @@
           "loki_stimme.py",
           "loki-vorlage.wav",
           "LIESMICH.md",
+          "einrichten.ps1",
+          "anforderungen.txt"
+        ]
+      },
+      {
+        "from": "gehoer",
+        "to": "gehoer",
+        "filter": [
+          "loki_gehoer.py",
           "einrichten.ps1",
           "anforderungen.txt"
         ]
