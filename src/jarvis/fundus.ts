@@ -3,6 +3,9 @@
 // Grenzen: nichts über Aussehen, Gewicht, Herkunft, Alter, Gesundheit; nichts gegen andere Menschen oder Gruppen;
 // nicht vulgär, keine Politik/Religion, keine Gewalt- oder Suizid-Witze, keine Filmzitate.
 // Jeder Eintrag bekommt die Anrede (normalerweise „Sir“) und liefert einen vorlesbaren Satz (Zahlen ausgeschrieben).
+import { nachschub } from './nachschub'
+import { waehle, type Speicher } from './rotation'
+
 export const FUNDUS: Record<string, ((a: string) => string)[]> = {
   allgemein: [
     (a) => `Ich bin zu Diensten, ${a}. Wie immer, ohne dass es jemand würdigt.`,
@@ -527,21 +530,16 @@ export const FUNDUS: Record<string, ((a: string) => string)[]> = {
   ],
 }
 
-/** alle Sprüche als eine Liste (Reihenfolge fest, damit gemerkte Nummern gültig bleiben) */
-const ALLE = Object.values(FUNDUS).flat()
+// Nachschub (nachschub.ts) an die Bereiche anhängen
+for (const [b, liste] of Object.entries(nachschub())) if (FUNDUS[b]) FUNDUS[b].push(...liste)
+
+/** alle Sprüche als eine Liste */
+export const ALLE = Object.values(FUNDUS).flat()
 
 /**
- * n Sprüche ziehen, die zuletzt nicht dran waren: die letzten ~drei Viertel des Fundus werden gemerkt
- * (localStorage „jarvis.fundus“), erst danach kommt ein Spruch wieder in Frage. zufall für Tests ersetzbar.
+ * n Sprüche ziehen: benutzte wandern nach hinten – zuerst die noch nie benutzten, danach die am längsten nicht
+ * benutzten (rotation.ts, Wunsch Auftraggeber 04.11.2026). zufall und speicher für Tests ersetzbar.
  */
-export function ziehe(n: number, anrede: string, zufall: () => number = Math.random, speicher: Pick<Storage, 'getItem' | 'setItem'> | null = typeof localStorage === 'undefined' ? null : localStorage): string[] {
-  let zuletzt: number[] = []
-  try { const roh = JSON.parse(speicher?.getItem('jarvis.fundus') ?? '[]'); if (Array.isArray(roh)) zuletzt = roh.filter((x) => Number.isInteger(x) && x >= 0 && x < ALLE.length) } catch { /* leer anfangen */ }
-  const gesperrt = new Set(zuletzt)
-  const frei = ALLE.map((_, i) => i).filter((i) => !gesperrt.has(i))
-  const wahl: number[] = []
-  while (wahl.length < n && frei.length) wahl.push(frei.splice(Math.min(frei.length - 1, Math.floor(zufall() * frei.length)), 1)[0])
-  const merken = [...zuletzt, ...wahl].slice(-Math.floor(ALLE.length * 0.75))
-  try { speicher?.setItem('jarvis.fundus', JSON.stringify(merken)) } catch { /* dann eben nicht gemerkt */ }
-  return wahl.map((i) => ALLE[i](anrede))
+export function ziehe(n: number, anrede: string, zufall: () => number = Math.random, speicher: Speicher = typeof localStorage === 'undefined' ? null : localStorage): string[] {
+  return waehle('fundus', ALLE.map((f) => f('Sir')), n, zufall, speicher).map((i) => ALLE[i](anrede))
 }

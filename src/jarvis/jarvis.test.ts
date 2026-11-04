@@ -212,3 +212,47 @@ describe('Neuigkeiten ansagen (04.11.2026)', () => {
     }
   })
 })
+
+describe('Benutzte Sprüche nach hinten (rotation.ts, 04.11.2026)', () => {
+  const speicher = () => { const d: Record<string, string> = {}; return { getItem: (k: string) => d[k] ?? null, setItem: (k: string, v: string) => { d[k] = v } } }
+  it('erst kommt jeder einmal dran, danach nur die am längsten nicht benutzten', async () => {
+    const { waehle } = await import('./rotation')
+    const sp = speicher(), texte = Array.from({ length: 20 }, (_, i) => `Spruch ${i}`)
+    const erste = Array.from({ length: 20 }, () => waehle('t', texte, 1, Math.random, sp)[0])
+    expect(new Set(erste).size).toBe(20)
+    // die nächsten 5 dürfen nur aus dem ältesten Viertel kommen (die ersten 5 der Runde)
+    const naechste = waehle('t', texte, 1, () => 0.99, sp)[0]
+    expect(erste.slice(0, 5)).toContain(naechste)
+  })
+  it('neue Sprüche (Nachschub) kommen zuerst dran, entfernte werden vergessen', async () => {
+    const { waehle, stand } = await import('./rotation')
+    const sp = speicher()
+    const alt = ['a', 'b', 'c']
+    for (let i = 0; i < 3; i++) waehle('t', alt, 1, Math.random, sp)
+    expect(stand({ t: alt }, sp).t).toEqual({ gesamt: 3, unbenutzt: 0 })
+    const mitNeu = ['a', 'b', 'c', 'neu']
+    expect(stand({ t: mitNeu }, sp).t.unbenutzt).toBe(1)
+    expect(mitNeu[waehle('t', mitNeu, 1, Math.random, sp)[0]]).toBe('neu')
+    expect(waehle('t', [], 1, Math.random, sp)).toEqual([])
+    expect(waehle('kaputt', ['x'], 1, Math.random, { getItem: () => '{kaputt', setItem: () => {} })).toEqual([0])
+  })
+  it('Begrüßung: nie dieselbe wie zuletzt, jede kommt dran, bevor sich eine wiederholt', async () => {
+    const { naechsteBegruessung, BEGRUESSUNGEN } = await import('./begruessung')
+    const sp = speicher(), gehoert: number[] = []
+    let letzte = -1
+    for (let i = 0; i < BEGRUESSUNGEN.length; i++) { const nr = naechsteBegruessung(letzte, Math.random, sp); expect(nr).not.toBe(letzte); gehoert.push(nr); letzte = nr }
+    expect(new Set(gehoert).size).toBe(BEGRUESSUNGEN.length)
+  })
+  it('Nachschub: jede Zeile „bereich|Text“ hat einen bekannten Bereich und den Platzhalter {a}', async () => {
+    const { NACHSCHUB_TEXT } = await import('./nachschub')
+    const { FUNDUS } = await import('./fundus')
+    const bereiche = new Set([...Object.keys(FUNDUS), 'begruessung', ...['bestellung', 'aufgabe', 'problem', 'knapp', 'freigabe', 'zurueck'].map((b) => `neu-${b}`)])
+    for (const z of NACHSCHUB_TEXT.split(/\r?\n/).filter((x) => x.trim() && !x.trimStart().startsWith('#'))) {
+      const [b, t] = [z.slice(0, z.indexOf('|')), z.slice(z.indexOf('|') + 1)]
+      expect(bereiche.has(b), z).toBe(true)
+      expect(t, z).toContain('{a}')
+      expect(/\d|`|\$\{/.test(t), z).toBe(false)
+      expect(t.split(/\s+/).length, z).toBeLessThanOrEqual(22)
+    }
+  })
+})

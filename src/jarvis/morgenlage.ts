@@ -24,6 +24,8 @@ export type LageEingabe = {
   lager?: { namen: string[] } | null
   verkauf?: { bestellungen: number; stueck: number; umsatzCent: number } | null
   freigaben?: number | null
+  /** Spitzen und Sprüche auswählen (dienst.ts: benutzte nach hinten, rotation.ts); ohne = nach Tag (Tests) */
+  waehler?: (pool: string, liste: string[]) => string
 }
 
 /** Zahl in Worten für kleine Werte (klingt gesprochen besser), sonst Ziffern */
@@ -167,7 +169,8 @@ export function morgenLage(e: LageEingabe): string[] {
   // Seitenhieb nur mit Humor (Einstellung, Standard an); die Sachsätze kommen immer
   // „Sir“ in den festen Sätzen durch die eingestellte Anrede ersetzen
   const anrede = (x: string) => x.replace(/\bSir\b/g, e.anrede)
-  const hieb = (liste: string[]) => { if (e.humor) s.push(anrede(spitze(liste, t))) }
+  const gruppe = (liste: string[]) => Object.entries(SPITZEN).find(([, v]) => v === liste)?.[0] ?? 'spitzen'
+  const hieb = (liste: string[]) => { if (e.humor) s.push(anrede(e.waehler ? e.waehler(gruppe(liste), liste) : spitze(liste, t))) }
   s.push(`${gruss(e.jetzt)}, ${e.anrede}. Es ist ${uhrzeit(e.jetzt)}.`)
   const h = e.jetzt.getHours()
   if (h < 11) hieb(h < 6 ? SPITZEN.frueh : h < 9 ? SPITZEN.morgens : SPITZEN.spaet)
@@ -213,7 +216,7 @@ export function morgenLage(e: LageEingabe): string[] {
   }
 
   // ungefähr jeden zweiten Tag zusätzlich ein Spruch ohne Arbeitsbezug, an einem Tag immer derselbe
-  if (e.humor && t % 2 === 0) s.push(anrede(SPRUECHE[(t / 2) % SPRUECHE.length]))
-  s.push(e.humor ? anrede(spitze(SPITZEN.schluss, t)) : 'Das wäre alles. Ich bin hier, falls Sie mich brauchen.')
+  if (e.humor && t % 2 === 0) s.push(anrede(e.waehler ? e.waehler('sprueche', SPRUECHE) : SPRUECHE[(t / 2) % SPRUECHE.length]))
+  s.push(e.humor ? anrede(e.waehler ? e.waehler('schluss', SPITZEN.schluss) : spitze(SPITZEN.schluss, t)) : 'Das wäre alles. Ich bin hier, falls Sie mich brauchen.')
   return s
 }

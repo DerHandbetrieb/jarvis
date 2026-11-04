@@ -6,10 +6,13 @@ import { bruecke, jarvisEinstellungen, sequenzBruecke, setzeJarvis, type JarvisE
 import { befehl, codewort, fragtNachDaten, istNachfrage, istWiederholung, type Befehl } from './befehle'
 import { ziehe } from './fundus'
 import { flachwitzFuer } from './flachwitze'
-import { morgenLage, tagNummer, type BausteinSchluessel } from './morgenlage'
+import { morgenLage, SPITZEN, SPRUECHE, type BausteinSchluessel } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
-import { begruessung, sequenzGruss, waehleBegruessung } from './begruessung'
+import { BEGRUESSUNGEN, begruessung, naechsteBegruessung, sequenzGruss } from './begruessung'
+import { waehle, stand } from './rotation'
+import { nachschub } from './nachschub'
+import { ALLE as FUNDUS_ALLE } from './fundus'
 import { ansage, auswaehlen, type Neuigkeit, type Spitzenbereich } from './neuigkeiten'
 import { NEU_SPITZEN } from './neuSpitzen'
 
@@ -168,7 +171,7 @@ export async function morgenLageVortragen() {
   const pruefen = b?.modellPruefen && tageSeit(e.zuletztModellPruefung) >= 30 ? Promise.race([b.modellPruefen(e.modell).catch(() => null), new Promise<null>((f) => setTimeout(() => f(null), 5000))]) : Promise.resolve(null)
   const [daten, modell] = await Promise.all([ladeLageDaten(bausteine), pruefen])
   if (modell && modell.stand !== 'unbekannt') setzeJarvis({ zuletztModellPruefung: heute() })
-  const saetze = morgenLage({ jetzt: new Date(), anrede: e.anrede || 'Sir', humor: e.humor, bausteine, ...daten })
+  const saetze = morgenLage({ jetzt: new Date(), anrede: e.anrede || 'Sir', humor: e.humor, bausteine, ...daten, waehler: lageWaehler })
   if (modell?.stand === 'neuer') saetze.push(`Für mein Sprachmodell gibt es eine neuere Fassung. In den Einstellungen genügt ein Klick auf „Sprachmodell aktualisieren“.${e.humor ? ' Ein Klick, Sir. Ich traue Ihnen das zu. Beinahe.' : ''}`)
   // zum Schluss der Flachwitz des Tages (Wunsch Auftraggeber 04.11.2026; jeden Tag ein anderer)
   if (e.humor) saetze.push('Und zum Abschluss der Flachwitz des Tages.', flachwitzFuer(new Date()))
@@ -221,6 +224,7 @@ async function frage(text: string) {
   const daten = mitDaten ? await ladeLageDaten(new Set(e.bausteine as BausteinSchluessel[])).catch(() => null) : null
   // je Antwort drei wechselnde Anregungen aus dem Spruch-Fundus (Wunsch Auftraggeber 04.11.2026: Sprüche nicht wiederholen)
   const anregungen = e.humor ? `\n\nAnregungen für deinen Seitenhieb (passend auswählen, abwandeln oder eine eigene Pointe finden; höchstens eine je Antwort):\n${ziehe(3, e.anrede || 'Sir').map((s) => `- ${s}`).join('\n')}` : ''
+  if (e.humor) meldeSpruchStand()
   const system = `${charakter(e.anrede || 'Sir', e.humor)}${anregungen}${mitDaten ? `\n\nDaten der App (Stand jetzt):\n${JSON.stringify(daten ?? {})}` : ''}`
   const nachrichten = [{ role: 'system' as const, content: system }, ...verlauf.slice(-8), { role: 'user' as const, content: text }]
   const start = Date.now()
@@ -300,7 +304,7 @@ async function erkannt(text: string, sekunden = 0, art = '') {
 async function behandeln(text: string, c: ReturnType<typeof codewort>, begonnen: number) {
   try {
     if (c?.art === 'morgen') {
-      if (jarvisEinstellungen().zuletztLage === heute()) return sprechen([jarvisEinstellungen().humor ? ZWEITES_MAL[tagNummer(new Date()) % ZWEITES_MAL.length] : 'Guten Morgen, noch einmal. Die Lage habe ich Ihnen heute bereits vorgetragen. Für eine Wiederholung sagen Sie: Loki, Lage.'])
+      if (jarvisEinstellungen().zuletztLage === heute()) return sprechen([jarvisEinstellungen().humor ? zweitesMal() : 'Guten Morgen, noch einmal. Die Lage habe ich Ihnen heute bereits vorgetragen. Für eine Wiederholung sagen Sie: Loki, Lage.'])
       return morgenLageVortragen()
     }
     if (c?.art === 'hey') { setze({ wartetBis: 0 }); ohneCodewort = 0; return await ausfuehren(befehl(c.rest)) }
@@ -321,17 +325,45 @@ const ABWESEND_S = 600, NEU_PRUEFEN_MS = 15_000, NEU_HOECHSTENS_MS = 24 * 3600_0
 let neuSchlange: { n: Neuigkeit; zeit: number; verpasst: boolean }[] = []
 
 /** Seitenhieb je Bereich, ohne baldige Wiederholung (die letzten 60 % jedes Bereichs bleiben gesperrt) */
+/** Seitenhiebe nach Neuigkeiten je Bereich, samt Nachschub („neu-<bereich>“ in nachschub.ts) */
+const neuListe = (bereich: Spitzenbereich) => [...NEU_SPITZEN[bereich], ...(NACHSCHUB[`neu-${bereich}`] ?? []).map((f) => f('{anrede}'))]
 function neuSpitze(bereich: Spitzenbereich): string | null {
-  const liste = NEU_SPITZEN[bereich]
-  if (!liste?.length) return null
-  let zuletzt: Record<string, number[]> = {}
-  try { zuletzt = JSON.parse(localStorage.getItem('jarvis.neuSpitzen') ?? '{}') ?? {} } catch { /* leer */ }
-  const gesperrt = new Set((zuletzt[bereich] ?? []).slice(-Math.floor(liste.length * 0.6)))
-  const frei = liste.map((_, i) => i).filter((i) => !gesperrt.has(i))
-  const nr = frei[Math.floor(Math.random() * frei.length)] ?? 0
-  zuletzt[bereich] = [...(zuletzt[bereich] ?? []), nr].slice(-liste.length)
-  try { localStorage.setItem('jarvis.neuSpitzen', JSON.stringify(zuletzt)) } catch { /* egal */ }
+  const liste = neuListe(bereich)
+  const [nr] = waehle(`neu-${bereich}`, liste)
+  if (nr === undefined) return null
+  meldeSpruchStand()
   return liste[nr].replaceAll('{anrede}', jarvisEinstellungen().anrede || 'Sir')
+}
+
+// ---------- Spruch-Stand für Claude (04.11.2026) ----------
+// Wie viele Sprüche je Sammlung noch nie dran waren → %APPDATA%\Jarvis\sprueche-stand.json. Claude liest das in jeder
+// Arbeitssitzung und lässt nachschreiben, wo es knapp wird (Arbeitsregel, CLAUDE.md).
+const NACHSCHUB = nachschub()
+let standWecker: ReturnType<typeof setTimeout> | null = null
+export function spruchPools(): Record<string, string[]> {
+  return {
+    fundus: FUNDUS_ALLE.map((f) => f('Sir')),
+    begruessung: BEGRUESSUNGEN.map((b) => b('Sir')),
+    'zweites-mal': ZWEITES_MAL,
+    ...Object.fromEntries((Object.keys(NEU_SPITZEN) as Spitzenbereich[]).map((b) => [`neu-${b}`, neuListe(b)])),
+    ...Object.fromEntries(Object.entries(SPITZEN).map(([k, v]) => [`lage-${k}`, v])),
+    'lage-sprueche': SPRUECHE,
+  }
+}
+/** Spitzen der Morgen-Lage: benutzte nach hinten (Pool „lage-<gruppe>“) */
+const lageWaehler = (pool: string, liste: string[]) => { const [i] = waehle(`lage-${pool}`, liste); meldeSpruchStand(); return liste[i ?? 0] }
+/** „Guten Morgen“ zum zweiten Mal am Tag */
+function zweitesMal() { const [i] = waehle('zweites-mal', ZWEITES_MAL); meldeSpruchStand(); return ZWEITES_MAL[i ?? 0] }
+
+// alte Merk-Einträge (vor der Rotation, 04.11.2026) einmal aufräumen
+try { localStorage.removeItem('jarvis.fundus'); localStorage.removeItem('jarvis.neuSpitzen') } catch { /* egal */ }
+
+export function meldeSpruchStand() {
+  if (standWecker) return
+  standWecker = setTimeout(() => {
+    standWecker = null
+    try { bruecke()?.spruchStand?.(JSON.stringify({ stand: new Date().toISOString(), pools: stand(spruchPools()) })) } catch { /* egal */ }
+  }, 3000)
 }
 
 /** älter als 30 Minuten beim Ansagen = verpasst (z. B. während L.O.K.I. aus war) → Zusammenfassung statt Einzelheiten */
@@ -392,6 +424,7 @@ export async function einschalten() {
     await b.vorbereiten()
     if (meiner !== lauf) return // währenddessen ausgeschaltet
     setze({ zustand: 'bereit', fortschritt: null })
+    meldeSpruchStand()
     await mikrofonAn()
     // während das Mikrofon aufging ausgeschaltet → gleich wieder schließen
     if (meiner !== lauf) await mikrofonAus()
@@ -475,7 +508,8 @@ export async function startSequenzJetzt() {
   await b.zuhoeren(false) // sonst hört Loki die Musik der Sequenz
   // sobald die Sequenz vorbei ist (auch nach Abbruch oder Fehler), wieder zuhören
   void seq.ergebnis.then(() => { if (lage.mikrofon && lage.zustand === 'bereit') void b.zuhoeren(true) })
-  const e = jarvisEinstellungen(), nr = waehleBegruessung(e.letzteBegruessung, Math.random())
+  const e = jarvisEinstellungen(), nr = naechsteBegruessung(e.letzteBegruessung)
+  meldeSpruchStand()
   setzeJarvis({ letzteBegruessung: nr })
   await seq.gruss(sequenzGruss(nr, e.anrede, e.humor))
 }
@@ -519,7 +553,8 @@ export async function rechnerStart() {
   // währenddessen aus-/eingeschaltet oder schon angesprochen („Guten Morgen, Loki“) → nicht dazwischenreden
   if (meiner !== lauf || (lage.zustand as Zustand) !== 'bereit') return ohneGruss()
   const e = jarvisEinstellungen()
-  const nr = waehleBegruessung(e.letzteBegruessung, Math.random())
+  const nr = naechsteBegruessung(e.letzteBegruessung)
+  meldeSpruchStand()
   setzeJarvis({ letzteBegruessung: nr })
   let begruesst = false
   if (seq) {

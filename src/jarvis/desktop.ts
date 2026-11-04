@@ -37,6 +37,8 @@ export type JarvisBruecke = {
   modellHolen?: (modell: string) => Promise<{ ok: boolean; text?: string } | null>
   /** eine Zeile ins Gesprächs-Protokoll (gespraech.log im Datenordner) */
   protokoll?: (zeile: string) => void
+  /** Stand der Spruch-Sammlungen (wie viele noch nie dran waren) → sprueche-stand.json für Claude */
+  spruchStand?: (json: string) => void
   /** Anwesenheit: Sekunden ohne Maus/Tastatur, Vollbild-Spiel läuft (Neuigkeiten, 04.11.2026) */
   anwesenheit?: () => Promise<{ ruhe: number; spiel: boolean } | null>
   /** neue Ereignisse aus der Werkstatt abholen (schon mit dem Bekannten abgeglichen; der Hauptprozess hält sie bis dahin) */

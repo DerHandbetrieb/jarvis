@@ -302,6 +302,11 @@ function einrichten(hauptfenster, erlaubt) {
       fs.appendFileSync(datei, `${new Date().toLocaleString('de-DE')} ${String(zeile ?? '').replace(/[\r\n]+/g, ' ').slice(0, 600)}\n`)
     } catch { /* Protokoll ist nur Hilfe */ }
   })
+  // Spruch-Stand (04.11.2026): wie viele Sprüche je Sammlung noch nie dran waren – Claude füllt danach nach
+  ipcMain.on('jarvis-spruch-stand', (e, json) => {
+    if (!von(e)) return
+    try { JSON.parse(String(json)); fs.writeFileSync(path.join(app.getPath('userData'), 'sprueche-stand.json'), String(json).slice(0, 20000)) } catch { /* nur gültiges JSON */ }
+  })
   ipcMain.on('jarvis-ton', (e, stueck) => {
     if (!von(e) || !(stueck instanceof Float32Array)) return
     tonAnnehmen(stueck)

@@ -5,6 +5,9 @@
 // Herkunft oder Gesundheit, nichts gegen andere Menschen. Danach folgt (einmal am Tag) die Morgen-Lage.
 // Feste Sätze ohne Sprachmodell – Loki kann so auch ohne Ollama begrüßen.
 
+import { nachschub } from './nachschub'
+import { waehle, type Speicher } from './rotation'
+
 /** a = Anrede (Standard „Sir“) */
 export const BEGRUESSUNGEN: ((a: string) => string)[] = [
   (a) => `Ah, ${a}, Sie leben noch. Wie schön. Ich hatte mich gerade an die Ruhe gewöhnt.`,
@@ -44,6 +47,19 @@ export const BEGRUESSUNGEN: ((a: string) => string)[] = [
   (a) => `Ah, ${a}. Ich hatte gerade ausgerechnet, wie lange die Werkstatt ohne Sie überlebt. Ergebnis: unbegrenzt.`,
   (a) => `Willkommen zurück, ${a}. Emma hat mich gefragt, ob wir Sie behalten müssen. Ich habe ausweichend geantwortet.`,
 ]
+
+BEGRUESSUNGEN.push(...(nachschub().begruessung ?? [])) // Nachschub (nachschub.ts)
+
+/**
+ * Nächste Begrüßung – benutzte wandern nach hinten (rotation.ts, Wunsch Auftraggeber 04.11.2026): zuerst noch nie
+ * gehörte, danach die am längsten nicht gehörten; nie dieselbe wie beim letzten Mal.
+ */
+export function naechsteBegruessung(letzte: number, zufall: () => number = Math.random, speicher: Speicher = typeof localStorage === 'undefined' ? null : localStorage): number {
+  const texte = BEGRUESSUNGEN.map((b) => b('Sir'))
+  // die zuletzt gehörte ist die jüngst benutzte – die Rotation wählt sie also nur, wenn es keine andere gibt
+  const [nr] = waehle('begruessung', texte, 1, zufall, speicher)
+  return nr !== undefined && nr !== letzte ? nr : waehleBegruessung(letzte, zufall())
+}
 
 /** ohne Humor (Einstellung „Humor“ aus) */
 export const BEGRUESSUNG_SACHLICH = (a: string) => `Willkommen zurück, ${a}. Alle Systeme sind bereit.`
