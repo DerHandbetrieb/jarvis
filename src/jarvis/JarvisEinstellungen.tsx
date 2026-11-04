@@ -9,11 +9,11 @@ import KameraVerbindung from './KameraVerbindung'
 
 // Was gerade mit Lokis Stimme los ist (Piper springt ein, solange sie nicht bereit ist)
 const LOKI_TEXT: Record<string, string> = {
-  aus: 'Lädt, sobald Loki eingeschaltet wird (ca. 15 Sekunden, bis dahin spricht Piper).',
-  laedt: 'Lokis Stimme lädt … bis dahin spricht Piper.',
-  bereit: 'Loki spricht mit seiner eigenen Stimme.',
-  fehlt: 'Lokis Stimme ist auf diesem PC nicht eingerichtet – es spricht Piper.',
-  fehler: 'Lokis Stimme hat eine Störung – es spricht Piper.',
+  aus: 'Lädt, sobald L.O.K.I. eingeschaltet wird (ca. 15 Sekunden, bis dahin spricht Piper).',
+  laedt: 'Die Stimme von L.O.K.I. lädt … bis dahin spricht Piper.',
+  bereit: 'L.O.K.I. spricht mit seiner eigenen Stimme.',
+  fehlt: 'Die Stimme von L.O.K.I. ist auf diesem PC nicht eingerichtet – es spricht Piper.',
+  fehler: 'Die Stimme von L.O.K.I. hat eine Störung – es spricht Piper.',
 }
 
 const PROBE = 'Guten Tag, Sir. Ich bin bereit. Ob Sie es auch sind, wird sich zeigen. Ich bin vorsichtig optimistisch. Sehr vorsichtig.'
@@ -39,16 +39,16 @@ export default function JarvisEinstellungen() {
   useEffect(() => { void window.jarvisDesktop?.autostart.lesen().then(setAutostart) }, [])
   const umschalten = (b: BausteinSchluessel) => setzeJarvis({ bausteine: e.bausteine.includes(b) ? e.bausteine.filter((x) => x !== b) : [...e.bausteine, b] })
   return (
-    <Abschnitt titel="Loki (Sprachassistent)">
+    <Abschnitt titel="L.O.K.I. (Sprachassistent)">
       {!da ? (
         <p className="text-sm text-neutral-500">Jarvis läuft nur im Windows-Programm – dort laufen Stimme und Spracherkennung kostenlos auf dem PC. Im normalen Browser fehlt die Verbindung dazu.</p>
       ) : (
         <div className="space-y-4 text-sm">
-          <p className="text-neutral-600">Ein- und ausschalten über den runden Knopf oben rechts. Danach genügt „Guten Morgen, Loki“ für die Morgen-Lage oder „Hey Loki, …“ für Befehle und Fragen („Jarvis“ geht auch).</p>
+          <p className="text-neutral-600">Ein- und ausschalten über den runden Knopf oben rechts. Danach genügt „Guten Morgen, L.O.K.I.“ für die Morgen-Lage oder „L.O.K.I., …“ bzw. „…, L.O.K.I.?“ für Befehle und Fragen („Jarvis“ geht auch).</p>
           {autostart?.verfuegbar ? (
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={autostart.an} onChange={(x) => void window.jarvisDesktop?.autostart.setzen(x.target.checked).then(setAutostart)} />
-              Mit Windows starten – Loki wartet dann unsichtbar (Symbol unten rechts neben der Uhr), begrüßt Sie und trägt einmal am Tag die Morgen-Lage vor
+              Mit Windows starten – L.O.K.I. wartet dann unsichtbar (Symbol unten rechts neben der Uhr), begrüßt Sie und trägt einmal am Tag die Morgen-Lage vor
             </label>
           ) : (
             <p className="text-neutral-500">Mit Windows starten: nur im installierten Programm möglich.</p>
@@ -56,7 +56,7 @@ export default function JarvisEinstellungen() {
           <div className="flex flex-wrap items-center gap-4">
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={e.startSequenz} onChange={(x) => setzeJarvis({ startSequenz: x.target.checked })} />
-              Start-Sequenz beim Rechnerstart (über alle Bildschirme, Loki begrüßt im Finale; jede Taste oder ein Klick bricht ab)
+              Start-Sequenz beim Rechnerstart (über alle Bildschirme, L.O.K.I. begrüßt im Finale; jede Taste oder ein Klick bricht ab)
             </label>
             <label className="flex items-center gap-2">Lautstärke ({Math.round(e.sequenzLautstaerke * 100)} %)
               <input type="range" min="0" max="1" step="0.05" value={e.sequenzLautstaerke} onChange={(x) => setzeJarvis({ sequenzLautstaerke: Number(x.target.value) })} />
@@ -66,12 +66,12 @@ export default function JarvisEinstellungen() {
           <WerkstattVerbindung />
           <HudEinrichten />
           <KameraVerbindung />
-          <p className="text-neutral-500">Das X oben rechts versteckt nur das Fenster – Loki hört weiter zu. Ganz beenden: Rechtsklick auf das Loki-Symbol unten rechts → „Beenden“.</p>
+          <p className="text-neutral-500">Das X oben rechts versteckt nur das Fenster – L.O.K.I. hört weiter zu. Ganz beenden: Rechtsklick auf das L.O.K.I.-Symbol unten rechts → „Beenden“.</p>
           <div className="flex flex-wrap items-end gap-4">
             <label className="block">Anrede<br /><input className="mt-1 w-40 rounded-lg border border-neutral-300 px-2 py-1.5" value={e.anrede} onChange={(x) => setzeJarvis({ anrede: x.target.value })} /></label>
             <label className="block">Stimme<br />
               <select className="mt-1 rounded-lg border border-neutral-300 px-2 py-1.5" value={e.stimme} onChange={(x) => void stimmeWaehlen(x.target.value as Stimme)}>
-                <option value="loki">Loki (eigene Stimme)</option>
+                <option value="loki">L.O.K.I. (eigene Stimme)</option>
                 <option value="piper">Piper Thorsten (alte Computerstimme)</option>
               </select>
             </label>
@@ -93,7 +93,7 @@ export default function JarvisEinstellungen() {
               ))}
             </div>
           </div>
-          <label className="block">Aussprache für Piper (eine Zeile je „Wort = so gesprochen“, ergänzt die eingebaute Liste – Loki braucht das nicht)<br />
+          <label className="block">Aussprache für Piper (eine Zeile je „Wort = so gesprochen“, ergänzt die eingebaute Liste – L.O.K.I. braucht das nicht)<br />
             <textarea className="mt-1 h-24 w-full rounded-lg border border-neutral-300 px-2 py-1.5 font-mono text-xs" value={e.aussprache} placeholder={'Kasuwa = Kasuwa\nBillbee = Billbie'} onChange={(x) => setzeJarvis({ aussprache: x.target.value })} />
           </label>
           <label className="block">Sprachmodell für freie Fragen (Ollama auf diesem PC)<br />
@@ -115,7 +115,7 @@ function HudEinrichten() {
       <p className="font-medium text-neutral-700">Dauer-HUD (Hintergrund über alle drei Bildschirme, Wallpaper Engine)</p>
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className="rounded-lg border border-neutral-300 px-3 py-1.5" onClick={() => void window.jarvisDesktop?.hud?.einrichten().then(setMeldung)}>In Wallpaper Engine einrichten</button>
-        <span className="text-neutral-500">Legt das Wallpaper „Loki Dauer-HUD“ an bzw. aktualisiert es. Loki muss laufen, damit es Daten zeigt.</span>
+        <span className="text-neutral-500">Legt das Wallpaper „L.O.K.I. Dauer-HUD“ an bzw. aktualisiert es. L.O.K.I. muss laufen, damit es Daten zeigt.</span>
       </div>
       {meldung && <p className={meldung.ok ? 'text-emerald-700' : 'text-red-700'}>{meldung.meldung}</p>}
     </div>

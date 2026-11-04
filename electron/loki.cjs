@@ -81,7 +81,7 @@ function erstelleLoki(o) {
     if (prozess) return
     const py = o.python()
     const vorlage = path.join(path.dirname(o.skript), 'loki-vorlage.wav')
-    if (!py || !fs.existsSync(o.skript) || !fs.existsSync(vorlage)) { zustand = 'fehlt'; fehler = 'Lokis Stimme ist auf diesem PC nicht eingerichtet (stimme/einrichten.ps1).'; return }
+    if (!py || !fs.existsSync(o.skript) || !fs.existsSync(vorlage)) { zustand = 'fehlt'; fehler = 'Die Stimme von L.O.K.I. ist auf diesem PC nicht eingerichtet (stimme/einrichten.ps1).'; return }
     zustand = 'laedt'
     fehler = ''
     // HF_HUB_OFFLINE: zur Laufzeit nie etwas aus dem Internet nachladen
@@ -96,16 +96,16 @@ function erstelleLoki(o) {
     p.on('exit', (code) => {
       if (prozess !== p) return
       log('Loki-Stimme beendet:', code, letzte.join('\n'))
-      stoerung(`Lokis Stimme hat sich beendet (Code ${code}).`)
+      stoerung(`Die Stimme von L.O.K.I. hat sich beendet (Code ${code}).`)
     })
-    ladeWecker = setTimeout(() => { if (prozess === p && zustand === 'laedt') stoerung('Lokis Stimme lädt zu lange.') }, LADE_ZEIT_MS)
+    ladeWecker = setTimeout(() => { if (prozess === p && zustand === 'laedt') stoerung('Die Stimme von L.O.K.I. lädt zu lange.') }, LADE_ZEIT_MS)
   }
 
   function beendenStill() {
     clearTimeout(ladeWecker)
     const p = prozess
     prozess = null
-    allesAbbrechen('Lokis Stimme wurde ausgeschaltet.')
+    allesAbbrechen('Die Stimme von L.O.K.I. wurde ausgeschaltet.')
     if (p) { try { p.stdin.end() } catch { /* schon zu */ } toeten(p) }
   }
 
@@ -120,12 +120,12 @@ function erstelleLoki(o) {
 
   /** Einen Satz sprechen lassen → { samples, sampleRate }; wirft, wenn Loki nicht bereit ist oder zu lange braucht */
   function sprechen(text) {
-    if (zustand !== 'bereit' || !prozess) return Promise.reject(new Error('Lokis Stimme ist nicht bereit.'))
+    if (zustand !== 'bereit' || !prozess) return Promise.reject(new Error('Die Stimme von L.O.K.I. ist nicht bereit.'))
     const t = String(text).slice(0, 2000)
     const id = ++nr
     return new Promise((fertig, abbruch) => {
       // hängt die Stimme, warten sonst alle folgenden Sätze dahinter – darum Störung + Neustart, Piper übernimmt (Prüf-Agent)
-      const wecker = setTimeout(() => { wartend.delete(id); abbruch(new Error('Lokis Stimme antwortet nicht.')); stoerung('Lokis Stimme hat nicht rechtzeitig geantwortet.') }, satzZeit(t))
+      const wecker = setTimeout(() => { wartend.delete(id); abbruch(new Error('Die Stimme von L.O.K.I. antwortet nicht.')); stoerung('Die Stimme von L.O.K.I. hat nicht rechtzeitig geantwortet.') }, satzZeit(t))
       wartend.set(id, { fertig, abbruch, wecker })
       prozess.stdin.write(JSON.stringify({ id, text: t }) + '\n')
     })

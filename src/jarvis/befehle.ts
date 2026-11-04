@@ -70,9 +70,13 @@ export function codewort(text: string): Erkannt {
   const name = findeName(t)
   if (!name) return null
   const vorher = t.slice(0, name.index).trim()
-  // nur direkt vor dem Namen („Was steht morgen an, Jarvis?“ ist eine Frage, kein Morgengruß – Prüf-Agent)
-  if (/(^|\b)(guten morgen|morgen|moin|guten tag)$/.test(vorher)) return { art: 'morgen' }
+  // nur der Gruß allein vor dem Namen („Wie wird das Wetter morgen, Loki?“ ist eine Frage, kein Morgengruß – Prüf-Agent)
+  if (/^((hey|hallo|hi|ja|also|na) )?(guten morgen|morgen|moin|guten tag)$/.test(vorher)) return { art: 'morgen' }
   if (/\b(hey|hei|hai|hi|high|he|hallo|ok|okay)$/.test(vorher) || vorher === '') return { art: 'hey', rest: t.slice(name.index + name.laenge).trim() }
+  // ohne „Hey“ (Wunsch Auftraggeber 04.11.2026): Name als Anrede am Satzende ruft auch („Was steht heute an, Loki?“) –
+  // nur mit Komma davor (Whisper setzt es bei Anreden), damit „… Thor und Loki.“ aus dem Fernseher nicht auslöst;
+  // mitten im Satz („Ich habe Loki gesagt“) bleibt er ein erwähntes Wort
+  if (t.slice(name.index + name.laenge).trim() === '' && /,\s*[^\s,]+[\s.!?…]*$/.test(text.trim())) return { art: 'hey', rest: vorher }
   return null
 }
 
@@ -111,6 +115,23 @@ export function befehl(rest: string): Befehl {
     if (s) return { art: 'oeffnen', pfad: s.pfad, name: s.name }
   }
   return { art: 'frage', text: rest.trim() }
+}
+
+/** Fragt der Satz nach Werkstatt-Daten oder Wetter? (dann bekommt das Sprachmodell die Daten mit) */
+export function fragtNachDaten(text: string): boolean {
+  return /wetter|regen|temperatur|grad|kalt|warm|aufgabe|todo|karte|lager|bestand|knapp|verkauf|verkauft|umsatz|bestellung|shop|etsy|amazon|freigabe|selbsttest|problem|zahlen|statistik|lage|neues|heute|gestern/.test(vereinfachen(text))
+}
+
+/**
+ * Wiederholt eine neue Antwort eine frühere? (Rückmeldung Auftraggeber 04.11.2026: Loki gab im Gespräch oft wortgleich
+ * seine vorige Antwort.) Vergleich über Dreiwort-Folgen: Steckt mehr als ein Drittel der neuen Folgen schon in einer
+ * früheren Antwort, gilt sie als Wiederholung.
+ */
+export function istWiederholung(neu: string, frueher: string[]): boolean {
+  const folgen = (t: string) => { const w = vereinfachen(t).split(' ').filter(Boolean); return new Set(w.slice(0, -2).map((_, i) => w.slice(i, i + 3).join(' '))) }
+  const n = folgen(neu)
+  if (n.size < 3) return frueher.some((f) => vereinfachen(f) === vereinfachen(neu))
+  return frueher.some((f) => { const a = folgen(f); let gleich = 0; n.forEach((x) => { if (a.has(x)) gleich++ }); return gleich / n.size > 1 / 3 })
 }
 
 /**

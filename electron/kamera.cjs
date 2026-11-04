@@ -76,10 +76,10 @@ function erstelleKamera({ speicher, holen = holeHttps, jetzt = () => Date.now(),
     try { const e = JSON.parse(text)?.[0]?.error; return e ? { rspCode: Number(e.rspCode), detail: String(e.detail ?? '').slice(0, 60) } : null } catch { return null }
   }
   function klartext(f) {
-    if (f?.name === 'TimeoutError' || /timeout|Zeitüberschreitung/i.test(String(f?.message))) return 'Die Kamera antwortet nicht (Zeitüberschreitung). Ist Loki im VPN ausgenommen?'
-    if (/ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|ECONNRESET/i.test(String(f?.code ?? f?.message))) return 'Die Kamera ist nicht erreichbar (Adresse? NordVPN-Ausnahme für Loki?).'
+    if (f?.name === 'TimeoutError' || /timeout|Zeitüberschreitung/i.test(String(f?.message))) return 'Die Kamera antwortet nicht (Zeitüberschreitung). Ist der Weg zur Kamera frei (VPN, Windows-Route)?'
+    if (/ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|ECONNRESET/i.test(String(f?.code ?? f?.message))) return 'Die Kamera ist nicht erreichbar (Adresse richtig? Weg zur Kamera frei?).'
     if (f?.fremd) return 'Unter dieser Adresse meldet sich ein anderes Gerät als beim Einrichten – Abruf abgebrochen. Bei Bedarf Kamera neu eintragen.'
-    if (f?.pause) return `Nach einer abgelehnten Anmeldung wartet Loki kurz, damit die Kamera das Konto nicht sperrt – bitte in ${f.pause} s noch einmal versuchen.`
+    if (f?.pause) return `Nach einer abgelehnten Anmeldung wartet L.O.K.I. kurz, damit die Kamera das Konto nicht sperrt – bitte in ${f.pause} s noch einmal versuchen.`
     if (f?.unerwartet) return `Unter dieser Adresse antwortet keine Reolink-Kamera wie erwartet (HTTP ${f.unerwartet}).`
     const e = f?.kamera
     if (e) {

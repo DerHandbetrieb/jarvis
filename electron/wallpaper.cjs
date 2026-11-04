@@ -37,8 +37,8 @@ function einrichten({ fs, we, quelle, port, schluessel }) {
   for (const f of fs.existsSync(altOrdner) ? fs.readdirSync(altOrdner) : []) if (!neu.has(f)) { try { fs.rmSync(path.join(altOrdner, f), { force: true }) } catch { /* gerade in Benutzung – beim nächsten Mal */ } }
   fs.writeFileSync(path.join(ziel, 'zugang.js'), `window.LOKI_HUD = ${JSON.stringify({ port: Number(port), schluessel: String(schluessel) })}\n`)
   fs.writeFileSync(path.join(ziel, 'project.json'), JSON.stringify({
-    file: 'dauer-hud.html', title: 'Loki Dauer-HUD', type: 'web',
-    description: 'Lokis Dauer-HUD (Der Handbetrieb). Nur lokal – NICHT im Workshop veröffentlichen (Werkstatt-Daten, Zugriffsschlüssel).',
+    file: 'dauer-hud.html', title: 'L.O.K.I. Dauer-HUD', type: 'web',
+    description: 'Dauer-HUD von L.O.K.I. (Der Handbetrieb). Nur lokal – NICHT im Workshop veröffentlichen (Werkstatt-Daten, Zugriffsschlüssel).',
   }, null, 2))
   return ziel
 }

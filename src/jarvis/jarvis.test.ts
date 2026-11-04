@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { morgenLage, uhrzeit, zahl, euro, type LageEingabe, BAUSTEINE, SPITZEN, spitze, tagNummer } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
-import { befehl, codewort, istNachfrage, vereinfachen } from './befehle'
+import { befehl, codewort, istNachfrage, istWiederholung, vereinfachen } from './befehle'
 
 const basis = (x: Partial<LageEingabe> = {}): LageEingabe => ({
   jetzt: new Date(2026, 10, 3, 7, 30), anrede: 'Sir', humor: false, bausteine: new Set(BAUSTEINE.map((b) => b.schluessel)), ...x,
@@ -117,7 +117,21 @@ describe('Codewörter und Befehle', () => {
     expect(befehl('stopp')).toEqual({ art: 'stopp' })
     expect(befehl('Wann ist Pause?')).toMatchObject({ art: 'frage' })
     expect(befehl('zeig den Lagerbestand')).toMatchObject({ pfad: '/lager' })
-    expect(codewort('Was steht morgen an, Jarvis?')).toBeNull()
+    // kein Morgengruß, aber seit 04.11.2026 ein Ruf (Name am Satzende, ohne „Hey“)
+    expect(codewort('Was steht morgen an, Jarvis?')).toEqual({ art: 'hey', rest: 'was steht morgen an' })
+    expect(codewort('Wie spät ist es, Loki?')).toEqual({ art: 'hey', rest: 'wie spaet ist es' })
+    expect(codewort('Loki, wie spät ist es?')).toEqual({ art: 'hey', rest: 'wie spaet ist es' })
+    expect(codewort('Ich habe Loki gesagt, dass er leise sein soll')).toBeNull()
+    expect(codewort('Wie wird das Wetter morgen, Loki?')).toEqual({ art: 'hey', rest: 'wie wird das wetter morgen' })
+    expect(codewort('Hallo, guten Morgen, Loki!')).toEqual({ art: 'morgen' })
+    expect(codewort('Dann kämpfen Thor und Loki.')).toBeNull()
+    // Wiederholungs-Sperre im Gespräch (echter Fall 04.11.2026: dritte Antwort wortgleich mit der zweiten)
+    const zweite = 'Ah, die Arbeit – wie ein untreu gewordenes Liebhaberkind. Sie wird nicht warten, solange Sie Ihren Labrador in den Park schicken.'
+    expect(istWiederholung(zweite, ['Ein Spaziergang ist eine gute Idee.', zweite])).toBe(true)
+    expect(istWiederholung('Ah, die Arbeit. Sie wird nicht warten, solange Sie Ihren Labrador in den Park schicken, Sir.', [zweite])).toBe(true)
+    expect(istWiederholung('Eine weise Entscheidung, Sir. Emma wird es Ihnen nie verzeihen, aber sie verzeiht Ihnen ja ohnehin alles.', [zweite])).toBe(false)
+    expect(istWiederholung('Gern.', ['Gern.'])).toBe(true)
+    expect(istWiederholung('Gern.', ['Sehr wohl.'])).toBe(false)
     expect(codewort('Gratis Versand')).toBeNull()
     expect(befehl('Wie viele Tassen haben wir verkauft?')).toEqual({ art: 'frage', text: 'Wie viele Tassen haben wir verkauft?' })
     expect(vereinfachen('Grüße, Öl!')).toBe('gruesse oel')
@@ -129,5 +143,19 @@ describe('Nachfrage ohne Codewort (freies Gespräch)', () => {
     expect(istNachfrage('Und was hältst du davon?')).toBe(true)
     expect(istNachfrage('Erzähl mir mehr über Emma.')).toBe(true)
     for (const f of ['Vielen Dank.', 'Untertitel im Auftrag des ZDF, 2020', 'Danke fürs Zuschauen!', 'Ja.', 'Tschüss', 'Bis zum nächsten Mal.', 'Untertitelung. BR 2018']) expect(istNachfrage(f)).toBe(false)
+  })
+})
+
+describe('Spruch-Fundus', () => {
+  it('zieht ohne Wiederholung, bis drei Viertel des Fundus dran waren', async () => {
+    const { ziehe, FUNDUS } = await import('./fundus')
+    const gesamt = Object.values(FUNDUS).flat().length
+    expect(gesamt).toBeGreaterThanOrEqual(400)
+    const daten: Record<string, string> = {}
+    const sp = { getItem: (k: string) => daten[k] ?? null, setItem: (k: string, v: string) => { daten[k] = v } }
+    const gesehen = new Set<string>()
+    for (let i = 0; i < Math.floor(gesamt * 0.75 / 3); i++) for (const s of ziehe(3, 'Sir', Math.random, sp)) { expect(gesehen.has(s)).toBe(false); gesehen.add(s) }
+    expect(ziehe(3, 'Sir', Math.random, sp)).toHaveLength(3)
+    expect(ziehe(1, 'Mylord', () => 0, { getItem: () => 'kaputt', setItem: () => {} })[0]).toBeTypeOf('string')
   })
 })

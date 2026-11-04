@@ -165,10 +165,10 @@ function trayAktualisieren() {
   const { zustand, mikrofon } = trayZustand
   const art = zustand === 'fehler' ? 'fehler' : zustand !== 'aus' && mikrofon ? 'an' : 'aus'
   tray.setImage(nativeImage.createFromPath(path.join(__dirname, 'symbol', SYMBOL[art])))
-  tray.setToolTip(`Loki – ${TEXT[zustand] ?? zustand}${zustand !== 'aus' && !mikrofon ? ' (Mikrofon aus)' : ''}`)
+  tray.setToolTip(`L.O.K.I. – ${TEXT[zustand] ?? zustand}${zustand !== 'aus' && !mikrofon ? ' (Mikrofon aus)' : ''}`)
   const fenster = hauptRef
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Loki öffnen', click: zeigen },
+    { label: 'L.O.K.I. öffnen', click: zeigen },
     { label: mikrofon ? 'Mikrofon aus' : 'Mikrofon an', enabled: zustand !== 'aus' && zustand !== 'fehler', click: () => fenster?.webContents.send('jarvis-tray-mikrofon') },
     { type: 'separator' },
     { label: 'Beenden', click: () => { beenden = true; app.quit() } },
@@ -346,7 +346,7 @@ if (!app.requestSingleInstanceLock()) {
       if (!fs.existsSync(path.join(quelle, 'dauer-hud.html'))) return { ok: false, meldung: 'Das Dauer-HUD fehlt in diesem Programm (nicht mitgebaut).' }
       try {
         einrichten({ fs, we, quelle, port: HUD_PORT, schluessel: hud.schluessel })
-        return { ok: true, meldung: 'Eingerichtet. In Wallpaper Engine unter „Installiert“ das Wallpaper „Loki Dauer-HUD“ auswählen (über alle Bildschirme).' }
+        return { ok: true, meldung: 'Eingerichtet. In Wallpaper Engine unter „Installiert“ das Wallpaper „L.O.K.I. Dauer-HUD“ auswählen (über alle Bildschirme).' }
       } catch (f) { console.error('Dauer-HUD einrichten:', f); return { ok: false, meldung: 'Einrichten hat nicht geklappt (Details im Protokoll).' } }
     })
 

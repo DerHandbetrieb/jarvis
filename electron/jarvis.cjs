@@ -226,8 +226,10 @@ function einrichten(hauptfenster, erlaubt) {
     try {
       const r = await fetch('http://127.0.0.1:11434/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        // think: false – Qwen3 würde sonst erst lange „nachdenken“ (zu langsam fürs Gespräch); keep_alive: Modell 10 Minuten im Grafikspeicher halten
-        body: JSON.stringify({ model: modell, messages: nachrichten, stream: false, think: false, keep_alive: '10m', options: { temperature: 0.6 } }),
+        // think: false – Qwen3 würde sonst erst lange „nachdenken“ (zu langsam fürs Gespräch); keep_alive: Modell 10 Minuten im Grafikspeicher halten.
+        // Stichproben-Werte laut Qwen3-Modellkarte für den Modus ohne Nachdenken (temperature 0.7, top_p 0.8, top_k 20, min_p 0,
+        // presence_penalty 1.5 gegen Wiederholungen); num_ctx 8192 statt 32768 spart ca. 4 GB Grafikspeicher – Rückmeldung Auftraggeber 04.11.2026: Loki wiederholte im Gespräch seine erste Antwort
+        body: JSON.stringify({ model: modell, messages: nachrichten, stream: false, think: false, keep_alive: '10m', options: { temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0, presence_penalty: 1.5, num_ctx: 8192 } }),
         signal: AbortSignal.timeout(60_000),
       })
       if (r.status === 404) return { fehler: 'modell', text: `Das Sprachmodell ${modell} ist noch nicht geladen.` }

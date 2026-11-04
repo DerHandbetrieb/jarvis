@@ -24,7 +24,7 @@ export default function KameraVerbindung() {
   const feld = 'mt-1 w-44 rounded-lg border border-neutral-300 px-2 py-1.5'
   return (
     <div className="space-y-2 rounded-lg border border-neutral-200 p-3">
-      <p className="font-medium text-neutral-700">Kamera (Standbild fürs Dauer-HUD, nur live – Loki zeichnet nichts auf)</p>
+      <p className="font-medium text-neutral-700">Kamera (Standbild fürs Dauer-HUD, nur live – L.O.K.I. zeichnet nichts auf)</p>
       {s?.eingerichtet ? (
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-emerald-700">Eingetragen: {s.name} ({s.adresse})</span>

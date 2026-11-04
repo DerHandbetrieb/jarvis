@@ -20,7 +20,7 @@ function kamera(g, name, zustand) {
   for (const [ex, ey, sx, sy] of [[ix, iy, 1, 1], [ix + iw, iy, -1, 1], [ix, iy + ih, 1, -1], [ix + iw, iy + ih, -1, -1]]) { g.beginPath(); g.moveTo(ex + sx * 22, ey); g.lineTo(ex, ey); g.lineTo(ex, ey + sy * 22); g.stroke() }
   if (zustand === 'bild') return
   W.txt(g, 'KEIN SIGNAL', ix + iw / 2, iy + ih / 2, W.fb(S.hell, 0.7), { gr: 22, gew: 600, aus: 'center', sp: 3 })
-  W.txt(g, zustand === 'aus' ? 'IN LOKIS EINSTELLUNGEN EINTRAGEN' : 'KAMERA NICHT ERREICHBAR', ix + iw / 2, iy + ih / 2 + 30, W.fb(S.haupt, 0.55), { gr: 13, aus: 'center', sp: 2 })
+  W.txt(g, zustand === 'aus' ? 'IN DEN EINSTELLUNGEN VON L.O.K.I. EINTRAGEN' : 'KAMERA NICHT ERREICHBAR', ix + iw / 2, iy + ih / 2 + 30, W.fb(S.haupt, 0.55), { gr: 13, aus: 'center', sp: 2 })
 }
 
 /**
@@ -31,7 +31,7 @@ export function zeichneHinten(g, { d, verbunden, datum, wetter, kam = null, kamB
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 3 * B, H)
   W.hintergrund(g, S)
   g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 0, 3 * B, H)
-  const hinweis = !verbunden ? 'LOKI NICHT VERBUNDEN – KEINE DATEN' : d ? `WERKSTATT · LIVE · STAND ${d.stand} UHR` : 'WERKSTATT NICHT VERBUNDEN – KEINE ZAHLEN'
+  const hinweis = !verbunden ? 'L.O.K.I. NICHT VERBUNDEN – KEINE DATEN' : d ? `WERKSTATT · LIVE · STAND ${d.stand} UHR` : 'WERKSTATT NICHT VERBUNDEN – KEINE ZAHLEN'
   const farbe = verbunden && d ? W.fb(S.hell, 0.8) : W.fb(S.akzent, 0.95)
   for (const ox of [0, 2 * B]) W.txt(g, hinweis, ox + 40, 40, farbe, { gr: 13, gew: 600, sp: 3 })
   // ----- links: Aufgaben, Uhren, Yggdrasil, To-do, Lager -----
@@ -95,7 +95,7 @@ function stummKnopf(g, t, loki) {
   g.beginPath(); g.moveTo(x, y + 9); g.lineTo(x, y + 17); g.moveTo(x - 8, y + 17); g.lineTo(x + 8, y + 17); g.stroke()
   if (!hoert) { g.lineWidth = 4; g.beginPath(); g.moveTo(x - 20, y - 22); g.lineTo(x + 20, y + 20); g.stroke() }
   g.restore()
-  W.txt(g, !loki ? 'LOKI NICHT VERBUNDEN' : hoert ? 'LOKI HÖRT ZU · KLICK = STUMM' : loki.zustand === 'laedt' ? 'LOKI STARTET …' : da ? 'LOKI STUMM · KLICK = AN' : 'LOKI AUS · KLICK = AN', x, y + r + 40, W.fb(hoert ? S.hell : rot, 0.95), { gr: 12, gew: 600, aus: 'center', sp: 3 })
+  W.txt(g, !loki ? 'L.O.K.I. NICHT VERBUNDEN' : hoert ? 'L.O.K.I. HÖRT ZU · KLICK = STUMM' : loki.zustand === 'laedt' ? 'L.O.K.I. STARTET …' : da ? 'L.O.K.I. STUMM · KLICK = AN' : 'L.O.K.I. AUS · KLICK = AN', x, y + r + 40, W.fb(hoert ? S.hell : rot, 0.95), { gr: 12, gew: 600, aus: 'center', sp: 3 })
 }
 
 export function zeichneVorne(g, { hinten, schild, t, uhrzeit, ton, versatz = 0, kamBild = null, loki = null }) {

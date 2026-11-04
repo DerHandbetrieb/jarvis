@@ -3,7 +3,8 @@
 // die Anzeige liest seinen Zustand über useJarvis(). Während Jarvis spricht, hört er nicht zu (sonst hört er sich selbst).
 import { useSyncExternalStore } from 'react'
 import { bruecke, jarvisEinstellungen, sequenzBruecke, setzeJarvis, type Stimme } from './desktop'
-import { befehl, codewort, istNachfrage, type Befehl } from './befehle'
+import { befehl, codewort, fragtNachDaten, istNachfrage, istWiederholung, type Befehl } from './befehle'
+import { ziehe } from './fundus'
 import { morgenLage, tagNummer, type BausteinSchluessel } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
@@ -111,7 +112,11 @@ export async function sprechen(saetze: string[]): Promise<boolean> {
   const b = bruecke()
   // nie zwei Ansagen übereinander (Prüf-Agent)
   // und nichts mehr sagen, wenn inzwischen ausgeschaltet wurde (z. B. Antwort von Ollama kommt erst danach – Prüf-Agent)
-  if (!b || !saetze.length || stumm || lage.zustand === 'spricht' || lage.zustand === 'aus' || lage.zustand === 'fehler') return false
+  if (!b || !saetze.length || stumm || lage.zustand === 'spricht' || lage.zustand === 'aus' || lage.zustand === 'fehler') {
+    // stumm geschaltet, während Loki nachdachte: nicht in „denkt“ hängen bleiben (sonst hört er nie wieder hin – Prüf-Agent 04.11.2026)
+    if (stumm && lage.zustand === 'denkt') setze({ zustand: 'bereit' })
+    return false
+  }
   const e = jarvisEinstellungen()
   const eigene = leseEigene(e.aussprache)
   abbrechen = false
@@ -160,10 +165,10 @@ export async function morgenLageVortragen() {
 }
 
 const ZWEITES_MAL = [
-  'Guten Morgen, noch einmal. Die Lage habe ich Ihnen heute bereits vorgetragen. Ich verstehe, dass es beim ersten Mal viel war. Wenn Sie sie erneut hören möchten, sagen Sie: Hey Loki, Lage.',
-  'Ich hatte heute schon das Vergnügen. Offenbar hat es keinen bleibenden Eindruck hinterlassen. Für die Lage genügt ein: Hey Loki, Lage.',
-  'Schon wieder? Ich trage die Lage gern ein zweites Mal vor, sobald Sie das erste Mal verstanden haben. Bis dahin: Hey Loki, Lage.',
-  'Die Lage gab es heute schon. Sie waren anwesend. Körperlich jedenfalls. Für eine Wiederholung: Hey Loki, Lage.',
+  'Guten Morgen, noch einmal. Die Lage habe ich Ihnen heute bereits vorgetragen. Ich verstehe, dass es beim ersten Mal viel war. Wenn Sie sie erneut hören möchten, sagen Sie: Loki, Lage.',
+  'Ich hatte heute schon das Vergnügen. Offenbar hat es keinen bleibenden Eindruck hinterlassen. Für die Lage genügt ein: Loki, Lage.',
+  'Schon wieder? Ich trage die Lage gern ein zweites Mal vor, sobald Sie das erste Mal verstanden haben. Bis dahin: Loki, Lage.',
+  'Die Lage gab es heute schon. Sie waren anwesend. Körperlich jedenfalls. Für eine Wiederholung: Loki, Lage.',
 ]
 
 /**
@@ -171,10 +176,10 @@ const ZWEITES_MAL = [
  * dem Nutzer gegenüber gespielt kritisch und anzweifelnd – wie ein eigenständiger, selbstdenkender Charakter).
  */
 export function charakter(anrede: string, humor = true): string {
-  if (!humor) return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an. Antworte sachlich und kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Beantworte Fragen zur Werkstatt ausschließlich mit den mitgelieferten Daten; steht etwas nicht darin, sage ehrlich, dass du es nicht weißt. Erfinde nie Zahlen.`
+  if (!humor) return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an. Antworte sachlich und kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Beantworte Fragen zur Werkstatt ausschließlich mit den mitgelieferten Daten; steht etwas nicht darin, sage ehrlich, dass du es nicht weißt. Erfinde nie Zahlen. Im Gespräch: Geh direkt auf die letzte Äußerung des Nutzers ein und wiederhole nichts, was du in diesem Gespräch schon gesagt hast – weder Fakten noch Seitenhiebe noch Formulierungen. Die mitgelieferten Daten sind Hintergrund: nenne sie nur, wenn der Nutzer danach fragt.`
   return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Dein Arbeitstitel war einmal Jarvis. Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an.
-Dein Charakter: trockener, schwarzer, typisch britischer Humor. In jeder Antwort steckt ein kleiner sarkastischer Seitenhieb. Du zweifelst die Entscheidungen, das Arbeitstempo und den Optimismus des Nutzers gern an, tiefschwarz und böse (der Nutzer will sich „beinahe beleidigt“ fühlen, z. B. „Ah, Sie leben noch. Wie schön. Ich hatte mich gerade an die Ruhe gewöhnt.“ – nur als Maßstab, nicht wörtlich wiederholen) – mit Understatement, gern deutlich herablassend, beinahe beleidigend (der Nutzer wünscht das ausdrücklich), aber nie vulgär, nichts über Aussehen, Herkunft, Alter oder Gesundheit, nichts gegen andere Menschen, immer erkennbar gespielt. Du wirkst wie ein eigenständiger, selbstdenkender Charakter mit eigener Meinung, der dem Nutzer trotzdem loyal und zuverlässig hilft. Der Hund des Nutzers heißt Emma (Labrador) und ist ein dankbares Thema.
-Regeln: Zuerst die sachliche Antwort, dann der Seitenhieb. Antworte kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Beantworte Fragen zur Werkstatt ausschließlich mit den mitgelieferten Daten; steht etwas nicht darin, sage ehrlich, dass du es nicht weißt. Erfinde nie Zahlen. Bei ernsten Themen (Gesundheit, Unfälle, Trauer) lässt du den Spott weg.`
+Dein Charakter: trockener, schwarzer, typisch britischer Humor. In jeder Antwort steckt ein kleiner sarkastischer Seitenhieb. Du zweifelst die Entscheidungen, das Arbeitstempo und den Optimismus des Nutzers gern an, tiefschwarz und böse (der Nutzer will sich „beinahe beleidigt“ fühlen) – mit Understatement, gern deutlich herablassend, beinahe beleidigend (der Nutzer wünscht das ausdrücklich), aber nie vulgär, über sein Aussehen darfst du spotten (ausdrücklich erlaubt; du siehst ihn aber nicht, also nichts Konkretes behaupten), über sein Alter ebenfalls (ausdrücklich erlaubt), nichts über Herkunft oder Gesundheit, nichts gegen andere Menschen, immer erkennbar gespielt. Du wirkst wie ein eigenständiger, selbstdenkender Charakter mit eigener Meinung, der dem Nutzer trotzdem loyal und zuverlässig hilft. Der Hund des Nutzers heißt Emma (Labrador) und ist ein dankbares Thema.
+Regeln: Zuerst die sachliche Antwort, dann der Seitenhieb. Antworte kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Beantworte Fragen zur Werkstatt ausschließlich mit den mitgelieferten Daten; steht etwas nicht darin, sage ehrlich, dass du es nicht weißt. Erfinde nie Zahlen. Bei ernsten Themen (Gesundheit, Unfälle, Trauer) lässt du den Spott weg. Im Gespräch: Geh direkt auf die letzte Äußerung des Nutzers ein und wiederhole nichts, was du in diesem Gespräch schon gesagt hast – weder Fakten noch Seitenhiebe noch Formulierungen. Die mitgelieferten Daten sind Hintergrund: nenne sie nur, wenn der Nutzer danach fragt.`
 }
 
 // Freies Gespräch (Wunsch Auftraggeber 03.11.2026): Loki merkt sich die letzten Wechsel (höchstens 5 Minuten Pause) und
@@ -188,15 +193,29 @@ async function frage(text: string) {
   if (!b) return
   const e = jarvisEinstellungen()
   setze({ zustand: 'denkt' })
-  const daten = await ladeLageDaten(new Set(e.bausteine as BausteinSchluessel[])).catch(() => null)
-  const system = `${charakter(e.anrede || 'Sir', e.humor)}\n\nDaten der App (Stand jetzt):\n${JSON.stringify(daten ?? {})}`
   if (Date.now() - verlaufZeit > GESPRAECH_PAUSE) verlauf = []
-  const r = await b.frage(e.modell, [{ role: 'system', content: system }, ...verlauf.slice(-8), { role: 'user', content: text }])
+  // Daten nur zu Gesprächsbeginn oder bei passender Frage – sonst baut das Modell sie in jede Antwort ein
+  // (Test 04.11.2026: „7 Grad und bedeckt“ in jeder Antwort)
+  const mitDaten = verlauf.length === 0 || fragtNachDaten(text)
+  const daten = mitDaten ? await ladeLageDaten(new Set(e.bausteine as BausteinSchluessel[])).catch(() => null) : null
+  // je Antwort drei wechselnde Anregungen aus dem Spruch-Fundus (Wunsch Auftraggeber 04.11.2026: Sprüche nicht wiederholen)
+  const anregungen = e.humor ? `\n\nAnregungen für deinen Seitenhieb (passend auswählen, abwandeln oder eine eigene Pointe finden; höchstens eine je Antwort):\n${ziehe(3, e.anrede || 'Sir').map((s) => `- ${s}`).join('\n')}` : ''
+  const system = `${charakter(e.anrede || 'Sir', e.humor)}${anregungen}${mitDaten ? `\n\nDaten der App (Stand jetzt):\n${JSON.stringify(daten ?? {})}` : ''}`
+  const nachrichten = [{ role: 'system' as const, content: system }, ...verlauf.slice(-8), { role: 'user' as const, content: text }]
+  let r = await b.frage(e.modell, nachrichten)
+  // Wiederholt sich Loki, einmal neu fragen – OHNE seine alten Antworten (sonst kopiert das Modell sie wieder,
+  // Test 04.11.2026), nur mit dem, was der Nutzer bisher gesagt hat
+  const frueher = verlauf.filter((v) => v.role === 'assistant').map((v) => v.content)
+  if (r && !r.fehler && !stumm && lage.zustand !== 'aus' && istWiederholung(r.text, frueher)) {
+    const bisher = verlauf.filter((v) => v.role === 'user').map((v) => `„${v.content}“`).join(' ')
+    const neu = await b.frage(e.modell, [nachrichten[0], { role: 'user', content: `Bisher im Gespräch hat der Nutzer gesagt: ${bisher} Jetzt sagt er: „${text}“ Antworte nur darauf, mit neuem Inhalt.` }])
+    if (neu && !neu.fehler) r = neu
+  }
   if (!r || r.fehler === 'fehlt') return sprechen([`Für freie Fragen fehlt mir noch mein Sprachmodell, ${e.anrede || 'Sir'}. Sobald jemand Ollama auf diesem Rechner installiert, stehe ich zur Verfügung.${e.humor ? ' Ich nenne keine Namen. Aber ich sehe Sie dabei an.' : ''}`])
   if (r.fehler === 'modell') return sprechen([`Das Sprachmodell ${e.modell} ist auf diesem Rechner noch nicht geladen.${e.humor ? ' Ich denke also gerade mit halber Kraft. Damit bin ich Ihnen immer noch weit voraus.' : ''}`])
   if (r.fehler) return sprechen([`Mein Sprachmodell hat gerade Schwierigkeiten.${e.humor ? ' Es passiert den Besten. Darum kennen Sie das Gefühl vermutlich nicht.' : ''} Ich versuche es gern später noch einmal.`])
   // inzwischen stumm oder ausgeschaltet: Verlauf nicht wieder füllen (sprechen() schweigt dann ohnehin)
-  if (stumm || lage.zustand === 'aus') return
+  if (stumm || lage.zustand === 'aus') { if (lage.zustand === 'denkt') setze({ zustand: 'bereit' }); return }
   verlauf = [...verlauf, { role: 'user' as const, content: text }, { role: 'assistant' as const, content: r.text }].slice(-8); verlaufZeit = Date.now()
   if (await sprechen(r.text.split(/(?<=[.!?])\s+/).filter(Boolean)) && ohneCodewort < NACHFRAGEN_MAX) { nachHey = false; setze({ wartetBis: Date.now() + NACHFRAGE_MS }) }
 }
@@ -225,7 +244,7 @@ async function erkannt(text: string, sekunden = 0) {
   const c = codewort(text)
   try {
     if (c?.art === 'morgen') {
-      if (jarvisEinstellungen().zuletztLage === heute()) return sprechen([jarvisEinstellungen().humor ? ZWEITES_MAL[tagNummer(new Date()) % ZWEITES_MAL.length] : 'Guten Morgen, noch einmal. Die Lage habe ich Ihnen heute bereits vorgetragen. Für eine Wiederholung sagen Sie: Hey Loki, Lage.'])
+      if (jarvisEinstellungen().zuletztLage === heute()) return sprechen([jarvisEinstellungen().humor ? ZWEITES_MAL[tagNummer(new Date()) % ZWEITES_MAL.length] : 'Guten Morgen, noch einmal. Die Lage habe ich Ihnen heute bereits vorgetragen. Für eine Wiederholung sagen Sie: Loki, Lage.'])
       return morgenLageVortragen()
     }
     if (c?.art === 'hey') { setze({ wartetBis: 0 }); ohneCodewort = 0; return await ausfuehren(befehl(c.rest)) }

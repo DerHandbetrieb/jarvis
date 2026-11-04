@@ -36,14 +36,14 @@ export default function WerkstattVerbindung() {
       {!s.verfuegbar && <p className="text-neutral-500">In diesem Programm fehlen die Zugangsdaten der Werkstatt (.env.werkstatt).</p>}
       {s.verfuegbar && s.zustand === 'verbunden' && (
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-emerald-700">Verbunden{stand ? ` · zuletzt geholt ${stand} Uhr` : ''} – Loki liest nur, ändert nichts.</span>
+          <span className="text-emerald-700">Verbunden{stand ? ` · zuletzt geholt ${stand} Uhr` : ''} – L.O.K.I. liest nur, ändert nichts.</span>
           <button type="button" className={knopf} disabled={laeuft} onClick={() => void tun(async () => { await b.lage(true); return b.status() })}>Jetzt aktualisieren</button>
           <button type="button" className={knopf} disabled={laeuft} onClick={() => void tun(() => b.trennen())}>Trennen</button>
         </div>
       )}
       {s.verfuegbar && (s.zustand === 'aus' || s.zustand === 'fehler') && (
         <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); const p = passwort; setPasswort(''); void tun(() => b.verbinden(email, p)) }}>
-          <label className="block">E-Mail des Loki-Kontos<br /><input className={`${feld} w-64`} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" /></label>
+          <label className="block">E-Mail des L.O.K.I.-Kontos<br /><input className={`${feld} w-64`} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" /></label>
           <label className="block">Passwort<br /><input className={`${feld} w-56`} type="password" value={passwort} onChange={(e) => setPasswort(e.target.value)} autoComplete="current-password" /></label>
           <button type="submit" className={knopf} disabled={laeuft || !email || !passwort}>{laeuft ? 'Verbinde …' : 'Mit Werkstatt verbinden'}</button>
         </form>

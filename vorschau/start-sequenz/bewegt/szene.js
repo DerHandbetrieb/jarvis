@@ -177,7 +177,7 @@ function aufbauen() {
   // ----- Mitte: Kennzeichen, Uhr, Datum (der Schild hat seinen eigenen Ablauf) -----
   const x = B + B / 2, y = H / 2
   // nur Angaben, die stimmen: Werkstatt-Verbindung, Platten des Schilds, Lokis Stimme, Amazon-Probleme
-  ;[[-1, -1, 'WERKSTATT', ECHT ? 'VERBUNDEN' : 'BEISPIEL'], [1, -1, 'PLATTEN', '12 / 12'], [-1, 1, 'STIMME', 'LOKI'], [1, 1, 'AMAZON-PROBLEME', ECHT ? String(ECHT.amazonProbleme) : 'BEISPIEL']].forEach(([sx, sy, t1, t2], i) => {
+  ;[[-1, -1, 'WERKSTATT', ECHT ? 'VERBUNDEN' : 'BEISPIEL'], [1, -1, 'PLATTEN', '12 / 12'], [-1, 1, 'STIMME', 'L.O.K.I.'], [1, 1, 'AMAZON-PROBLEME', ECHT ? String(ECHT.amazonProbleme) : 'BEISPIEL']].forEach(([sx, sy, t1, t2], i) => {
     const ax = x + sx * 300, ay = y + sy * 290, bx = x + sx * 620, by = y + sy * 330
     const x0 = Math.min(ax, bx) - 170, y0 = Math.min(ay, by) - 40
     const c = bild(x0, y0, Math.abs(bx - ax) + 340, Math.abs(by - ay) + 80, (g) => {
@@ -197,7 +197,7 @@ function aufbauen() {
     const n = 165, bx = x - 330, mitteY = 1020, v = g.createLinearGradient(0, mitteY - 24, 0, mitteY + 24); v.addColorStop(0, W.fb(S.hell, 0.15)); v.addColorStop(0.5, W.fb(S.hell, 0.95)); v.addColorStop(1, W.fb(S.hell, 0.15)); g.fillStyle = v
     for (let i = 0; i < n; i++) { let s = 0; if (tonDaten.stimme) for (let k = 0; k < 6; k++) { const a = (tonDaten.w[i * 6 + k] - 128) / 128; s += a * a } const hh = 1 + Math.min(24, Math.sqrt(s / 6) * 70); g.fillRect(bx + i * 4, mitteY - hh, 2, hh * 2) }
     let pegel = 0; if (tonDaten.stimme) for (let i = 0; i < 1024; i += 8) pegel = Math.max(pegel, Math.abs(tonDaten.w[i] - 128))
-    W.txt(g, 'LOKI SPRICHT', x - 350, 1026, W.fb(pegel > 6 ? S.hell : S.haupt, pegel > 6 ? 1 : 0.6), { gr: 11, aus: 'right', sp: 3 })
+    W.txt(g, 'L.O.K.I. SPRICHT', x - 350, 1026, W.fb(pegel > 6 ? S.hell : S.haupt, pegel > 6 ? 1 : 0.6), { gr: 11, aus: 'right', sp: 3 })
   }, 0)
 
   schild = bauSchild(x, y, 380)
