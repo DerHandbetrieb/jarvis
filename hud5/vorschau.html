@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>L.O.K.I. – Szene Mystic Aurora (Vorschau)</title>
+    <!-- Vorschau der neuen Szene (05.11.2026): ganze Fläche 5760×1080 auf Fensterbreite verkleinert, Bildrate oben links.
+         Tasten: 1 hört zu, 2 denkt, 3 spricht, 4 aus; Z = Ausschnitt in echter Größe (Mitte), noch einmal Z = ganz. -->
+    <style>
+      html, body { margin: 0; background: #000; color: #9ef; font: 13px system-ui; overflow: hidden; }
+      canvas { display: block; width: 100vw; }
+      #info { position: fixed; left: 8px; top: 6px; background: #000a; padding: 4px 8px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <div id="info">lädt …</div>
+    <canvas id="flaeche" width="5760" height="1080"></canvas>
+    <script type="module" src="./vorschau.js"></script>
+  </body>
+</html>

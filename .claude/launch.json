@@ -36,6 +36,18 @@
         "--strictPort"
       ],
       "port": 5178
+    },
+    {
+      "name": "hud5",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "hud5",
+        "--port",
+        "5179",
+        "--strictPort"
+      ],
+      "port": 5179
     }
   ]
 }
