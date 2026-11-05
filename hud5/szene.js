@@ -451,6 +451,8 @@ export async function ladeSzene(basis, einstellung = {}) {
   let kupfer = null
   const kupferNr = /^kupfer(\d)$/.exec(einstellung.name ?? '')?.[1]
   if (kupferNr) { const masse = await (await fetch(basis + 'kupfer.json')).json(); kupfer = kupferBild(await bildLaden(basis + `kupfer-${kupferNr}.webp`), masse[kupferNr]) }
+  // Standard (Wahl Auftraggeber 05.11.2026): Textring mit Angaben doppelt, Strich-Schrift, dunkles Flechtband; Bedeutung von L.O.K.I. vorerst nicht
+  einstellung = { ring: 'info-x', schrift: 'strich', name: 'ohne', ...Object.fromEntries(Object.entries(einstellung).filter(([, v]) => v != null)) }
   const infoVariante = String(einstellung.ring ?? '').startsWith('info') ? einstellung.ring : null
   const ringMitte = infoVariante ? infoRing(geo.ringMitte.r, 30, infoVariante, { ...zeitAngaben(), wetter: null }).dreh : ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
   return {
@@ -602,7 +604,7 @@ function sternschnuppen(g, s, t) {
 // Unter dem Reaktor (Rückmeldung Auftraggeber 05.11.2026): die starren Lichtringe sind aus dem Grundbild entfernt
 // (Magnific), stattdessen pulsieren Wellenringe von innen nach außen – schnell los, dann langsam ausklingend (wie eine
 // Tempo-Rampe im Video) –, darüber liegen Rauchwolken nur zwischen Reaktor und Wasser.
-const RING_MITTE = { x: 2880, y: 890 }, RING_RX = 640, RING_RY = 48, RAUCH_VOR = 85
+const RING_MITTE = { x: 2880, y: 890 }, RING_RX = 640, RING_RY = 48, RAUCH_VOR = 0
 
 /**
  * Wellenringe (Rückmeldung Auftraggeber 05.11.2026: lebendiger, pulsierender – am Anfang dicht, dann schnell ausblenden):
@@ -655,6 +657,9 @@ function rauch(g, s, t, anteil) {
   const x = RING_MITTE.x - st.width / 2, y = RING_MITTE.y - st.height * 0.55 + RAUCH_VOR
   g.globalAlpha = anteil * 0.85; g.drawImage(st, x, y) // deckend: Rauch hat Körper und verdeckt das Wasser
   g.globalCompositeOperation = 'screen'; g.globalAlpha = anteil * 0.45; g.drawImage(st, x, y) // vom Ringlicht angeleuchtet
+  // zweite, breitere Nebelbank weiter vorn bis an den unteren Bildrand des mittleren Bildschirms (Wunsch Auftraggeber 05.11.2026)
+  const vb = st.width * 1.5, vh = st.height * 1.1
+  g.globalCompositeOperation = 'source-over'; g.globalAlpha = anteil * 0.7; g.drawImage(st, RING_MITTE.x - vb / 2, H - vh * 0.62, vb, vh)
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
 
