@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>L.O.K.I. – Rahmen-Entwürfe</title>
+    <!-- Rahmen-Entwürfe (05.11.2026): linker Bildschirm in echter Größe; Hintergrund = saubere Landschaft aus dem
+         Grafikpaket (ohne gemalte Rahmen). Fenster + Inhalt in einer Ebene, gemeinsam mit echter Perspektive gekippt
+         (CSS 3D). ?stil=1…4, ?dreh=Grad. -->
+    <style>
+      html, body { margin: 0; background: #000; overflow: hidden; }
+      #bild { position: relative; width: 1920px; height: 1080px; background: url(./entwurf-hintergrund.jpg) center/cover; }
+      #buehne { position: absolute; left: 330px; top: 165px; width: 1240px; height: 760px; perspective: 1900px; perspective-origin: 50% 50%; }
+      #tafel { position: absolute; inset: 0; transform-origin: 0% 50%; transform-style: preserve-3d; }
+      canvas { position: absolute; }
+    </style>
+  </head>
+  <body>
+    <div id="bild"><div id="buehne"><div id="tafel"></div></div></div>
+    <script type="module" src="./rahmen-entwurf.js"></script>
+  </body>
+</html>

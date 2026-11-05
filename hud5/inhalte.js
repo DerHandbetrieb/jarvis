@@ -323,3 +323,17 @@ function BEISPIEL_LAGE(jetzt) {
     ],
   }
 }
+
+/** einzelne Inhalte zum Wiederverwenden (z. B. Rahmen-Entwürfe): (g, breite, höhe, daten, t) */
+export const ZEICHNER = {
+  verkaeufe: (g, b, h, d) => verkaeufe(g, b, h, d.werkstatt ?? {}),
+  umsatz: (g, b, h, d) => umsatz(g, b, h, d.werkstatt ?? {}),
+  ton: (g, b, h, d, t) => tonwellen(g, b, h, d.ton, t, d.loki),
+  aufgaben: (g, b, h, d) => abarbeiten(g, b, h, d.werkstatt ?? {}),
+  bestellungen: (g, b, h, d) => bestellungen(g, b, h, d.werkstatt ?? {}),
+  kamera1: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[0] ?? null, 'CAM 01 · LINKS', !!d.kamera?.alarm, t),
+  kamera2: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[1] ?? null, 'CAM 02 · RECHTS', false, t),
+  energie: (g, b, h) => energie(g, b, h),
+  wetter: (g, b, h, d) => wetter(g, b, h, d.wetter),
+  system: (g, b, h, d) => system(g, b, h, { ...(d.werkstatt ?? {}), loki: d.loki, verbunden: !d.beispiel && !d.veraltet, kamera: d.kamera, uhr: d.uhr }),
+}

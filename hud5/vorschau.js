@@ -1,12 +1,13 @@
 // Vorschau der Szene mit Bildrate (Regel: Bildrate selbst messen, bevor gezeigt wird – CLAUDE.md Etappe 13)
 import { B, H, ladeSzene, zeichneSzene } from './szene.js'
-import { ausHud, erstelleInhalte, zeichneInhalte } from './inhalte.js'
+import { ausHud } from './inhalte.js'
+import { erstelleTafeln, zeichneTafeln } from './tafeln.js'
 import { sequenzDaten } from '../startsequenz/lageDaten.js'
 
 const c = document.getElementById('flaeche'), g = c.getContext('2d', { alpha: false }), info = document.getElementById('info')
 const s = await ladeSzene('./ebenen/', { ring: new URLSearchParams(location.search).get('ring') ?? undefined })
-let loki = 'hoert', zoom = false, stopp = false
-const inhalte = erstelleInhalte()
+let loki = new URLSearchParams(location.search).get('loki') ?? 'hoert', zoom = false, stopp = false
+const tafeln = erstelleTafeln(document.getElementById('tafeln'))
 const beispiel = ausHud({ wetter: { ort: 'Öhringen', grad: 9.4, wolken: 70 } }, new Date(), sequenzDaten, () => 'BEWÖLKT')
 addEventListener('keydown', (e) => {
   loki = { 1: 'hoert', 2: 'denkt', 3: 'spricht', 4: 'aus' }[e.key] ?? loki
@@ -22,7 +23,7 @@ function schleife(ms) {
   zeichneSzene(g, s, ms / 1000, { loki, pegel, versatz: zoom ? 1920 : 0, aus: (new URLSearchParams(location.search).get('aus') ?? '').split(',') })
   // Inhalte mit Beispieldaten (in der Vorschau gibt es keine Gegenstelle); Ton: Kunstwerte
   const ton = Array.from({ length: 128 }, (_, i) => Math.max(0, Math.sin(ms / 300 + i * 0.3) * Math.exp(-((i % 64) / 20)) * 0.8))
-  zeichneInhalte(g, inhalte, { ...beispiel, ton, loki: { zustand: { hoert: 'bereit', denkt: 'denkt', spricht: 'spricht', aus: 'aus' }[loki], mikrofon: loki !== 'aus' } }, ms / 1000, zoom ? 1920 : 0)
+  zeichneTafeln(tafeln, { ...beispiel, ton, loki: { zustand: { hoert: 'bereit', denkt: 'denkt', spricht: 'spricht', aus: 'aus' }[loki], mikrofon: loki !== 'aus' } }, ms / 1000)
   const dauer = performance.now() - a
   zeiten.push(dauer); if (zeiten.length > 120) zeiten.shift()
   laengste = Math.max(laengste * 0.995, ms - vorher); vorher = ms

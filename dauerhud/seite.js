@@ -5,7 +5,8 @@
 // Wallpaper Engine pausiert das Wallpaper bei Spielen/Vollbild selbst (setPaused). Über drei Bildschirme: ganze Fläche
 // 5760×1080; auf einem einzelnen Bildschirm nur der mittlere Teil. Klick auf den Reaktor = L.O.K.I. stumm / wieder an.
 import { B, H, ladeSzene, zeichneSzene } from '../hud5/szene.js'
-import { ausHud, erstelleInhalte, zeichneInhalte } from '../hud5/inhalte.js'
+import { ausHud } from '../hud5/inhalte.js'
+import { erstelleTafeln, zeichneTafeln } from '../hud5/tafeln.js'
 import { sequenzDaten } from '../startsequenz/lageDaten.js'
 import { wetterAusCode } from '../src/jarvis/wetter.ts'
 
@@ -80,7 +81,7 @@ if (typeof window.wallpaperRegisterAudioListener === 'function') window.wallpape
 window.wallpaperPropertyListener = { setPaused: (p) => { const war = pausiert; pausiert = !!p; if (war && !pausiert) { lauf++; requestAnimationFrame((ms) => schleife(ms, lauf)) } } }
 
 const szene = await ladeSzene('./ebenen/')
-const inhalte = erstelleInhalte()
+const tafeln = erstelleTafeln(document.getElementById('tafeln'), VERSATZ) // Fenster mit echter Perspektive über der Szene
 /** Zustand von L.O.K.I. für den Reaktor: hört zu / denkt / spricht / aus */
 const reaktorZustand = (l) => (!l || !l.mikrofon || ['aus', 'fehler'].includes(l.zustand) ? 'aus' : l.zustand === 'denkt' ? 'denkt' : l.zustand === 'spricht' ? 'spricht' : 'hoert')
 
@@ -89,7 +90,7 @@ function schleife(ms, meine = lauf) {
   requestAnimationFrame((n) => schleife(n, meine))
   const t = ms / 1000, loki = antwort?.loki ?? null
   zeichneSzene(g, szene, t, { versatz: VERSATZ, loki: reaktorZustand(loki), pegel: 0.6 + 0.4 * Math.abs(Math.sin(t * 7)) })
-  zeichneInhalte(g, inhalte, { ...daten, ton: performance.now() - letzterTon < 2000 ? ton : null, kamBilder: [liveBild(0), liveBild(1)] }, t, VERSATZ)
+  zeichneTafeln(tafeln, { ...daten, ton: performance.now() - letzterTon < 2000 ? ton : null, kamBilder: [liveBild(0), liveBild(1)] }, t)
 }
 
 void holen()

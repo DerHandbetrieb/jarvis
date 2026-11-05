@@ -7,13 +7,14 @@
          Tasten: 1 hört zu, 2 denkt, 3 spricht, 4 aus; Z = Ausschnitt in echter Größe (Mitte), noch einmal Z = ganz. -->
     <style>
       html, body { margin: 0; background: #000; color: #9ef; font: 13px system-ui; overflow: hidden; }
-      canvas { display: block; width: 100vw; }
+      #flaeche { display: block; width: 100vw; }
+      #tafeln { position: absolute; left: 0; top: 0; width: 100vw; height: calc(100vw * 1080 / 5760); }
       #info { position: fixed; left: 8px; top: 6px; background: #000a; padding: 4px 8px; border-radius: 4px; }
     </style>
   </head>
   <body>
     <div id="info">lädt …</div>
-    <canvas id="flaeche" width="5760" height="1080"></canvas>
+    <div style="position: relative"><canvas id="flaeche" width="5760" height="1080"></canvas><div id="tafeln"></div></div>
     <script type="module" src="./vorschau.js"></script>
   </body>
 </html>

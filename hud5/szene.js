@@ -194,16 +194,35 @@ export async function ladeSzene(basis, einstellung = {}) {
     nebel2: nebelBild(2400, 300, zufall, 60),
     rauchStreifen: leinwand(1300, 320), rauchMaske: rauchMaske(1300, 320), wolke: wolkeBild(1024, 240, zufall),
     spiegel: geo.ebenen.reaktor ? spiegelBild(bilder.reaktor, geo.ebenen.reaktor) : null,
-    blitze: [], naechsterBlitz: 0,
+    blitze: [], naechsterBlitz: 0, rot: 0,
+    rotBilder: Object.fromEntries(['reaktor', 'kernscheibe', 'zellen', 'halo', 'kern', 'schrift'].filter((n) => bilder[n]).map((n) => [n, rotFassung(bilder[n])])),
+    seePuffer: leinwand(B, H - HORIZONT), seeMaske: seeMaske(),
   }
 }
 
-function ebene(g, s, name, alpha, mischung = 'lighter') {
+function ebene(g, s, name, alpha, mischung = 'lighter', rot = 0) {
   const e = s.geo.ebenen[name], bild = s.bilder[name]
   if (!e || !bild || alpha <= 0.002) return
-  g.globalAlpha = Math.min(1, alpha); g.globalCompositeOperation = mischung
-  g.drawImage(bild, e.x, e.y, e.b, e.h)
+  g.globalCompositeOperation = mischung
+  // stumm: rote Fassung überblenden (deckende Ebenen: Rot oben drauf, leuchtende: aufteilen)
+  const rb = rot > 0.002 ? s.rotBilder?.[name] : null
+  if (rb && mischung === 'source-over') {
+    g.globalAlpha = Math.min(1, alpha); g.drawImage(bild, e.x, e.y, e.b, e.h)
+    g.globalAlpha = Math.min(1, alpha * rot); g.drawImage(rb, e.x, e.y, e.b, e.h)
+  } else {
+    if (rot < 0.998) { g.globalAlpha = Math.min(1, alpha * (rb ? 1 - rot : 1)); g.drawImage(bild, e.x, e.y, e.b, e.h) }
+    if (rb) { g.globalAlpha = Math.min(1, alpha * rot); g.drawImage(rb, e.x, e.y, e.b, e.h) }
+  }
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
+}
+
+/** Maske für den See-Puffer: Bewegung zu den Seiten (Ecken, Runenbänder) weich ausgeblendet */
+function seeMaske() {
+  const c = leinwand(B, H - HORIZONT), g = c.getContext('2d'), v = g.createLinearGradient(0, 0, B, 0)
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(560 / B, 'rgba(0,0,0,0)'); v.addColorStop(820 / B, '#000')
+  v.addColorStop(1 - 820 / B, '#000'); v.addColorStop(1 - 560 / B, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0)')
+  g.fillStyle = v; g.fillRect(0, 0, c.width, c.height)
+  return c
 }
 
 /** Aurora: zusätzliche additive Lage – Helligkeitswellen laufen die Vorhänge entlang, Strahlen flackern leicht, die
@@ -224,31 +243,74 @@ function aurora(g, s, t, anteil) {
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
 
-/** Wasser: Glanzlichter kräuseln sich (zeilenweise seitlich versetzt), der Reaktor spiegelt sich im See */
+/** Rote Fassung eines Bildes für „L.O.K.I. stumm“ (Wunsch Auftraggeber 05.11.2026): nur das blaue/cyan Leuchten wird
+ *  rot, Stein und Kupfer bleiben – einmal beim Laden berechnet */
+function rotFassung(bild) {
+  const c = leinwand(bild.width, bild.height), g = c.getContext('2d')
+  g.drawImage(bild, 0, 0)
+  const d = g.getImageData(0, 0, c.width, c.height), p = d.data
+  for (let i = 0; i < p.length; i += 4) {
+    const r = p[i], gr = p[i + 1], b = p[i + 2], k = Math.min(1, Math.max(0, (b - r - 40) / 100))
+    if (!k) continue
+    p[i] = r + (Math.max(b, gr) - r) * k; p[i + 1] = gr + (gr * 0.22 - gr) * k; p[i + 2] = b + (b * 0.18 - b) * k
+  }
+  g.putImageData(d, 0, 0)
+  return c
+}
+
+/**
+ * Wasser (Rückmeldung Auftraggeber 05.11.2026: realistischere Wellen): das ganze Seestück unter dem Horizont – Spiegelung
+ * der Aurora, Glanzlichter und das Spiegelbild des Reaktors – wird zeilenweise mit mehreren überlagerten Wellen versetzt.
+ * Perspektive: am Horizont kurze, kaum sichtbare Wellen, nach vorn längere und kräftigere; Wellenkämme blitzen leicht
+ * auf. Nach außen (Ecken-Ornamente, Runenbänder) wird die Bewegung weich ausgeblendet.
+ */
 function wasser(g, s, t, anteil) {
-  const e = s.geo.ebenen.wasser, bild = s.bilder.wasser
-  const zeile = 3
-  if (e && bild) {
-    g.globalCompositeOperation = 'lighter'
-    const fy = bild.height / e.h
-    for (let y = 0; y < e.h; y += zeile) {
-      const tiefe = (e.y + y - HORIZONT) / (H - HORIZONT)
-      const dx = Math.sin((e.y + y) * 0.21 - t * 1.7) * (1 + tiefe * 4) + Math.sin((e.y + y) * 0.07 + t * 0.6) * 2
-      g.globalAlpha = anteil * (0.35 + 0.25 * Math.sin(t * 0.8 + y * 0.05))
-      g.drawImage(bild, 0, y * fy, bild.width, zeile * fy, e.x + dx, e.y + y, e.b, zeile)
+  const p = s.seePuffer, pg = p.getContext('2d'), hoehe = p.height, zeile = 2
+  const glanz = s.bilder.wasser, ge = s.geo.ebenen.wasser, sp = s.spiegel, re = s.geo.ebenen.reaktor
+  pg.globalCompositeOperation = 'source-over'; pg.globalAlpha = 1; pg.clearRect(0, 0, B, hoehe)
+  for (let y = 0; y < hoehe; y += zeile) {
+    const d = y / hoehe, yy = HORIZONT + y
+    const k = 1 / (d * 1.6 + 0.12) // Perspektive: Wellen am Horizont dicht, vorn weit
+    const welle = Math.sin(y * 0.09 * k - t * 1.25) + 0.55 * Math.sin(y * 0.047 * k + t * 0.83 + 1.7) + 0.3 * Math.sin(y * 0.21 * k - t * 2.1 + 0.4)
+    const dx = welle * (0.4 + 7 * d)
+    pg.globalCompositeOperation = 'source-over'; pg.globalAlpha = 1
+    pg.drawImage(s.bilder.grund, 0, yy, B, zeile, dx, y, B, zeile)
+    pg.globalCompositeOperation = 'lighter'
+    if (glanz && ge && yy >= ge.y && yy < ge.y + ge.h) {
+      const fy = glanz.height / ge.h
+      pg.globalAlpha = anteil * Math.max(0, 0.25 + 0.35 * Math.sin(y * 0.13 * k - t * 1.6)) // Kämme blitzen auf
+      pg.drawImage(glanz, 0, (yy - ge.y) * fy, glanz.width, zeile * fy, ge.x + dx * 1.2, y, ge.b, zeile)
+    }
+    if (sp && re && y < sp.height) {
+      pg.globalAlpha = anteil * 0.32 * (1 - d * 0.6)
+      pg.globalCompositeOperation = 'screen'
+      pg.drawImage(sp, 0, y, sp.width, zeile, re.x + dx * 1.4, y, sp.width, zeile)
     }
   }
-  const sp = s.spiegel, re = s.geo.ebenen.reaktor
-  if (sp && re) {
-    g.globalCompositeOperation = 'screen'
-    for (let y = 0; y < sp.height; y += zeile) {
-      const tiefe = y / sp.height
-      const dx = Math.sin((HORIZONT + y) * 0.23 - t * 1.5) * (1.5 + tiefe * 7)
-      g.globalAlpha = anteil * 0.32
-      g.drawImage(sp, 0, y, sp.width, zeile, re.x + dx, HORIZONT + y, sp.width, zeile)
-    }
-  }
+  pg.globalAlpha = 1; pg.globalCompositeOperation = 'destination-in'; pg.drawImage(s.seeMaske, 0, 0)
+  g.drawImage(p, 0, HORIZONT)
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
+}
+
+/** Sternschnuppen (Wunsch Auftraggeber 05.11.2026): alle 15–45 s eine, kurz und leuchtend über den Nachthimmel */
+function sternschnuppen(g, s, t) {
+  if (!s.naechsteSchnuppe) s.naechsteSchnuppe = t + 6 + Math.random() * 10
+  if (t >= s.naechsteSchnuppe) {
+    const links = Math.random() < 0.5, w = (15 + Math.random() * 25) * (Math.PI / 180)
+    s.schnuppe = { von: t, dauer: 0.7 + Math.random() * 0.5, x: 300 + Math.random() * (B - 600), y: 30 + Math.random() * 230, dx: Math.cos(w) * (links ? -1 : 1), dy: Math.sin(w), weg: 260 + Math.random() * 220 }
+    s.naechsteSchnuppe = t + 15 + Math.random() * 30
+  }
+  const sc = s.schnuppe
+  if (!sc) return
+  const f = (t - sc.von) / sc.dauer
+  if (f > 1 || f < 0) { s.schnuppe = null; return }
+  const kx = sc.x + sc.dx * sc.weg * f, ky = sc.y + sc.dy * sc.weg * f, l = 90 * Math.min(1, f * 4), hell = Math.sin(f * Math.PI)
+  const v = g.createLinearGradient(kx - sc.dx * l, ky - sc.dy * l, kx, ky)
+  v.addColorStop(0, 'rgba(200,245,255,0)'); v.addColorStop(1, `rgba(235,252,255,${0.9 * hell})`)
+  g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = v; g.lineWidth = 1.6; g.lineCap = 'round'
+  g.beginPath(); g.moveTo(kx - sc.dx * l, ky - sc.dy * l); g.lineTo(kx, ky); g.stroke()
+  const gl = g.createRadialGradient(kx, ky, 0, kx, ky, 6); gl.addColorStop(0, `rgba(255,255,255,${hell})`); gl.addColorStop(1, 'rgba(160,240,255,0)')
+  g.fillStyle = gl; g.fillRect(kx - 6, ky - 6, 12, 12); g.restore()
 }
 
 // Unter dem Reaktor (Rückmeldung Auftraggeber 05.11.2026): die starren Lichtringe sind aus dem Grundbild entfernt
@@ -427,11 +489,11 @@ function blitze(g, s, t, rate, anteil) {
     }
     if (z > b.vorlauf + 0.18 && !b.nach.some((n) => z >= n && z < n + 0.18)) hell *= Math.max(0, 1 - (z - b.vorlauf) / b.dauer) * 0.6
     s.blitzHell = Math.max(s.blitzHell, z >= b.vorlauf ? hell : 0)
-    for (const [breite, farbe, deck] of [[22, CYAN, 0.12], [8, '#9ffcff', 0.45], [2.6, '#ffffff', 1]]) linie(b.haupt, bis, breite * (0.6 + 0.4 * Math.min(1, hell)), farbe, deck * hell)
+    for (const [breite, farbe, deck] of [[22, s.rot > 0.5 ? '#ff3a2e' : CYAN, 0.12], [8, s.rot > 0.5 ? '#ff8a7a' : '#9ffcff', 0.45], [2.6, '#ffffff', 1]]) linie(b.haupt, bis, breite * (0.6 + 0.4 * Math.min(1, hell)), farbe, deck * hell)
     for (const a of b.aeste) {
       if (a.ab >= bis) continue
       const teil = Math.max(2, Math.round(a.pkt.length * Math.min(1, (bis - a.ab) / 10)))
-      for (const [breite, farbe, deck] of [[14, CYAN, 0.1], [5, '#9ffcff', 0.4], [1.8, '#ffffff', 0.95]]) linie(a.pkt, teil, breite * a.dick, farbe, deck * hell * a.dick)
+      for (const [breite, farbe, deck] of [[14, s.rot > 0.5 ? '#ff3a2e' : CYAN, 0.1], [5, s.rot > 0.5 ? '#ff8a7a' : '#9ffcff', 0.4], [1.8, '#ffffff', 0.95]]) linie(a.pkt, teil, breite * a.dick, farbe, deck * hell * a.dick)
     }
     // Spitze des Vorläufers glimmt
     if (z < b.vorlauf) {
@@ -447,13 +509,15 @@ function blitze(g, s, t, rate, anteil) {
 function reaktor(g, s, t, opt, anteil) {
   const r = s.geo.reaktor, kz = s.geo.ebenen.kernscheibe, ze = s.geo.ebenen.zellen
   const spricht = opt.loki === 'spricht' ? Math.min(1, opt.pegel ?? 0.5) : 0
-  const denkt = opt.loki === 'denkt' ? 1 : 0, aus = opt.loki === 'aus' ? 0.35 : 1
+  const denkt = opt.loki === 'denkt' ? 1 : 0, aus = 1, rot = s.rot // stumm: rot statt blau (weich überblendet)
   const puls = 0.5 + 0.5 * Math.sin((t * Math.PI * 2) / 2.8)
   const flackern = 0.9 + 0.1 * Math.sin(t * 23) * Math.sin(t * 7.3)
   // Kernscheibe (runde Mitte mit den Lichtpunkten) dreht sich langsam gegen den Uhrzeigersinn
   if (kz && anteil > 0) {
     g.save(); g.translate(r.x, r.y); g.rotate(-t * ((Math.PI * 2) / 50) * (1 + denkt * 2))
-    g.drawImage(s.bilder.kernscheibe, kz.x - r.x, kz.y - r.y, kz.b, kz.h); g.restore()
+    g.drawImage(s.bilder.kernscheibe, kz.x - r.x, kz.y - r.y, kz.b, kz.h)
+    if (rot > 0.002) { g.globalAlpha = rot; g.drawImage(s.rotBilder.kernscheibe, kz.x - r.x, kz.y - r.y, kz.b, kz.h); g.globalAlpha = 1 }
+    g.restore()
   }
   // Lauflicht durch die blauen Zellen zwischen den Spulen (16 Sektoren)
   if (ze && anteil > 0) {
@@ -465,14 +529,16 @@ function reaktor(g, s, t, opt, anteil) {
       const a = anteil * aus * (0.18 + 0.55 * naehe + 0.12 * puls + 0.5 * spricht)
       if (a < 0.01) continue
       g.save(); g.beginPath(); g.moveTo(r.x, r.y); g.arc(r.x, r.y, 230, w0, w1); g.closePath(); g.clip()
-      g.globalAlpha = Math.min(1, a); g.drawImage(s.bilder.zellen, ze.x, ze.y, ze.b, ze.h); g.restore()
+      g.globalAlpha = Math.min(1, a) * (1 - rot); g.drawImage(s.bilder.zellen, ze.x, ze.y, ze.b, ze.h)
+      if (rot > 0.002) { g.globalAlpha = Math.min(1, a) * rot; g.drawImage(s.rotBilder.zellen, ze.x, ze.y, ze.b, ze.h) }
+      g.restore()
     }
     g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
   }
-  blitze(g, s, t, (1 + denkt * 2 + spricht * 3) * aus, anteil)
+  blitze(g, s, t, (1 + denkt * 2 + spricht * 3) * (rot > 0.5 ? 0.4 : 1), anteil)
   const schlag = s.blitzHell ?? 0 // der Hauptblitz lässt Kern und Lichthof kurz aufleuchten
-  ebene(g, s, 'halo', anteil * aus * flackern * (0.35 + 0.5 * puls + 0.7 * spricht + 0.6 * schlag))
-  ebene(g, s, 'kern', anteil * aus * flackern * (0.25 + 0.45 * puls + 0.6 * spricht + 0.5 * schlag))
+  ebene(g, s, 'halo', anteil * aus * flackern * (0.35 + 0.5 * puls + 0.7 * spricht + 0.6 * schlag), 'lighter', rot)
+  ebene(g, s, 'kern', anteil * aus * flackern * (0.25 + 0.45 * puls + 0.6 * spricht + 0.5 * schlag), 'lighter', rot)
 }
 
 /** Runen wandern links/rechts entlang der gemessenen Bahn im Band und laufen oben und unten aus dem Bild */
@@ -511,7 +577,7 @@ function schrift(g, s, t, anteil) {
   if (anteil <= 0) return
   const hell = anteil * (0.9 + 0.1 * Math.sin((t * Math.PI * 2) / 2.8))
   ebene(g, s, 'gravur', anteil * 0.75, 'source-over')
-  ebene(g, s, 'schrift', hell)
+  ebene(g, s, 'schrift', hell, 'lighter', s.rot)
 }
 
 /**
@@ -529,12 +595,16 @@ export function zeichneSzene(g, s, t, opt = {}) {
   g.globalAlpha = an.grund; g.drawImage(s.bilder.grund, 0, 0, B, H); g.globalAlpha = 1
 
   const mit = (n) => !(opt.aus ?? []).includes(n) // Prüfhilfe: einzelne Teile weglassen
+  // stumm (L.O.K.I. aus): Reaktor-Leuchten weich auf Rot, beim Wiedereinschalten zurück auf Blau (≈ 0,6 s)
+  const rotZiel = opt.loki === 'aus' ? 1 : 0, dt = Math.min(0.1, Math.max(0, t - (s.letztesT ?? t))); s.letztesT = t
+  s.rot += Math.sign(rotZiel - s.rot) * Math.min(Math.abs(rotZiel - s.rot), dt / 0.6)
   if (mit('aurora')) aurora(g, s, t, an.aurora)
+  sternschnuppen(g, s, t)
   // aufsteigender Rauch hinter dem Reaktor entfernt (Rückmeldung Auftraggeber 05.11.2026: Reaktor soll klar bleiben)
   if (mit('wasser')) wasser(g, s, t, an.reaktor)
   // pulsierende Wellenringe auf Wunsch des Auftraggebers wieder entfernt (05.11.2026: „gefallen mir gar nicht“)
   if (mit('rauch')) rauch(g, s, t, an.nebel)
-  ebene(g, s, 'reaktor', an.grund, 'source-over') // Reaktor steht vorn: Rauch und Wolken liegen dahinter/darunter
+  ebene(g, s, 'reaktor', an.grund, 'source-over', s.rot) // Reaktor steht vorn: Rauch und Wolken liegen dahinter/darunter
   if (mit('reaktor')) reaktor(g, s, t, opt, an.reaktor)
   if (mit('schrift')) schrift(g, s, t, an.reaktor)
 

@@ -88,6 +88,16 @@ if quelle == 'magnific' and os.path.exists('grafik/magnific/wasser_ohne_ringe.pn
     box = json.load(open('grafik/magnific/wasser_ausschnitt.json'))['box']
     gross = gross.copy(); gross.paste(Image.open('grafik/magnific/wasser_ohne_ringe.png').convert('RGB').resize((box[2] - box[0], box[3] - box[1])), box[:2])
     print('Wasser: starre Ringe ersetzt')
+# Fensterrahmen: die gemalten Rahmen links hat Magnific wegradiert (05.11.2026, Wahl Auftraggeber: eigene Rahmen
+# „Glas & Goldkante“, die die Szene mit echter Perspektive selbst zeichnet). Weich über die Maske eingeblendet; der
+# rechte Bildschirm entsteht unten ohnehin als Spiegelbild des linken.
+if quelle == 'magnific' and os.path.exists('grafik/magnific/rahmen_radiert.png'):
+    box = json.load(open('grafik/magnific/rahmen_ausschnitt.json'))['box']
+    neu = np.asarray(Image.open('grafik/magnific/rahmen_radiert.png').convert('RGB').resize((box[2] - box[0], box[3] - box[1]))).astype(np.float32)
+    maske = cv2.GaussianBlur(np.asarray(Image.open('grafik/magnific/rahmen_maske.png').convert('L')).astype(np.float32) / 255, (0, 0), 12)[..., None]
+    alt = np.asarray(gross.crop(box)).astype(np.float32)
+    gross = gross.copy(); gross.paste(Image.fromarray((alt * (1 - maske) + neu * maske).astype(np.uint8)), box[:2])
+    print('Fensterrahmen entfernt')
 grund = np.asarray(gross.resize((B, H), Image.LANCZOS)).copy()
 print('Grundbild', quelle, gross.size)
 
