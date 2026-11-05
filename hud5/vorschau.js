@@ -3,7 +3,7 @@ import { B, H, ladeSzene, zeichneSzene } from './szene.js'
 
 const c = document.getElementById('flaeche'), g = c.getContext('2d', { alpha: false }), info = document.getElementById('info')
 const s = await ladeSzene('./ebenen/')
-let loki = 'hoert', zoom = false
+let loki = 'hoert', zoom = false, stopp = false
 addEventListener('keydown', (e) => {
   loki = { 1: 'hoert', 2: 'denkt', 3: 'spricht', 4: 'aus' }[e.key] ?? loki
   if (e.key === 'z' || e.key === 'Z') { zoom = !zoom; c.width = zoom ? 1920 : B; c.style.width = zoom ? '1920px' : '100vw' }
@@ -11,6 +11,7 @@ addEventListener('keydown', (e) => {
 const zeiten = []
 let vorher = performance.now(), laengste = 0
 function schleife(ms) {
+  if (stopp) return
   requestAnimationFrame(schleife)
   const a = performance.now()
   const pegel = loki === 'spricht' ? 0.5 + 0.5 * Math.abs(Math.sin(ms / 130) * Math.sin(ms / 370)) : 0
@@ -25,3 +26,14 @@ setInterval(() => {
   window.messung = { mittel, laengste }
 }, 500)
 requestAnimationFrame(schleife)
+// Prüfhilfe: Blitz erzwingen und ein Bild in einer bestimmten Phase zeichnen (für messen.cjs)
+window.blitzProbe = (phase) => {
+  stopp = true
+  const t = 1000; s.blitze = []; s.naechsterBlitz = t
+  zeichneSzene(g, s, t, { loki })
+  const b = s.blitze[0], z = phase === 'vorlauf' ? b.vorlauf * 0.6 : b.vorlauf + 0.02
+  zeichneSzene(g, s, t + z, { loki })
+  const k = document.createElement('canvas'); k.width = 900; k.height = 900
+  k.getContext('2d').drawImage(c, 2880 - 450 - (zoom ? 1920 : 0), 494 - 450, 900, 900, 0, 0, 900, 900)
+  return k.toDataURL('image/png')
+}

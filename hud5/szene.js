@@ -80,11 +80,11 @@ function randMaske(b, h, rand, unten = 0) {
 /** Maske für den Nebel auf dem See: unter dem Reaktor am dichtesten, zu den Seiten dünner, oben (Wasserlinie) weich */
 function nebelMaske(b, h) {
   const c = leinwand(b, h), g = c.getContext('2d'), v = g.createLinearGradient(0, 0, b, 0)
-  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(0.15, 'rgba(0,0,0,0.45)'); v.addColorStop(0.5, '#000')
-  v.addColorStop(0.85, 'rgba(0,0,0,0.45)'); v.addColorStop(1, 'rgba(0,0,0,0)')
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(0.1, 'rgba(0,0,0,0.6)'); v.addColorStop(0.32, '#000')
+  v.addColorStop(0.68, '#000'); v.addColorStop(0.9, 'rgba(0,0,0,0.6)'); v.addColorStop(1, 'rgba(0,0,0,0)')
   g.fillStyle = v; g.fillRect(0, 0, b, h)
   g.globalCompositeOperation = 'destination-in'
-  const u = g.createLinearGradient(0, 0, 0, h); u.addColorStop(0, 'rgba(0,0,0,0)'); u.addColorStop(0.12, '#000'); u.addColorStop(0.75, '#000'); u.addColorStop(1, 'rgba(0,0,0,0.5)')
+  const u = g.createLinearGradient(0, 0, 0, h); u.addColorStop(0, 'rgba(0,0,0,0)'); u.addColorStop(0.12, '#000'); u.addColorStop(1, '#000')
   g.fillStyle = u; g.fillRect(0, 0, b, h)
   return c
 }
@@ -140,7 +140,7 @@ export async function ladeSzene(basis) {
   const bilder = Object.fromEntries(await Promise.all(namen.map(async (n) => [n, await bildLaden(basis + n + '.webp')])))
   const zufall = zufallsfolge(7)
   const ringMitte = ringBild(geo.ringMitte.r, 30, 24)
-  const nebelB = 3200
+  const nebelB = 5200 // Nebel über fast die ganze Seebreite (Wunsch: mehr nach links/rechts und nach unten)
   return {
     geo, bilder,
     ringMitte, ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
@@ -213,61 +213,115 @@ function wasser(g, s, t, anteil) {
 function nebel(g, s, t, anteil) {
   const st = s.nebelStreifen, sg = st.getContext('2d'), x0 = 2880 - st.width / 2, y = HORIZONT - 12
   sg.globalCompositeOperation = 'source-over'; sg.clearRect(0, 0, st.width, st.height)
-  for (const [bild, tempo, dy, hoch, deck] of [[s.nebel, 11, -70, 0.8, 1], [s.nebel2, -6, -20, 0.8, 0.85], [s.nebel, 4, 40, 0.7, 0.7]]) {
+  for (const [bild, tempo, dy, hoch, deck] of [[s.nebel, 11, -70, 0.9, 1], [s.nebel2, -6, -20, 0.9, 1], [s.nebel, 4, 40, 0.8, 0.9], [s.nebel2, 8, 100, 0.8, 0.8]]) {
     sg.globalAlpha = deck
     const start = -(((t * tempo) % bild.width) + bild.width) % bild.width
     for (let px = start; px < st.width; px += bild.width) sg.drawImage(bild, px, dy, bild.width, bild.height * hoch)
   }
   sg.globalAlpha = 1; sg.globalCompositeOperation = 'destination-in'; sg.drawImage(s.nebelMaske, 0, 0)
   g.globalAlpha = anteil; g.globalCompositeOperation = 'screen'
-  g.drawImage(st, x0, y)
+  g.drawImage(st, x0, y); g.globalAlpha = anteil * 0.6; g.drawImage(st, x0, y) // zweimal: dichter
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
 
 /**
- * Elektrizität (Rückmeldung Auftraggeber 05.11.2026: größer um den Reaktor, deutlich seltener, aufbauend): Eine Entladung
- * entsteht an einer Stelle knapp außerhalb des Steinrings, baut sich auf und läuft dann ein Stück um den Reaktor herum
- * (Kopf vorn, Schweif folgt), knistert dabei und verlischt. Alle 8–18 s, öfter wenn Loki denkt oder spricht.
+ * Elektrizität auf dem Reaktor (Rückmeldung Auftraggeber 05.11.2026: auf dem Reaktor, nicht daneben; realistischer
+ * Blitzverlauf, der sich seinen Weg über Metall sucht). Vorbild echter Blitz (NOAA/NSSL): ein schwach leuchtender
+ * Vorläufer tastet sich ruckweise vor und verzweigt sich, dann schlägt der helle Hauptblitz durch denselben Kanal,
+ * danach flackert er 1–3-mal auf demselben Weg nach. Hier: Start an einer Spule, Weg über die Zellen zur nächsten
+ * Spule (ein bis drei weiter), an Spulen läuft er ein Stück die Wicklung entlang nach außen oder innen, dazu kurze
+ * Seitenäste. Die Form steht für eine Entladung fest (Nachflackern auf gleichem Weg), nur das Leuchten knistert.
  */
-const BLITZ_R = 352
+const SPULE_R = 172, SPULE_WINKEL = (k) => -Math.PI / 2 + (k * Math.PI) / 4 // acht Spulen, oben beginnend
+
+/** Mittelpunkt-Verschiebung: aus einer Strecke einen gezackten Pfad machen (Abweichung wird je Stufe kleiner) */
+function zacken(a, b, rauh, stufen) {
+  let pkt = [a, b]
+  for (let st = 0; st < stufen; st++) {
+    const neu = [pkt[0]]
+    for (let i = 1; i < pkt.length; i++) {
+      const [x0, y0] = pkt[i - 1], [x1, y1] = pkt[i], l = Math.hypot(x1 - x0, y1 - y0)
+      const v = (Math.random() - 0.5) * l * rauh
+      neu.push([(x0 + x1) / 2 + ((y0 - y1) / (l || 1)) * v, (y0 + y1) / 2 + ((x1 - x0) / (l || 1)) * v], pkt[i])
+    }
+    pkt = neu
+  }
+  return pkt
+}
+
+/** eine Entladung zusammensetzen: Hauptkanal entlang der Spulen + Abzweige, jeweils mit Zeitpunkt des Erscheinens */
+function entladung(r, t) {
+  const start = Math.floor(Math.random() * 8), schritte = 1 + Math.floor(Math.random() * 3), richtung = Math.random() < 0.5 ? -1 : 1
+  const punkt = (w, rad) => [r.x + Math.cos(w) * rad, r.y + Math.sin(w) * rad]
+  const haupt = [], aeste = []
+  for (let k = 0; k < schritte; k++) {
+    const w0 = SPULE_WINKEL(start + k * richtung), w1 = SPULE_WINKEL(start + (k + 1) * richtung)
+    // über die Zelle zwischen zwei Spulen: Bogen mit leicht wechselndem Abstand, dann gezackt
+    const stuetzen = [0, 0.35, 0.65, 1].map((f) => punkt(w0 + (w1 - w0) * f, SPULE_R + (Math.random() - 0.5) * 34))
+    for (let i = 1; i < stuetzen.length; i++) {
+      const stueck = zacken(stuetzen[i - 1], stuetzen[i], 0.45, 3)
+      haupt.push(...(haupt.length ? stueck.slice(1) : stueck))
+    }
+    // an der erreichten Spule: ein Stück die Wicklung entlang nach außen oder innen
+    if (Math.random() < 0.7) {
+      const nach = Math.random() < 0.5 ? 50 + Math.random() * 30 : -(30 + Math.random() * 30)
+      aeste.push({ ab: haupt.length - 1, pkt: zacken(haupt[haupt.length - 1], punkt(w1, SPULE_R + nach), 0.35, 3), dick: 0.8 })
+    }
+  }
+  // kurze Seitenäste, wie sie ein Vorläufer beim Suchen bildet
+  const anzahl = 2 + Math.floor(Math.random() * 4)
+  for (let i = 0; i < anzahl; i++) {
+    const ab = 2 + Math.floor(Math.random() * (haupt.length - 3)), [x, y] = haupt[ab]
+    const w = Math.atan2(y - r.y, x - r.x) + (Math.random() - 0.5) * 1.6, l = 18 + Math.random() * 45
+    aeste.push({ ab, pkt: zacken([x, y], [x + Math.cos(w) * l, y + Math.sin(w) * l], 0.5, 2), dick: 0.5 })
+  }
+  // Ablauf: Vorläufer wächst ruckweise (0,35–0,7 s), Hauptblitz, 1–3 Nachblitze
+  const vorlauf = 0.35 + Math.random() * 0.35, nach = [], n = 1 + Math.floor(Math.random() * 3)
+  for (let i = 0, z = vorlauf + 0.12; i < n; i++) { z += 0.09 + Math.random() * 0.16; nach.push(z) }
+  return { von: t, haupt, aeste, vorlauf, nach, dauer: nach[nach.length - 1] + 0.25 }
+}
+
 function blitze(g, s, t, rate, anteil) {
   const r = s.geo.reaktor
   if (!s.naechsterBlitz) s.naechsterBlitz = t + 3
   if (t >= s.naechsterBlitz) {
-    const richtung = Math.random() < 0.5 ? -1 : 1
-    s.blitze.push({ von: t, dauer: 1.8 + Math.random() * 1.2, start: Math.random() * Math.PI * 2, weg: richtung * (1.6 + Math.random() * 1.8), rad: BLITZ_R + (Math.random() - 0.5) * 24 })
-    s.naechsterBlitz = t + (8 + Math.random() * 10) / rate
+    s.blitze.push(entladung(r, t))
+    s.naechsterBlitz = t + (9 + Math.random() * 12) / rate
   }
-  s.blitze = s.blitze.filter((b) => t - b.von < b.dauer && t >= b.von)
+  s.blitze = s.blitze.filter((b) => t >= b.von && t - b.von < b.dauer)
+  s.blitzHell = 0
   if (!s.blitze.length || anteil <= 0) return
   g.save(); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round'; g.lineJoin = 'round'
+  const linie = (pkt, bis, breite, farbe, deck) => {
+    if (bis < 2 || deck <= 0.003) return
+    g.beginPath(); for (let i = 0; i < bis; i++) (i ? g.lineTo : g.moveTo).call(g, pkt[i][0], pkt[i][1])
+    g.lineWidth = breite; g.strokeStyle = farbe; g.globalAlpha = Math.min(1, deck * anteil); g.stroke()
+  }
   for (const b of s.blitze) {
-    const f = (t - b.von) / b.dauer
-    // Kopf läuft mit nachlassendem Tempo voraus, Schweif folgt verzögert; Helligkeit baut sich auf und verlischt
-    const kopf = b.start + b.weg * (1 - Math.pow(1 - Math.min(1, f * 1.25), 2))
-    const schweif = b.start + b.weg * Math.max(0, (f - 0.35) / 0.65) ** 1.5
-    const hell = Math.min(1, f / 0.25) * Math.min(1, (1 - f) / 0.3) * (0.75 + 0.25 * Math.random())
-    const spanne = kopf - schweif, teile = Math.max(4, Math.ceil(Math.abs(spanne) * 28)), punkte = []
-    for (let i = 0; i <= teile; i++) {
-      const w = schweif + (spanne * i) / teile, zack = (Math.random() - 0.5) * 18
-      punkte.push([r.x + Math.cos(w) * (b.rad + zack), r.y + Math.sin(w) * (b.rad + zack)])
+    const z = t - b.von
+    // Vorläufer: ruckweise wachsen (in Sprüngen von ~40 ms), schwach und flackernd
+    const anteilWeg = Math.min(1, Math.floor(z / 0.04) * 0.04 / b.vorlauf)
+    const bis = Math.max(2, Math.round(b.haupt.length * anteilWeg))
+    let hell = 0.45 + 0.3 * Math.random()
+    // Hauptblitz und Nachblitze: kurz sehr hell, dann schnell abklingend
+    for (const [i, zeit] of [b.vorlauf, ...b.nach].entries()) {
+      const d = z - zeit
+      if (d >= 0 && d < 0.18) hell = Math.max(hell, (i ? 0.75 : 1.25) * (1 - d / 0.18) ** 1.5)
     }
-    const linie = (pkt, breite, farbe, deck) => {
-      g.beginPath(); pkt.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)))
-      g.lineWidth = breite; g.strokeStyle = farbe; g.globalAlpha = deck * hell * anteil; g.stroke()
+    if (z > b.vorlauf + 0.18 && !b.nach.some((n) => z >= n && z < n + 0.18)) hell *= Math.max(0, 1 - (z - b.vorlauf) / b.dauer) * 0.6
+    s.blitzHell = Math.max(s.blitzHell, z >= b.vorlauf ? hell : 0)
+    for (const [breite, farbe, deck] of [[22, CYAN, 0.12], [8, '#9ffcff', 0.45], [2.6, '#ffffff', 1]]) linie(b.haupt, bis, breite * (0.6 + 0.4 * Math.min(1, hell)), farbe, deck * hell)
+    for (const a of b.aeste) {
+      if (a.ab >= bis) continue
+      const teil = Math.max(2, Math.round(a.pkt.length * Math.min(1, (bis - a.ab) / 10)))
+      for (const [breite, farbe, deck] of [[14, CYAN, 0.1], [5, '#9ffcff', 0.4], [1.8, '#ffffff', 0.95]]) linie(a.pkt, teil, breite * a.dick, farbe, deck * hell * a.dick)
     }
-    for (const [breite, farbe, deck] of [[10, CYAN, 0.1], [4, CYAN, 0.32], [1.4, '#f2ffff', 0.95]]) linie(punkte, breite, farbe, deck)
-    // ab und zu ein Ast nach innen zum Stein bzw. nach außen
-    if (Math.random() < 0.35) {
-      const [ax, ay] = punkte[Math.floor(Math.random() * punkte.length)], w = Math.atan2(ay - r.y, ax - r.x), aus = Math.random() < 0.5 ? 1 : -1
-      const ast = [[ax, ay]]
-      for (let i = 1; i <= 4; i++) ast.push([ax + Math.cos(w) * aus * i * 9 + (Math.random() - 0.5) * 10, ay + Math.sin(w) * aus * i * 9 + (Math.random() - 0.5) * 10])
-      linie(ast, 3, CYAN, 0.3); linie(ast, 1, '#f2ffff', 0.8)
+    // Spitze des Vorläufers glimmt
+    if (z < b.vorlauf) {
+      const [kx, ky] = b.haupt[bis - 1], gl = g.createRadialGradient(kx, ky, 0, kx, ky, 18)
+      gl.addColorStop(0, 'rgba(220,255,255,0.8)'); gl.addColorStop(1, 'rgba(95,246,255,0)')
+      g.globalAlpha = anteil; g.fillStyle = gl; g.fillRect(kx - 18, ky - 18, 36, 36)
     }
-    // Lichtpunkt am Kopf
-    const kx = r.x + Math.cos(kopf) * b.rad, ky = r.y + Math.sin(kopf) * b.rad, gl = g.createRadialGradient(kx, ky, 0, kx, ky, 26)
-    gl.addColorStop(0, 'rgba(220,255,255,0.9)'); gl.addColorStop(1, 'rgba(95,246,255,0)')
-    g.globalAlpha = hell * anteil; g.fillStyle = gl; g.fillRect(kx - 26, ky - 26, 52, 52)
   }
   g.restore()
 }
@@ -298,9 +352,10 @@ function reaktor(g, s, t, opt, anteil) {
     }
     g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
   }
-  ebene(g, s, 'halo', anteil * aus * flackern * (0.35 + 0.5 * puls + 0.7 * spricht))
-  ebene(g, s, 'kern', anteil * aus * flackern * (0.25 + 0.45 * puls + 0.6 * spricht))
   blitze(g, s, t, (1 + denkt * 2 + spricht * 3) * aus, anteil)
+  const schlag = s.blitzHell ?? 0 // der Hauptblitz lässt Kern und Lichthof kurz aufleuchten
+  ebene(g, s, 'halo', anteil * aus * flackern * (0.35 + 0.5 * puls + 0.7 * spricht + 0.6 * schlag))
+  ebene(g, s, 'kern', anteil * aus * flackern * (0.25 + 0.45 * puls + 0.6 * spricht + 0.5 * schlag))
 }
 
 /** Runen wandern links/rechts entlang der gemessenen Bahn im Band und laufen oben und unten aus dem Bild */

@@ -14,5 +14,9 @@ app.whenReady().then(async () => {
   const url = await f.webContents.executeJavaScript("document.getElementById('flaeche').toDataURL('image/png')")
   const { nativeImage } = require('electron'), bild = nativeImage.createFromDataURL(url)
   for (const [i, n] of ['links', 'mitte', 'rechts'].entries()) fs.writeFileSync(path.join(ziel, n + '.png'), bild.crop({ x: i * 1920, y: 0, width: 1920, height: 1080 }).toPNG())
+  for (const phase of ['vorlauf', 'schlag']) {
+    const d = await f.webContents.executeJavaScript(`window.blitzProbe('${phase}')`)
+    fs.writeFileSync(path.join(ziel, 'blitz-' + phase + '.png'), Buffer.from(d.split(',')[1], 'base64'))
+  }
   app.quit()
 })
