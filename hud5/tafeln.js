@@ -22,7 +22,7 @@ export const SPIEGEL = { abstand: 70, deckkraft: 0.45, unschaerfe: 1.5, auslauf:
 // Inhalte in doppelter Auflösung zeichnen (Rückmeldung Auftraggeber 05.11.2026: leicht unscharf) – das schräge Kippen
 // vergrößert die vordere Kante; mit mehr Bildpunkten bleiben Linien und Schrift scharf
 const AUFLOESUNG = 2
-const BEWEGT = new Set(['ton', 'kamera1', 'kamera2', 'energie']) // energie: laufende Lichtpunkte
+const BEWEGT = new Set(['ton', 'kamera1', 'kamera2', 'energie', 'wetter']) // energie: laufende Lichtpunkte
 
 /** Tafeln anlegen. huelle = Element über der Szenen-Leinwand (gleiche Größe); faktor = Bildschirm-Pixel je Szenen-Pixel.
  *  skala: Größe der Fenster (1 = bisher; Wunsch Auftraggeber 05.11.2026: größer, Wahl über vier Vorschauen) – die Tafel

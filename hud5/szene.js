@@ -6,7 +6,7 @@
 // dem See, Wasser kräuselt sich und spiegelt den Reaktor, Runenringe drehen und laufen weich aus bzw. aus dem Bild.
 // Teuer ist nur das Vorzeichnen beim Laden; je Bild wird nur gedreht, verschoben und überblendet.
 import { FOLGE, rune } from './runen.js'
-import { textBreite, zeichen, wetterSymbol, wetterArt as wetterWort, zeitAngaben, SCHRIFT, sperrung } from './ringschrift.js'
+import { textBreite, zeichen, wetterSymbol, wetterArt as wetterWort, zeitAngaben, SCHRIFT, sperrung, istNacht } from './ringschrift.js'
 import { bergnebel, erstelleWetter, wetterArt, zeichneFrost, zeichneWetterHinten } from './wetter.js'
 
 export const B = 5760, H = 1080
@@ -112,7 +112,7 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
   const rand = hoehe * 3, gr = Math.ceil(2 * (r + rand))
   const dreh = leinwand(gr * FEIN, gr * FEIN), fest = leinwand(gr * FEIN, gr * FEIN)
   const name = ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'].map((t) => ({ text: t, farbe: 'cyan' }))
-  const [symbol, wort] = wetterWort(a.wetter?.code ?? 3), grad = Number.isFinite(a.wetter?.grad) ? `${Math.round(a.wetter.grad)} °C` : '– °C'
+  const [symbol, wort] = wetterWort(a.wetter?.code ?? 3, istNacht(a.wetter)), grad = Number.isFinite(a.wetter?.grad) ? `${Math.round(a.wetter.grad)} °C` : '– °C'
   const angaben = [
     { text: a.uhr, farbe: 'gold', gross: variante === 'info-d' ? 1.45 : 1.15 },
     { text: `${a.tag} ${a.datum}`, farbe: 'cyan' },
@@ -393,7 +393,7 @@ function uhrJetzt() {
 /** Ring-Angaben bei neuem Tag oder neuem Wetter neu beschriften (die Uhrzeit läuft separat in jedem Bild) */
 function ringAktualisieren(s, wetter) {
   if (!s.infoVariante) return
-  const a = { ...zeitAngaben(), wetter }, kennung = JSON.stringify([s.infoVariante === 'info-x' ? '' : a.uhr, a.datum, wetter?.code, Math.round(wetter?.grad ?? -99)])
+  const a = { ...zeitAngaben(), wetter }, kennung = JSON.stringify([s.infoVariante === 'info-x' ? '' : a.uhr, a.datum, wetter?.code, Math.round(wetter?.grad ?? -99), istNacht(wetter)])
   if (kennung === s.ringKennung) return
   s.ringKennung = kennung
   const { dreh, fest, uhr } = infoRing(s.geo.ringMitte.r, 30, s.infoVariante, a, s.ringOpt)

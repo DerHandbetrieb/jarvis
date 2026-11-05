@@ -1,6 +1,6 @@
 // Vier Entwürfe fürs Wetterfeld (05.11.2026, Wunsch Auftraggeber): mit Symbolen statt Textzeilen, große, auf einen Blick
 // lesbare Werte, Fläche genutzt, nicht vollgeklatscht. Werte aus der eigenen Station (Ecowitt), Himmel von Open-Meteo.
-import { wetterSymbol, wetterArt } from './ringschrift.js'
+import { wetterSymbol, wetterArt, istNacht } from './ringschrift.js'
 const CYAN = '#5ff6ff', HELL = '#e8fdff', BLASS = 'rgba(165,230,240,0.62)', GOLD = '#f2b04a', LINIE = 'rgba(95,246,255,0.14)'
 const SCHRIFT = 'Bahnschrift, "Segoe UI", Arial, sans-serif'
 function text(g, t, x, y, gr, farbe = HELL, ausr = 'left', gew = 600) { g.font = `${gew} ${gr}px ${SCHRIFT}`; g.fillStyle = farbe; g.textAlign = ausr; g.fillText(t, x, y) }
@@ -39,7 +39,7 @@ export function symbolW(g, art, x, y, gr, farbe = CYAN) {
   g.restore()
 }
 
-const himmel = (w) => wetterArt(w?.code ?? 3)
+const himmel = (w) => wetterArt(w?.code ?? 3, istNacht(w))
 export const WETTER_ENTWURF = {
   /** A · Kacheln: sechs gleich große Felder, je Symbol oben, Wert groß darunter */
   a(g, b, h, w) {
@@ -54,16 +54,33 @@ export const WETTER_ENTWURF = {
     })
   },
   /** B · Temperatur groß oben mit Himmel, darunter eine Reihe mit vier Symbol-Werten */
-  b(g, b, h, w) {
+  b(g, b, h, w, t = 0) {
     kopf(g, b, w)
     const st = w.station ?? {}, [art, wort] = himmel(w)
-    g.save(); g.strokeStyle = GOLD; g.lineWidth = 2.4; g.shadowColor = GOLD; g.shadowBlur = 8; g.translate(70, 120); wetterSymbol(g, art, 90); g.restore()
+    // Himmel-Symbol leicht bewegt (Wunsch Auftraggeber 05.11.2026: überall etwas Animation, minimalistisch)
+    g.save(); g.strokeStyle = GOLD; g.lineWidth = 2.4; g.shadowColor = GOLD; g.shadowBlur = 8; g.translate(70, 120)
+    if (art === 'sonne') g.rotate(t * 0.15); else g.translate(Math.sin(t * 0.6) * 3, Math.sin(t * 0.9) * 1.5)
+    wetterSymbol(g, art, 90); g.restore()
+    if (art === 'regen' || art === 'schnee' || art === 'gewitter') { // fallende Tropfen bzw. Flocken unter dem Symbol
+      g.save(); g.strokeStyle = CYAN; g.fillStyle = CYAN; g.lineWidth = 1.6; g.lineCap = 'round'
+      for (let i = 0; i < 7; i++) { const f = (t * 0.9 + i / 7) % 1, x = 40 + i * 9 - f * 6, y = 150 + f * 40; g.globalAlpha = 1 - f
+        if (art === 'schnee') { g.beginPath(); g.arc(x, y, 1.8, 0, Math.PI * 2); g.fill() } else { g.beginPath(); g.moveTo(x, y); g.lineTo(x - 2, y + 7); g.stroke() } }
+      g.restore()
+    }
     text(g, `${z(w.grad, 1)}°`, 140, 150, 72, HELL, 'left', 300); text(g, wort, 144, 176, 15, GOLD)
     if (st.gefuehlt != null) text(g, `GEFÜHLT ${z(st.gefuehlt, 1)}°`, b - 16, 176, 11, BLASS, 'right')
     g.strokeStyle = LINIE; g.beginPath(); g.moveTo(14, 202.5); g.lineTo(b - 14, 202.5); g.stroke()
     const reihe = [['tropfen', `${z(st.feuchte)}`, '%'], ['wind', z(st.wind, 1), 'km/h'], ['boe', z(st.boe, 1), 'Böen'], ['regen', z(st.regenHeute, 1), 'mm']]
     const sb = (b - 28) / reihe.length
-    reihe.forEach(([a, v, e], i) => { const x = 14 + sb * (i + 0.5); symbolW(g, a, x, 250, 40, CYAN); text(g, v, x, 312, 28, HELL, 'center'); text(g, e, x, 332, 11, BLASS, 'center') })
+    reihe.forEach(([a, v, e], i) => {
+      const x = 14 + sb * (i + 0.5), wind = Math.min(1, (Number(st.wind) || 0) / 30)
+      // kleine Bewegung je Symbol: Tropfen wippt, Wind und Böen ziehen (schneller bei mehr Wind), Regen fällt
+      const dx = a === 'wind' ? Math.sin(t * (1.5 + 4 * wind)) * 3 : a === 'boe' ? Math.max(0, Math.sin(t * 2.2)) * 5 : 0
+      const dy = a === 'tropfen' ? Math.sin(t * 1.8) * 2 : 0
+      symbolW(g, a, x + dx, 250 + dy, 40, CYAN)
+      if (a === 'regen' && (Number(st.regenRate) || 0) > 0) { g.save(); g.strokeStyle = CYAN; g.lineWidth = 1.4; for (let k = 0; k < 3; k++) { const f = (t * 1.2 + k / 3) % 1; g.globalAlpha = 1 - f; g.beginPath(); g.moveTo(x - 9 + k * 9, 262 + f * 14); g.lineTo(x - 11 + k * 9, 268 + f * 14); g.stroke() } g.restore() }
+      text(g, v, x, 312, 28, HELL, 'center'); text(g, e, x, 332, 11, BLASS, 'center')
+    })
     text(g, `LUFTDRUCK ${z(st.druck)} HPA`, b / 2, h - 16, 12, BLASS, 'center')
   },
   /** C · Windrose links (Richtung als Pfeil, Stärke in der Mitte), rechts Temperatur und Feuchte groß */

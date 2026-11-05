@@ -116,7 +116,10 @@ export function wetterSymbol(g, art, h) {
     const r = s * 0.42 * k; for (let i = 0; i < 6; i++) { const w = (i * Math.PI) / 3; i ? g.lineTo(dx + r * Math.cos(w), dy + r * Math.sin(w)) : g.moveTo(dx + r, dy) } g.closePath()
     for (let i = 0; i < 8; i++) { const w = (i * Math.PI) / 4 + 0.2; g.moveTo(dx + Math.cos(w) * s * 0.62 * k, dy + Math.sin(w) * s * 0.62 * k); g.lineTo(dx + Math.cos(w) * s * 0.92 * k, dy + Math.sin(w) * s * 0.92 * k) }
   }
-  if (art === 'sonne') sonne(0, 0, 1)
+  const mond = (dx, dy, k) => { const r = s * 0.55 * k; g.moveTo(dx + r * Math.cos(-1.2), dy + r * Math.sin(-1.2)); g.arc(dx, dy, r, -1.2, Math.PI * 1.45); g.arc(dx + r * 0.55, dy - r * 0.35, r * 0.8, Math.PI * 1.25, -0.55, true) }
+  if (art === 'mond') mond(0, 0, 1)
+  else if (art === 'mond-wolke') { mond(-s * 0.35, -s * 0.3, 0.75); wolke(s * 0.15, s * 0.25, 0.8) }
+  else if (art === 'sonne') sonne(0, 0, 1)
   else if (art === 'sonne-wolke') { sonne(-s * 0.35, -s * 0.3, 0.75); wolke(s * 0.15, s * 0.25, 0.8) }
   else wolke(0, -s * 0.15, 1)
   if (art === 'regen') for (let i = -1; i <= 1; i++) { g.moveTo(i * s * 0.45, s * 0.45); g.lineTo(i * s * 0.45 - s * 0.15, s * 0.85) }
@@ -127,10 +130,12 @@ export function wetterSymbol(g, art, h) {
 }
 
 /** WMO-Wettercode (Open-Meteo) → Symbol und kurzes Wort */
-export function wetterArt(code) {
+/** nacht: true, wenn keine Sonne scheint (Station misst kaum Licht bzw. nach Sonnenuntergang) – dann Mond statt Sonne
+ *  (Rückmeldung Auftraggeber 05.11.2026: abends stand „sonnig“ im Ring) */
+export function wetterArt(code, nacht = false) {
   const c = Number(code)
-  if (c === 0) return ['sonne', 'SONNIG']
-  if (c <= 2) return ['sonne-wolke', 'HEITER']
+  if (c === 0) return nacht ? ['mond', 'KLAR'] : ['sonne', 'SONNIG']
+  if (c <= 2) return nacht ? ['mond-wolke', 'WOLKIG'] : ['sonne-wolke', 'HEITER']
   if (c === 3) return ['wolke', 'BEWÖLKT']
   if (c === 45 || c === 48) return ['nebel', 'NEBEL']
   if ((c >= 71 && c <= 77) || c === 85 || c === 86) return ['schnee', 'SCHNEE']
@@ -150,3 +155,13 @@ export function zeitAngaben(jetzt = new Date()) {
   const kw = Math.ceil(((d - Date.UTC(d.getUTCFullYear(), 0, 1)) / 86_400_000 + 1) / 7)
   return { uhr: `${teile.hour}:${teile.minute}`, tag: TAGE[new Date(Date.UTC(j, m - 1, t)).getUTCDay()], datum: `${t}. ${MONATE[m - 1]} ${j}`, datumKurz: `${String(t).padStart(2, '0')}.${String(m).padStart(2, '0')}.${j}`, kw }
 }
+
+/** Nacht? Station: kaum Sonnenstrahlung (< 5 W/m²); ohne Station grob nach Uhrzeit (Sommer 21–5, Winter 17–7 Uhr) */
+export function istNacht(w) {
+  const sonne = w?.station?.sonne
+  if (Number.isFinite(sonne)) return sonne < 5
+  const t = new Date(), std = Number(new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: 'numeric', hourCycle: 'h23' }).formatToParts(t).find((p) => p.type === 'hour')?.value), m = t.getMonth()
+  const winter = m <= 1 || m >= 9
+  return winter ? std >= 17 || std < 7 : std >= 21 || std < 5
+}
+
