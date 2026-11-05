@@ -203,9 +203,12 @@ function kamera(g, b, h, bild, name, alarm, t) {
   } else {
     text(g, 'KEIN SIGNAL', b / 2, h / 2 + 6, 18, BLASS, 'center', 600)
   }
-  g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(0, 0, b, 30)
-  text(g, name, 12, 20, 13, HELL, 'left', 600)
-  if (bild) { g.fillStyle = ROT; g.beginPath(); g.arc(b - 50, 15, 4, 0, Math.PI * 2); g.fill(); text(g, 'LIVE', b - 14, 20, 12, HELL, 'right', 600) }
+  // ohne Namenszeile und dunklen Balken (Wunsch Auftraggeber 05.11.2026) – nur „LIVE“ oben rechts, mit Schatten lesbar
+  if (bild) {
+    g.save(); g.shadowColor = 'rgba(0,0,0,0.9)'; g.shadowBlur = 6
+    g.fillStyle = ROT; g.beginPath(); g.arc(b - 50, 15, 4, 0, Math.PI * 2); g.fill(); text(g, 'LIVE', b - 14, 20, 12, HELL, 'right', 600)
+    g.restore()
+  }
   if (alarm) {
     const p = 0.5 + 0.5 * Math.sin(t * 6)
     g.strokeStyle = `rgba(255,90,74,${0.5 + 0.5 * p})`; g.lineWidth = 4; g.strokeRect(2, 2, b - 4, h - 4)

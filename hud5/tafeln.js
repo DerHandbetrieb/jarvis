@@ -15,7 +15,10 @@ const LINKS = [['verkaeufe', 0, 0, 940, 260], ['umsatz', 960, 0, 280, 260], ['to
 // Umbau 05.11.2026 (Wunsch Auftraggeber): schmaler Streifen für den L.O.K.I.-Systemstatus, unten innen Wetter, unten
 // außen groß die PV-Anlage
 const RECHTS = [['kamera2', 0, 0, 610, 260], ['kamera1', 630, 0, 610, 260], ['system', 0, 280, 1240, 64], ['energie', 0, 364, 800, 396], ['wetter', 820, 364, 420, 396]] // PV breiter, Wetter schmaler (05.11.2026)
-const SPIEGEL = { abstand: 14, deckkraft: 0.45, unschaerfe: 1.5, auslauf: 150 } // nur der obere Streifen ist zu sehen (Bildrand)
+// Spiegelung im Wasser. abstand = Weg von der Tafel-Unterkante bis zur Wasserlinie (größer = Spiegelbild tiefer, Rückmeldung
+// Auftraggeber 05.11.2026: sonst „schwebt“ es an der inneren Kante außerhalb vom Wasser); welle = waagerechtes Wabern in
+// Viertel-Bildpunkten, läuft mit der Zeit wie die Wellen im See
+export const SPIEGEL = { abstand: 70, deckkraft: 0.45, unschaerfe: 1.5, auslauf: 150, welle: 1.4 }
 const BEWEGT = new Set(['ton', 'kamera1', 'kamera2', 'energie']) // energie: laufende Lichtpunkte
 
 /** Tafeln anlegen. huelle = Element über der Szenen-Leinwand (gleiche Größe); faktor = Bildschirm-Pixel je Szenen-Pixel.
@@ -49,7 +52,8 @@ export function erstelleTafeln(huelle, versatz = 0, { skala = TAFEL.skala } = {}
       const lage = { position: 'absolute', left: (seite === 'links' ? fx : TAFEL.breite - fx - b) * k + 'px', top: fy * k + 'px', width: b * k + 'px', height: h * k + 'px' }
       const c = document.createElement('canvas'); c.width = Math.round(b * k); c.height = Math.round(h * k); Object.assign(c.style, lage); tafel.appendChild(c)
       const s = document.createElement('canvas'); s.width = Math.ceil(b / 4); s.height = Math.ceil(h / 4); Object.assign(s.style, lage); spiegelTafel.appendChild(s)
-      felder[id] = { c, g: c.getContext('2d'), b, h, k, sg: s.getContext('2d'), sb: s.width, sh: s.height }
+      const sauber = document.createElement('canvas'); sauber.width = s.width; sauber.height = s.height // unverzerrte Kopie, daraus wird je Bild gewellt
+      felder[id] = { c, g: c.getContext('2d'), b, h, k, sg: s.getContext('2d'), sb: s.width, sh: s.height, sauber, sq: sauber.getContext('2d'), phase: fx * 0.013 + fy * 0.02 }
     }
   }
   const passen = () => { const f = (huelle.clientHeight || innerHeight) / 1080; flaeche.style.transform = `scale(${f}) translateX(${-versatz}px)` }
@@ -73,7 +77,17 @@ function feldZeichnen(f, id, daten, t) {
     g.fillText(daten.veraltet ? 'KEINE AKTUELLEN DATEN' : 'BEISPIEL', innen.b - 14, innen.h - 10)
   }
   g.restore()
-  f.sg.clearRect(0, 0, f.sb, f.sh); f.sg.drawImage(f.c, 0, 0, f.sb, f.sh)
+  f.sq.clearRect(0, 0, f.sb, f.sh); f.sq.drawImage(f.c, 0, 0, f.sb, f.sh)
+}
+
+/** Spiegelbild wellen: Streifen für Streifen waagerecht versetzt; weiter weg von der Tafel (im gekippten Bild oben) stärker */
+function spiegelWellen(f, t) {
+  const { sg, sb, sh, sauber } = f, A = SPIEGEL.welle
+  sg.clearRect(0, 0, sb, sh)
+  for (let y = 0; y < sh; y += 2) {
+    const weit = 1 - y / sh, dx = Math.sin(y * 0.55 - t * 2.1 + f.phase) * A * (0.35 + 0.65 * weit) + Math.sin(y * 0.21 + t * 1.3) * A * 0.4 * weit
+    sg.drawImage(sauber, 0, y, sb, 2, dx, y, sb, 2)
+  }
 }
 
 /** je Bild: ruhige Fenster nur bei neuen Daten, Tonwellen und Kameras immer */
@@ -81,5 +95,5 @@ export function zeichneTafeln(st, daten, t) {
   const kennung = JSON.stringify([daten.werkstatt, daten.wetter, daten.kamera?.name ?? null, daten.loki, daten.uhr, daten.beispiel, daten.veraltet])
   const alles = kennung !== st.kennung
   st.kennung = kennung
-  for (const [id, f] of Object.entries(st.felder)) if (alles || BEWEGT.has(id)) feldZeichnen(f, id, daten, t)
+  for (const [id, f] of Object.entries(st.felder)) { if (alles || BEWEGT.has(id)) feldZeichnen(f, id, daten, t); spiegelWellen(f, t) }
 }

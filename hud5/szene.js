@@ -197,7 +197,7 @@ function knotenUmfaerben(bild, art) {
       const l = Math.max(r, gr, bl), w = Math.min(1, (gold - 15) / 40) // weicher Übergang an den Rändern des Ornaments
       const neu = art === 'gedaempft' ? [r * 0.45, gr * 0.45, bl * 0.45] : art === 'bronze' ? [l * 0.42, l * 0.28, l * 0.16]
         : art === 'cyan' ? [l * 0.18, l * 0.55, l * 0.6]
-        : art === 'anthrazit' ? (() => { const y = 0.3 * r + 0.59 * gr + 0.11 * bl, v = 8 + Math.pow(Math.max(0, (y - 150) / 105), 2) * 170; return [v * 0.95, v, v * 1.06] })() // fast Schwarz, nur die hellsten Stellen glänzen (Wunsch 05.11.2026: „Richtung Schwarz mit Glanzpunkten“)
+        : art === 'anthrazit' ? (() => { const y = 0.3 * r + 0.59 * gr + 0.11 * bl, v = Math.pow(Math.max(0, (y - 150) / 105), 2) * 170; return [7 + v * 0.45, 10 + v * 0.95, 11 + v] })() // fast Schwarz mit Hauch Türkis, Glanzpunkte im Türkis der Runen (Wunsch 05.11.2026)
         : [10, 16, 22]
       p[i] = r + (neu[0] - r) * w; p[i + 1] = gr + (neu[1] - gr) * w; p[i + 2] = bl + (neu[2] - bl) * w
     }
@@ -211,7 +211,7 @@ export async function ladeSzene(basis, einstellung = {}) {
   const geo = await (await fetch(basis + 'geometrie.json')).json()
   const namen = ['grund', ...Object.keys(geo.ebenen)]
   const bilder = Object.fromEntries(await Promise.all(namen.map(async (n) => [n, await bildLaden(basis + n + '.webp')])))
-  bilder.grund = knotenUmfaerben(bilder.grund, einstellung.knoten)
+  bilder.grund = knotenUmfaerben(bilder.grund, einstellung.knoten ?? 'anthrazit') // Wahl Auftraggeber 05.11.2026
   const zufall = zufallsfolge(7)
   const ringMitte = ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
   return {

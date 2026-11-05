@@ -1,7 +1,7 @@
 // Vorschau der Szene mit Bildrate (Regel: Bildrate selbst messen, bevor gezeigt wird – CLAUDE.md Etappe 13)
 import { B, H, ladeSzene, zeichneSzene } from './szene.js'
 import { ausHud } from './inhalte.js'
-import { erstelleTafeln, zeichneTafeln } from './tafeln.js'
+import { erstelleTafeln, zeichneTafeln, SPIEGEL } from './tafeln.js'
 import { KANTE } from './rahmen.js'
 import { sequenzDaten } from '../startsequenz/lageDaten.js'
 
@@ -12,6 +12,7 @@ let loki = new URLSearchParams(location.search).get('loki') ?? 'hoert', zoom = f
 const probeWetter = { regen: { code: 63, grad: 8 }, schnee: { code: 73, grad: -2 }, nebel: { code: 45, grad: 3 }, frost: { code: 0, grad: -4 } }[new URLSearchParams(location.search).get('wetter')] ?? { code: 2, grad: 9 }
 const frage = new URLSearchParams(location.search)
 if (frage.get('kante')) KANTE.art = frage.get('kante')
+if (frage.get('spiegel')) SPIEGEL.abstand = Number(frage.get('spiegel'))
 const tafeln = erstelleTafeln(document.getElementById('tafeln'), 0, frage.get('gross') ? { skala: Number(frage.get('gross')) } : {})
 const beispiel = ausHud({ wetter: { ort: 'Öhringen', grad: 9.4, wolken: 70 }, pv: { akku: 64, akkuW: -1200, netzW: -850, pvW: 4300, hausW: 2250, zustand: 0, inselbetrieb: false, zeit: Date.now() } }, new Date(), sequenzDaten, () => 'BEWÖLKT')
 addEventListener('keydown', (e) => {
