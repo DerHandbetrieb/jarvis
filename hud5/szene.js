@@ -508,6 +508,9 @@ function knotenUmfaerben(bild, art) {
 
 /** Szene laden. basis = Ordner mit grund.webp, aurora.webp … und geometrie.json (relativ zur Seite) */
 export async function ladeSzene(basis, einstellung = {}) {
+  // Standard (Wahl Auftraggeber 05.11.2026): Textring mit Angaben doppelt, Strich-Schrift, dunkles Flechtband; Bedeutung von L.O.K.I. vorerst nicht
+  einstellung = { ring: 'info-x', schrift: 'roboto-100', name: 'ohne', rand: 'c', praegung: 'aus', // Wahl Auftraggeber 05.11.2026: Roboto Thin Petrol, Steinrand C, LOKI leuchtend (Prägung offen)
+    ...Object.fromEntries(Object.entries(einstellung).filter(([, v]) => v != null)) }
   // feine Schrift für den Ring (lokal, offline)
   for (const w of [100, 300]) { try { const f = new FontFace('Roboto', `url(${basis}roboto-${w}.woff2)`, { weight: String(w) }); document.fonts.add(await f.load()) } catch { /* ohne Datei: Ersatzschrift */ } }
   const geo = await (await fetch(basis + 'geometrie.json')).json()
@@ -519,8 +522,6 @@ export async function ladeSzene(basis, einstellung = {}) {
   let kupfer = null
   const kupferNr = /^kupfer(\d)$/.exec(einstellung.name ?? '')?.[1]
   if (kupferNr) { const masse = await (await fetch(basis + 'kupfer.json')).json(); kupfer = kupferBild(await bildLaden(basis + `kupfer-${kupferNr}.webp`), masse[kupferNr]) }
-  // Standard (Wahl Auftraggeber 05.11.2026): Textring mit Angaben doppelt, Strich-Schrift, dunkles Flechtband; Bedeutung von L.O.K.I. vorerst nicht
-  einstellung = { ring: 'info-x', schrift: 'strich', name: 'ohne', ...Object.fromEntries(Object.entries(einstellung).filter(([, v]) => v != null)) }
   const infoVariante = String(einstellung.ring ?? '').startsWith('info') ? einstellung.ring : null
   const ringMitte = infoVariante ? infoRing(geo.ringMitte.r, 30, infoVariante, { ...zeitAngaben(), wetter: null }).dreh : ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
   const szene = {
