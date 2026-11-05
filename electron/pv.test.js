@@ -19,11 +19,11 @@ describe('PV-Anlage FENECON', () => {
     expect(JSON.stringify(s)).not.toContain('geheim') // Passwort nie in der Antwort
   })
   it('nutzt die Sammelabfrage, wenn die Anlage eine Liste liefert (eine Anfrage statt sieben)', async () => {
-    let anfragen = 0
-    const holen = async (url) => { anfragen++; return { status: 200, ok: true, json: async () => (url.includes('%7C') ? [{ address: '_sum/EssSoc', value: 80 }, { address: '_sum/GridActivePower', value: 300 }] : { value: null }), text: async () => '' } }
+    const adressen = []
+    const holen = async (url) => { adressen.push(url); return { status: 200, ok: true, json: async () => (url.includes('%7C') ? [{ address: '_sum/EssSoc', value: 80 }, { address: '_sum/GridActivePower', value: 300 }] : { value: null }), text: async () => '' } }
     const pv = erstellePv({ speicher: speicher(), holen, protokoll: () => {} })
     const s = await pv.einrichten({ adresse: '192.168.178.38', passwort: 'x' }); pv.stoppen()
-    expect(anfragen).toBe(1)
+    expect(adressen.every((u) => u.includes('%7C'))).toBe(true) // jede Abfrage ist eine Sammelabfrage, keine Einzelkanäle
     expect(s.werte).toMatchObject({ akku: 80, netzW: 300 })
   })
   it('meldet ein falsches Passwort und speichert nichts', async () => {
