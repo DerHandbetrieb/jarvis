@@ -113,6 +113,14 @@ export function stopp() {
   try { laeuft?.stop() } catch { /* schon zu Ende */ }
 }
 
+/** Verstärkung für einen Satz: auf Ziel-Lautheit (RMS 0,16 ≈ −16 dBFS) anheben, höchstens 6-fach, nie leiser machen */
+export function verstaerkung(samples: ArrayLike<number>): number {
+  let summe = 0
+  for (let i = 0; i < samples.length; i++) summe += samples[i] * samples[i]
+  const rms = Math.sqrt(summe / Math.max(1, samples.length))
+  return rms > 1e-4 ? Math.min(6, Math.max(1, 0.16 / rms)) : 1
+}
+
 /** Sätze nacheinander erzeugen und abspielen (der nächste wird erzeugt, während der aktuelle läuft) */
 export async function sprechen(saetze: string[]): Promise<boolean> {
   const b = bruecke()
@@ -141,7 +149,13 @@ export async function sprechen(saetze: string[]): Promise<boolean> {
       puffer.copyToChannel(new Float32Array(a.samples), 0)
       await new Promise<void>((fertig) => {
         const q = wiedergabe!.createBufferSource()
-        q.buffer = puffer; q.connect(wiedergabe!.destination); q.onended = () => fertig()
+        q.buffer = puffer
+        // Lauter (Rückmeldung Auftraggeber 05.11.2026: Ansagen „relativ leise“): jeden Satz auf gleiche Lautheit
+        // bringen (Loki und Piper gleich laut) und einen Begrenzer davor, damit nichts übersteuert
+        const v = wiedergabe!.createGain(); v.gain.value = verstaerkung(a.samples)
+        const begrenzer = wiedergabe!.createDynamicsCompressor()
+        begrenzer.threshold.value = -4; begrenzer.knee.value = 2; begrenzer.ratio.value = 20; begrenzer.attack.value = 0.001; begrenzer.release.value = 0.15
+        q.connect(v).connect(begrenzer).connect(wiedergabe!.destination); q.onended = () => fertig()
         laeuft = q; q.start()
       })
     }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { morgenLage, uhrzeit, zahl, euro, type LageEingabe, BAUSTEINE, SPITZEN, spitze, tagNummer } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { befehl, codewort, istNachfrage, istWiederholung, vereinfachen } from './befehle'
+import { verstaerkung } from './dienst'
 
 const basis = (x: Partial<LageEingabe> = {}): LageEingabe => ({
   jetzt: new Date(2026, 10, 3, 7, 30), anrede: 'Sir', humor: false, bausteine: new Set(BAUSTEINE.map((b) => b.schluessel)), ...x,
@@ -288,5 +289,15 @@ describe('Kamera-Wache: Ansage (04.11.2026)', () => {
     const { SPITZEN, SPRUECHE } = await import('./morgenlage')
     expect(SPITZEN.spaet.length).toBeGreaterThanOrEqual(10)
     expect(SPRUECHE.length).toBeGreaterThanOrEqual(25)
+  })
+})
+
+describe('Lautstärke der Ansagen', () => {
+  it('hebt leise Sätze auf die Ziel-Lautheit an, höchstens 6-fach, nie leiser', () => {
+    const leise = Array.from({ length: 1000 }, (_, i) => 0.04 * Math.sin(i / 5))
+    expect(verstaerkung(leise)).toBeCloseTo(0.16 / (0.04 / Math.SQRT2), 0)
+    expect(verstaerkung(Array(1000).fill(0.001))).toBe(6)
+    expect(verstaerkung(Array(1000).fill(0.5))).toBe(1)
+    expect(verstaerkung([])).toBe(1)
   })
 })
