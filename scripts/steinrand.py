@@ -86,7 +86,14 @@ for seite in ('links', 'rechts'):
     for i in range(0, px.size, 20000):
         dx = px[i:i + 20000, None] - kurve[None, :, 0]; dy = py[i:i + 20000, None] - kurve[None, :, 1]
         dd = dx * dx + dy * dy; j = dd.argmin(axis=1)
-        d[i:i + 20000] = np.sqrt(dd[np.arange(j.size), j]); s[i:i + 20000] = laenge[j]
+        # stufenlos: auf die beiden angrenzenden Strecken projizieren (Rückmeldung 05.11.2026: Treppen im Flechtband)
+        P = np.c_[px[i:i + 20000], py[i:i + 20000]]; best_d = np.full(j.size, np.inf); best_s = np.zeros(j.size)
+        for o in (-1, 0):
+            a0 = np.clip(j + o, 0, len(kurve) - 2); A = kurve[a0]; Bv = kurve[a0 + 1] - A
+            t = np.clip(((P - A) * Bv).sum(1) / (Bv * Bv).sum(1), 0, 1); Q = A + Bv * t[:, None]
+            dist = np.hypot(*(P - Q).T); sv = laenge[a0] + t * (laenge[a0 + 1] - laenge[a0])
+            besser = dist < best_d; best_d[besser] = dist[besser]; best_s[besser] = sv[besser]
+        d[i:i + 20000] = best_d; s[i:i + 20000] = best_s
     d = d.reshape(H * SS, BR * SS); s = s.reshape(H * SS, BR * SS)
     # nur außen (zur Bildschirmkante hin) zählt
     x_kurve = np.interp(yy, kurve[:, 1], kurve[:, 0])
@@ -109,10 +116,12 @@ for seite in ('links', 'rechts'):
         innen = r0 + 14
         spalte_f = (d - innen) / LEISTE_B
         in_leiste = (spalte_f >= 0) & (spalte_f < 1)
-        zeile = np.mod(s / (LEISTE_B / lw), lh).astype(int)
-        spalte = np.clip((spalte_f * lw).astype(int), 0, lw - 1)
-        if rechts: spalte = lw - 1 - spalte
-        farbe = l[zeile, spalte] * 0.95
+        # weich abtasten (bilinear) statt nächstes Pixel
+        zf = np.mod(s / (LEISTE_B / lw), lh); sf = np.clip(spalte_f * lw, 0, lw - 1.001)
+        if rechts: sf = lw - 1.001 - sf
+        z0 = np.floor(zf).astype(int); s0 = np.floor(sf).astype(int); wz = (zf - z0)[..., None]; ws = (sf - s0)[..., None]
+        z1 = (z0 + 1) % lh; s1 = np.minimum(s0 + 1, lw - 1)
+        farbe = ((l[z0, s0] * (1 - ws) + l[z0, s1] * ws) * (1 - wz) + (l[z1, s0] * (1 - ws) + l[z1, s1] * ws) * wz) * 0.95
         kante = glatt(0, 0.04, spalte_f) * (1 - glatt(0.96, 1, spalte_f))
         fuge = 1 - 0.6 * (glatt(-0.12, 0, spalte_f) * (1 - glatt(0, 0.02, spalte_f)) + glatt(0.98, 1, spalte_f) * (1 - glatt(1.0, 1.12, spalte_f)))
         stein = np.where(in_leiste[..., None], stein * (1 - kante[..., None]) + farbe * kante[..., None], stein * fuge[..., None])
