@@ -155,8 +155,11 @@ function bestellungen(g, b, h, d) {
 }
 /** Tonwellen: was der PC abspielt (Wallpaper Engine liefert 64 Bänder je Kanal), gespiegelt als weiche Welle; spricht
  *  L.O.K.I., kommt seine Welle in Gold dazu */
-function tonwellen(g, b, h, ton, t, loki) {
-  kopf(g, 'AUDIO', loki?.zustand === 'spricht' ? 'L.O.K.I. SPRICHT' : ton ? 'PC-TON' : 'STILLE', b)
+function tonwellen(g, b, h, ton, t, loki, tonStatus) {
+  // Zustand des PC-Tons als Hilfe bei der Fehlersuche: KEIN TON-ZUGRIFF (Wallpaper Engine bietet keinen an), WARTET AUF TON
+  // (angemeldet, aber noch keine Daten), STILLE (Daten da, aber leise), PC-TON
+  const pegel = ton ? Math.max(...Array.from(ton, Number).map((v) => (Number.isFinite(v) ? v : 0))) : 0
+  kopf(g, 'AUDIO', loki?.zustand === 'spricht' ? 'L.O.K.I. SPRICHT' : ton && pegel > 0.01 ? 'PC-TON' : tonStatus ?? 'STILLE', b)
   const mitte = 34 + (h - 34) / 2, x0 = 16, x1 = b - 16, hoehe = (h - 50) / 2
   const baender = 64, werte = []
   for (let i = 0; i < baender; i++) {
@@ -334,7 +337,7 @@ function BEISPIEL_LAGE(jetzt) {
 export const ZEICHNER = {
   verkaeufe: (g, b, h, d) => verkaeufe(g, b, h, d.werkstatt ?? {}),
   umsatz: (g, b, h, d) => umsatz(g, b, h, d.werkstatt ?? {}),
-  ton: (g, b, h, d, t) => tonwellen(g, b, h, d.ton, t, d.loki),
+  ton: (g, b, h, d, t) => tonwellen(g, b, h, d.ton, t, d.loki, d.tonStatus),
   aufgaben: (g, b, h, d) => abarbeiten(g, b, h, d.werkstatt ?? {}),
   bestellungen: (g, b, h, d) => bestellungen(g, b, h, d.werkstatt ?? {}),
   kamera1: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[0] ?? null, 'CAM 01 · LINKS', !!d.kamera?.alarm, t),

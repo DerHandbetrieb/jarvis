@@ -77,7 +77,11 @@ c.addEventListener('click', async (ev) => {
 })
 
 // Ton des PCs (Wallpaper-Engine-Schnittstelle: 128 Werte, links 0–63, rechts 64–127, ca. 30-mal je Sekunde)
-if (typeof window.wallpaperRegisterAudioListener === 'function') window.wallpaperRegisterAudioListener((a) => { ton = a; letzterTon = performance.now() })
+// angemeldet wird im klassischen Skript am Ende von <body> (dauer-hud.html, so empfiehlt es die Wallpaper-Engine-Doku);
+// hier nur abholen
+let jemalsTon = false
+setInterval(() => { const a = window.LOKI_TON; if (a && a.zeit) { ton = a.werte; letzterTon = a.zeit; jemalsTon = true } }, 30)
+const tonStatus = () => (!window.LOKI_TON_ANGEMELDET ? 'KEIN TON-ZUGRIFF' : !jemalsTon ? 'WARTET AUF TON' : 'STILLE')
 window.wallpaperPropertyListener = { setPaused: (p) => { const war = pausiert; pausiert = !!p; if (war && !pausiert) { lauf++; requestAnimationFrame((ms) => schleife(ms, lauf)) } } }
 
 const szene = await ladeSzene('./ebenen/')
@@ -90,7 +94,7 @@ function schleife(ms, meine = lauf) {
   requestAnimationFrame((n) => schleife(n, meine))
   const t = ms / 1000, loki = antwort?.loki ?? null
   zeichneSzene(g, szene, t, { wetter: antwort?.wetter ?? null, versatz: VERSATZ, loki: reaktorZustand(loki), pegel: 0.6 + 0.4 * Math.abs(Math.sin(t * 7)) })
-  zeichneTafeln(tafeln, { ...daten, ton: performance.now() - letzterTon < 2000 ? ton : null, kamBilder: [liveBild(0), liveBild(1)] }, t)
+  zeichneTafeln(tafeln, { ...daten, tonStatus: tonStatus(), ton: performance.now() - letzterTon < 2000 ? ton : null, kamBilder: [liveBild(0), liveBild(1)] }, t)
 }
 
 void holen()

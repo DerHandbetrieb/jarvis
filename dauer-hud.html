@@ -16,5 +16,13 @@
     <canvas id="flaeche"></canvas>
     <div id="tafeln"></div>
     <script type="module" src="./dauerhud/seite.js"></script>
+    <!-- PC-Ton: Wallpaper Engine liefert ihn nur an einen Empfänger, der früh und einmal angemeldet wird (Doku: Skript am
+         Ende von body, nicht in onload) – die Seite holt die Werte aus window.LOKI_TON ab -->
+    <script>
+      if (typeof window.wallpaperRegisterAudioListener === 'function') {
+        window.LOKI_TON_ANGEMELDET = true
+        window.wallpaperRegisterAudioListener(function (a) { window.LOKI_TON = { werte: a, zeit: performance.now() } })
+      }
+    </script>
   </body>
 </html>

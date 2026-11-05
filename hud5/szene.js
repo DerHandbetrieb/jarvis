@@ -11,6 +11,7 @@ import { bergnebel, erstelleWetter, wetterArt, zeichneFrost, zeichneWetterHinten
 export const B = 5760, H = 1080
 const CYAN = '#5ff6ff'
 const HORIZONT = 842 // Wasserlinie des Sees (Grundbild)
+const HIMMEL = 470 // unter dieser Höhe beginnen die Berggipfel – Sternschnuppen nur darüber
 
 
 function bildLaden(url) {
@@ -274,11 +275,12 @@ function wasser(g, s, t, anteil) {
     const d = y / hoehe
     // Wellenphase: Abstand „in die Tiefe“ wächst zum Horizont stark (perspektivisch) – minus Zeit = Lauf nach vorn
     const tiefe = 1 / (d + 0.08)
-    const ph1 = -tiefe * 6.0 + t * 1.1, ph2 = -tiefe * 10.5 + t * 1.6 + 1.3, ph3 = -tiefe * 3.4 + t * 0.7 + 0.6
+    // ruhig (Rückmeldung Auftraggeber 05.11.2026: „zu waberig“): langsame, flache Dünung, nur ein Hauch Verzerrung
+    const ph1 = -tiefe * 6.0 + t * 0.55, ph2 = -tiefe * 10.5 + t * 0.8 + 1.3, ph3 = -tiefe * 3.4 + t * 0.35 + 0.6
     const welle = Math.sin(ph1) + 0.5 * Math.sin(ph2) + 0.35 * Math.sin(ph3)
-    const dy = welle * (0.3 + 3.2 * d) // senkrechtes Abtasten: Kämme stauchen, Täler dehnen
+    const dy = welle * (0.08 + 0.7 * d) // senkrechtes Abtasten: Kämme stauchen, Täler dehnen
     const kamm = Math.max(0, Math.sin(ph1) * 0.7 + Math.sin(ph2) * 0.3) // vorderer Hang der Welle fängt Licht
-    const dx = Math.sin(ph3 * 0.7 + y * 0.01) * 0.6 * d // kaum seitlich
+    const dx = 0
     const quelle = Math.min(hoehe - zeile, Math.max(0, y + dy))
     pg.globalCompositeOperation = 'source-over'; pg.globalAlpha = 1
     pg.drawImage(s.bilder.grund, 0, HORIZONT + quelle, B, zeile, dx, y, B, zeile)
@@ -286,7 +288,7 @@ function wasser(g, s, t, anteil) {
     const qq = HORIZONT + quelle
     if (glanz && ge && qq >= ge.y && qq < ge.y + ge.h) {
       const fy = glanz.height / ge.h
-      pg.globalAlpha = anteil * (0.18 + 0.55 * kamm) // Glanz auf den Wellenkämmen, läuft mit nach vorn
+      pg.globalAlpha = anteil * (0.3 + 0.25 * kamm) // Glanz auf den Wellenkämmen, läuft sanft mit nach vorn
       pg.drawImage(glanz, 0, (qq - ge.y) * fy, glanz.width, zeile * fy, ge.x + dx, y, ge.b, zeile)
     }
     if (sp && re && quelle < sp.height) {
@@ -309,7 +311,9 @@ function sternschnuppen(g, s, t) {
     const w = (lang ? 4 + Math.random() * 8 : mittel ? 8 + Math.random() * 14 : 15 + Math.random() * 25) * (Math.PI / 180)
     const weg = lang ? 1800 + Math.random() * 2200 : mittel ? 700 + Math.random() * 700 : 260 + Math.random() * 220
     const x = links ? weg * Math.cos(w) + 100 + Math.random() * (B - weg * Math.cos(w) - 200) : 100 + Math.random() * (B - weg * Math.cos(w) - 200)
-    s.schnuppe = { von: t, dauer: lang ? 1.8 + Math.random() * 0.8 : mittel ? 1.1 + Math.random() * 0.5 : 0.7 + Math.random() * 0.5, x, y: 25 + Math.random() * (lang ? 160 : 230), dx: Math.cos(w) * (links ? -1 : 1), dy: Math.sin(w), weg, schweif: lang ? 220 : mittel ? 140 : 90 }
+    // nur am Himmel (Rückmeldung Auftraggeber 05.11.2026): Ende der Bahn bleibt über den Berggipfeln
+    const y0 = 25 + Math.random() * 120, fallen = Math.min(Math.sin(w) * weg, HIMMEL - 40 - y0)
+    s.schnuppe = { von: t, dauer: lang ? 1.8 + Math.random() * 0.8 : mittel ? 1.1 + Math.random() * 0.5 : 0.7 + Math.random() * 0.5, x, y: y0, dx: Math.cos(w) * (links ? -1 : 1), dy: fallen / weg, weg, schweif: lang ? 220 : mittel ? 140 : 90 }
     s.naechsteSchnuppe = t + 15 + Math.random() * 30
   }
   const sc = s.schnuppe
@@ -321,7 +325,7 @@ function sternschnuppen(g, s, t) {
   v.addColorStop(0, 'rgba(200,245,255,0)'); v.addColorStop(1, `rgba(235,252,255,${0.9 * hell})`)
   g.save()
   // hinter Reaktor und Runenringen: deren Kreisfläche aussparen (Wunsch Auftraggeber 05.11.2026)
-  const rk = s.geo.ringMitte; g.beginPath(); g.rect(0, 0, B, H); g.arc(rk.x, rk.y, rk.r1 + 40, 0, Math.PI * 2, true); g.clip()
+  const rk = s.geo.ringMitte; g.beginPath(); g.rect(0, 0, B, HIMMEL); g.arc(rk.x, rk.y, rk.r1 + 40, 0, Math.PI * 2, true); g.clip()
   g.globalCompositeOperation = 'lighter'; g.strokeStyle = v; g.lineWidth = 1.6; g.lineCap = 'round'
   g.beginPath(); g.moveTo(kx - sc.dx * l, ky - sc.dy * l); g.lineTo(kx, ky); g.stroke()
   const gl = g.createRadialGradient(kx, ky, 0, kx, ky, 6); gl.addColorStop(0, `rgba(255,255,255,${hell})`); gl.addColorStop(1, 'rgba(160,240,255,0)')
