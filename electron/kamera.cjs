@@ -188,7 +188,9 @@ function erstelleKamera({ speicher, holen = holeHttps, oeffneStromFn = oeffneStr
       if (wert?.people) return Number(wert.people.alarm_state) === 1
       const e = kameraFehler(text)
       if (e?.rspCode === -6) { if (sitzungen.get(k) === t) sitzungen.delete(k); if (versuch === 0) continue }
-      throw Object.assign(new Error(`keine Erkennungs-Antwort (${r.status})`), e ? { kamera: e } : { unerwartet: r.status })
+      // Antwort gekürzt ins Protokoll (ohne Token/Zugangsdaten) – zur Fehlersuche 05.11.2026
+      const kurz = text.replace(/"(name|token|password|userName)"\s*:\s*"[^"]*"/gi, '"$1":"…"').replace(/\s+/g, ' ').slice(0, 160)
+      throw Object.assign(new Error(`keine Erkennungs-Antwort (${r.status}): ${kurz}`), e ? { kamera: e } : { unerwartet: r.status })
     }
     return false
   }
