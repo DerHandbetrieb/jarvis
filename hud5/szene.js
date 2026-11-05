@@ -881,27 +881,40 @@ function blitze(g, s, t, rate, anteil) {
  * Rhythmus (0) und Beat (1) um.
  */
 function beatFolgen(s, ton, t) {
-  const b = s.beat ?? (s.beat = { schnitt: 0, huelle: 0, schlag: 0, musik: 0, letzter: -1, t })
+  // drei Bereiche wie im Audiofeld: Bass (innen, rot), Mitten (Spulen, türkis), Höhen (außen, weiß). Je Bereich eine
+  // automatische Aussteuerung (Rückmeldung 05.11.2026: bei lauter Musik tat sich nichts) – Spitze fällt langsam, Boden
+  // steigt langsam; Pegel = Lage zwischen Boden und Spitze, schneller Anstieg, kurzes Ausklingen
+  const b = s.beat ?? (s.beat = { musik: 0, schlag: 0, letzter: -1, t, bereiche: { bass: {}, mitte: {}, hoch: {} } })
   const dt = Math.min(0.1, Math.max(0, t - b.t)); b.t = t
-  let bass = 0, gesamt = 0
-  if (ton && ton.length) {
-    const halb = ton.length >= 128 ? 64 : ton.length, tief = (i) => (ton[i] ?? 0) + (ton[i + halb] ?? 0)
-    for (let i = 0; i < 6; i++) bass += tief(i) / 12
-    for (const v of ton) gesamt += v / ton.length
+  const neu = ton && ton.length && ton !== b.letzteDaten; b.letzteDaten = ton
+  const halb = ton?.length >= 128 ? 64 : ton?.length ?? 0, mittel = (von, bis) => { let x = 0; for (let i = von; i < bis; i++) x += ((ton[i] ?? 0) + (ton[i + halb] ?? 0)) / 2; return x / (bis - von) }
+  let gesamt = 0; if (ton) for (const v of ton) gesamt += v / ton.length
+  for (const [name, von, bis] of [['bass', 0, 5], ['mitte', 5, 20], ['hoch', 20, 64]]) {
+    const z = b.bereiche[name], v = halb ? mittel(von, bis) : 0
+    if (neu) {
+      z.spitze = Math.max(v, (z.spitze ?? v) * Math.exp(-dt * 0.35))
+      z.boden = v < (z.boden ?? v) ? v : (z.boden ?? v) + (v - (z.boden ?? v)) * Math.min(1, dt * 0.25)
+      z.roh = Math.min(1, Math.max(0, (v - z.boden) / (z.spitze - z.boden + 0.03)))
+    }
+    z.pegel = Math.max(z.roh ?? 0, (z.pegel ?? 0) * Math.exp(-dt * 4.5)) // kurz nachglühen
   }
-  // relativ zum gleitenden Mittel (Rückmeldung 05.11.2026: bei lauter Musik war der Bass dauernd hoch → kein Pulsieren)
-  const rel = Math.min(1, Math.max(0, (bass - b.schnitt) / (b.schnitt * 0.45 + 0.04)))
-  b.schnitt += (bass - b.schnitt) * Math.min(1, dt * 0.9)
-  if (rel > 0.45 && t - b.letzter > 0.18) { b.schlag = 1; b.letzter = t }
+  const bass = b.bereiche.bass
+  if (neu && (bass.roh ?? 0) > 0.6 && t - b.letzter > 0.18) { b.schlag = 1; b.letzter = t }
   b.schlag *= Math.exp(-dt * 7)
-  b.huelle = Math.max(rel, b.huelle * Math.exp(-dt * 6))
-  let hoch = 0; if (ton && ton.length) { const halb = ton.length >= 128 ? 64 : ton.length; for (let i = 16; i < halb; i++) hoch += ((ton[i] ?? 0) + (ton[i + halb] ?? 0)) / (2 * (halb - 16)) }
-  b.hschnitt = (b.hschnitt ?? hoch) + (hoch - (b.hschnitt ?? hoch)) * Math.min(1, dt * 0.9)
-  b.hoehe = Math.max(Math.min(1, Math.max(0, (hoch - b.hschnitt) / (b.hschnitt * 0.5 + 0.03))), (b.hoehe ?? 0) * Math.exp(-dt * 6))
   const laeuft = gesamt > 0.015
-  b.musik += ((laeuft ? 1 : 0) - b.musik) * Math.min(1, dt * (laeuft ? 4 : 0.7)) // schnell rein, langsam zurück
+  b.musik += ((laeuft ? 1 : 0) - b.musik) * Math.min(1, dt * (laeuft ? 4 : 0.7))
+  b.bass = bass.pegel; b.mitte = b.bereiche.mitte.pegel; b.hoch = b.bereiche.hoch.pegel
   return b
 }
+
+/** eingefärbte Fassung einer Ebene (Helligkeit × Farbe) für das Pulsieren im Beat */
+function farbFassung(bild, [r, g0, bl]) {
+  const c = leinwand(bild.width, bild.height), g = c.getContext('2d'); g.drawImage(bild, 0, 0)
+  const d = g.getImageData(0, 0, c.width, c.height), p = d.data
+  for (let i = 0; i < p.length; i += 4) { const l = Math.max(p[i], p[i + 1], p[i + 2]) / 255; p[i] = r * l; p[i + 1] = g0 * l; p[i + 2] = bl * l }
+  g.putImageData(d, 0, 0); return c
+}
+function farbe(s, name, rgb) { const k = name + rgb; s.farben ??= {}; return (s.farben[k] ??= s.bilder[name] ? farbFassung(s.bilder[name], rgb) : null) }
 
 /** Reaktor: Kernscheibe dreht, Lauflicht wandert durch die Zellen, Kern und Lichthof pulsieren, Blitze */
 function reaktor(g, s, t, opt, anteil) {
@@ -909,17 +922,19 @@ function reaktor(g, s, t, opt, anteil) {
   const spricht = opt.loki === 'spricht' ? Math.min(1, opt.pegel ?? 0.5) : 0
   const denkt = opt.loki === 'denkt' ? 1 : 0, aus = 1, rot = s.rot // stumm: rot statt blau (weich überblendet)
   const eigen = 0.5 + 0.5 * Math.sin((t * Math.PI * 2) / 2.8), beat = beatFolgen(s, opt.ton, t)
-  const imBeat = Math.min(1, 0.15 + 0.5 * beat.huelle + 0.6 * beat.schlag), m = beat.musik
+  const imBeat = Math.min(1, 0.15 + 0.6 * beat.bass + 0.4 * beat.schlag), m = beat.musik
   const puls = eigen * (1 - m) + imBeat * m, takt = beat.schlag * m // takt: kurzes Aufflackern je Schlag
   // Farben im Beat wie im Audiofeld (Wunsch Auftraggeber 05.11.2026): Kern glüht beim Bass dunkelrot, Zellen außen
   // leuchten mit Mitten/Höhen türkis bis weiß
-  const bassRot = m * Math.min(0.85, beat.huelle * 0.8 + beat.schlag * 0.4), weiss = m * (beat.hoehe ?? 0)
+  const bassRot = m * beat.bass, tuerkis = m * beat.mitte, weiss = m * beat.hoch
   const flackern = 0.9 + 0.1 * Math.sin(t * 23) * Math.sin(t * 7.3)
   // Kernscheibe (runde Mitte mit den Lichtpunkten) dreht sich langsam gegen den Uhrzeigersinn
   if (kz && anteil > 0) {
     g.save(); g.translate(r.x, r.y); g.rotate(-t * ((Math.PI * 2) / 50) * (1 + denkt * 2))
     g.drawImage(s.bilder.kernscheibe, kz.x - r.x, kz.y - r.y, kz.b, kz.h)
     if (rot > 0.002) { g.globalAlpha = rot; g.drawImage(s.rotBilder.kernscheibe, kz.x - r.x, kz.y - r.y, kz.b, kz.h); g.globalAlpha = 1 }
+    // Bass: Kernscheibe wird rot umgefärbt (überdeckend – addiert würde Rot auf Türkis nur weiß)
+    if (bassRot > 0.01) { g.globalAlpha = Math.min(1, bassRot * 1.3); g.drawImage(s.rotBilder.kernscheibe, kz.x - r.x, kz.y - r.y, kz.b, kz.h); g.globalAlpha = 1 }
     g.restore()
   }
   // Lauflicht durch die blauen Zellen zwischen den Spulen (16 Sektoren)
@@ -929,20 +944,24 @@ function reaktor(g, s, t, opt, anteil) {
     for (let i = 0; i < sektoren; i++) {
       const w0 = (i / sektoren) * Math.PI * 2, w1 = ((i + 1) / sektoren) * Math.PI * 2, mitte = (w0 + w1) / 2
       const naehe = Math.pow(Math.max(0, Math.cos(mitte - kopf)), 6)
-      const a = anteil * aus * (0.18 + 0.55 * naehe * (1 - 0.5 * m) + 0.12 * puls + 0.55 * takt + 0.6 * weiss + 0.5 * spricht)
+      const a = anteil * aus * (0.18 + 0.55 * naehe * (1 - 0.5 * m) + 0.12 * puls + 0.55 * takt + 0.5 * spricht)
       if (a < 0.01) continue
       g.save(); g.beginPath(); g.moveTo(r.x, r.y); g.arc(r.x, r.y, 230, w0, w1); g.closePath(); g.clip()
       g.globalAlpha = Math.min(1, a) * (1 - rot); g.drawImage(s.bilder.zellen, ze.x, ze.y, ze.b, ze.h)
       if (rot > 0.002) { g.globalAlpha = Math.min(1, a) * rot; g.drawImage(s.rotBilder.zellen, ze.x, ze.y, ze.b, ze.h) }
       g.restore()
     }
+    const zt = tuerkis > 0.01 && farbe(s, 'zellen', [40, 235, 215]) // Mitten: Spulenring pulsiert türkis
+    if (zt) { g.globalAlpha = Math.min(1, tuerkis * 1.4); g.drawImage(zt, ze.x, ze.y, ze.b, ze.h) }
     g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
   }
   blitze(g, s, t, (1 + denkt * 2 + spricht * 3) * (rot > 0.5 ? 0.4 : 1), anteil)
   const schlag = s.blitzHell ?? 0 // der Hauptblitz lässt Kern und Lichthof kurz aufleuchten
-  ebene(g, s, 'halo', anteil * aus * flackern * (0.35 + 0.5 * puls + 0.4 * takt + 0.7 * spricht + 0.6 * schlag), 'lighter', rot)
-  ebene(g, s, 'kern', anteil * aus * flackern * (0.25 + 0.45 * puls + 0.45 * takt + 0.6 * spricht + 0.5 * schlag), 'lighter', Math.max(rot, bassRot))
-  if (weiss > 0.02) ebene(g, s, 'halo', anteil * weiss * 0.35, 'lighter', 0) // Höhen: heller, weißlicher Schein außen
+  ebene(g, s, 'halo', anteil * aus * flackern * (0.35 + 0.5 * puls + 0.4 * takt + 0.7 * spricht + 0.6 * schlag) * (1 - 0.4 * bassRot), 'lighter', Math.max(rot, bassRot))
+  ebene(g, s, 'kern', anteil * aus * flackern * (0.25 + 0.45 * puls + 0.45 * takt + 0.6 * spricht + 0.5 * schlag) * (1 - 0.9 * bassRot), 'lighter', Math.max(rot, bassRot))
+  if (bassRot > 0.01) { // dunkelrotes Glühen in der Mitte, im Takt des Basses
+    const gl = g.createRadialGradient(r.x, r.y, 0, r.x, r.y, 120); gl.addColorStop(0, 'rgba(200,15,5,1)'); gl.addColorStop(0.5, 'rgba(150,8,2,0.7)'); gl.addColorStop(1, 'rgba(120,0,0,0)')
+    g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, bassRot * 1.2) * anteil; g.fillStyle = gl; g.fillRect(r.x - 120, r.y - 120, 240, 240); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over' }
 }
 
 /** Runen wandern links/rechts entlang der gemessenen Bahn im Band und laufen oben und unten aus dem Bild */
@@ -984,6 +1003,10 @@ function mittelRing(g, s, winkel, alpha) {
     pg.restore(); SCHRIFT.stil = 'strich'
   }
   pg.globalCompositeOperation = 'destination-in'; pg.drawImage(s.ringMitteMaske, 0, 0)
+  // dunkler Schatten unter der Schrift: Lichtflecken im Hintergrund liegen dann sichtbar dahinter (Rückmeldung 05.11.2026)
+  if (s.ringUhr) { const bandH = s.ringUhr.h * 1.9; g.save(); g.globalAlpha = alpha; g.lineCap = 'butt'
+    for (const [b, a2] of [[bandH * 1.2, 0.45], [bandH * 0.75, 0.75]]) { g.beginPath(); g.arc(k.x, k.y, k.r, Math.PI * 1.04, Math.PI * 1.96); g.strokeStyle = `rgba(2,8,12,${a2})`; g.lineWidth = b; g.stroke() }
+    g.restore() }
   g.globalAlpha = alpha; g.globalCompositeOperation = 'lighter'
   g.imageSmoothingQuality = 'high'; g.drawImage(p, k.x - gr / FEIN / 2, k.y - gr / FEIN / 2, gr / FEIN, gr / FEIN)
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
@@ -1058,6 +1081,8 @@ function schrift(g, s, t, anteil) {
   const hell = anteil * (0.9 + 0.1 * Math.sin((t * Math.PI * 2) / 2.8))
   ebene(g, s, 'gravur', anteil * 0.75, 'source-over')
   ebene(g, s, 'schrift', hell, 'lighter', s.rot)
+  const w = s.beat ? s.beat.musik * s.beat.hoch : 0, sw = w > 0.01 && farbe(s, 'schrift', [255, 255, 255]), e = s.geo.ebenen.schrift // Höhen: LOKI und Figuren weiß
+  if (sw) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, w * 1.5); g.drawImage(sw, e.x, e.y, e.b, e.h); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over' }
 }
 
 /**
