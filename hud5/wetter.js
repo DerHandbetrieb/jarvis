@@ -119,11 +119,11 @@ export function zeichneFrost(g, st) {
 }
 
 /** Nebelschwaden in Bergen und Wäldern (immer, sehr langsam) – nebelTextur: waagerecht wiederholbare Wolkenschicht */
-export function bergnebel(g, nebelTextur, t) {
-  if (!nebelTextur) return
+export function bergnebel(g, nebelTextur, t, faktor = 1) {
+  if (!nebelTextur || faktor <= 0.002) return
   g.save(); g.globalCompositeOperation = 'screen'
   for (const [y, h, tempo, deck] of [[640, 170, 6, 0.35], [700, 150, -4, 0.3], [600, 120, 3, 0.22]]) {
-    g.globalAlpha = deck
+    g.globalAlpha = deck * faktor
     const b = nebelTextur.width * 1.4, start = -(((t * tempo) % b) + b) % b
     for (let x = start; x < B; x += b) g.drawImage(nebelTextur, x, y, b, h)
   }

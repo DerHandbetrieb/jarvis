@@ -613,7 +613,7 @@ function rotFassung(bild) {
  * vorn. Perspektive: am Horizont dicht und flach, vorn breiter und kräftiger, dort auch etwas schneller. Seitlich nur ein
  * Hauch Bewegung. Nach außen (Ecken-Ornamente, Runenbänder) wird alles weich ausgeblendet.
  */
-function wasser(g, s, t, anteil) {
+function wasser(g, s, t, anteil, hell = 1) { /* hell: Intro blendet den See mit dem Grundbild ein */
   const p = s.seePuffer, pg = p.getContext('2d'), hoehe = p.height, zeile = 2
   const glanz = s.bilder.wasser, ge = s.geo.ebenen.wasser, sp = s.spiegel, re = s.geo.ebenen.reaktor
   pg.globalCompositeOperation = 'source-over'; pg.globalAlpha = 1; pg.clearRect(0, 0, B, hoehe)
@@ -644,7 +644,7 @@ function wasser(g, s, t, anteil) {
     }
   }
   pg.globalAlpha = 1; pg.globalCompositeOperation = 'destination-in'; pg.drawImage(s.seeMaske, 0, 0)
-  g.drawImage(p, 0, HORIZONT)
+  g.globalAlpha = hell; g.drawImage(p, 0, HORIZONT)
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
 
@@ -1008,6 +1008,11 @@ function seitenRunen(g, s, b, t, tempo, alpha, versatz) {
     const runde = Math.floor((i * abstand + t * tempo) / (anzahl * abstand))
     const bild = s.runen[FOLGE[(((i - runde * anzahl + versatz) % FOLGE.length) + FOLGE.length * 99) % FOLGE.length]]
     g.setTransform(1, 0, 0, 1, 0, 0); g.translate(p.x - (s.versatz ?? 0), p.y); g.rotate(p.w)
+    if (s.zuenden) { /* Intro: Rune leuchtet erst, wenn die Welle sie erreicht – kurz überhell beim Zünden */
+      let d = Math.abs(p.x - B / 2) / (B / 2); if (s.zuenden.aussen) d = 1 - d
+      const z = Math.max(0, Math.min(1, (s.zuenden.welle * 1.2 - d) / 0.12)); if (z <= 0) continue
+      g.globalAlpha = alpha * Math.min(1, z * 1.6) * (1 + 0.8 * Math.sin(Math.PI * Math.min(1, z)))
+    } else g.globalAlpha = alpha
     g.drawImage(bild, -bild.width / FEIN / 2, -bild.height / FEIN / 2, bild.width / FEIN, bild.height / FEIN)
   }
   g.restore()
@@ -1215,7 +1220,9 @@ function schrift(g, s, t, anteil) {
  *  an       – Anteile fürs Intro (0..1): { grund, aurora, runen, reaktor, nebel }, fehlt = 1
  */
 export function zeichneSzene(g, s, t, opt = {}) {
-  const an = { grund: 1, aurora: 1, runen: 1, reaktor: 1, nebel: 1, ...opt.an }
+  /* Intro: rand (Steinrand + Kupferband), kern (Reaktor-Bild), ring, seiten (Runen links/rechts) einzeln; zuenden = Runen
+     entzünden sich als Welle (0..1), vonAussen = Welle läuft von den äußeren Rändern zur Mitte; ringDreh = Zusatzdrehung */
+  const an = { grund: 1, aurora: 1, runen: 1, reaktor: 1, nebel: 1, rand: 1, kern: 1, ring: 1, seiten: 1, zuenden: 1, vonAussen: false, ringDreh: 0, ...opt.an }
   g.save()
   g.setTransform(1, 0, 0, 1, -(opt.versatz ?? 0), 0)
   g.fillStyle = '#000'; g.fillRect(0, 0, B, H); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'
@@ -1228,27 +1235,28 @@ export function zeichneSzene(g, s, t, opt = {}) {
   s.rot += Math.sign(rotZiel - s.rot) * Math.min(Math.abs(rotZiel - s.rot), dt / 0.6)
   if (mit('aurora')) aurora(g, s, t, an.aurora)
   sternschnuppen(g, s, t)
-  bergnebel(g, s.nebel2, t) // Nebelschwaden in Bergen und Wäldern ziehen langsam (Wunsch Auftraggeber 05.11.2026)
+  bergnebel(g, s.nebel2, t, an.grund) // Nebelschwaden in Bergen und Wäldern ziehen langsam (Wunsch Auftraggeber 05.11.2026)
   // aufsteigender Rauch hinter dem Reaktor entfernt (Rückmeldung Auftraggeber 05.11.2026: Reaktor soll klar bleiben)
-  if (mit('wasser')) wasser(g, s, t, an.reaktor)
+  if (mit('wasser')) wasser(g, s, t, an.reaktor, an.grund)
   // Wetter hinter Reaktor und Fenstern: Regen, Schnee, Nebel nach dem echten Wetter (opt.wetter = { code, grad })
   s.wetter = s.wetter ?? erstelleWetter()
   const w = wetterArt(opt.wetter)
   if (mit('wetter')) zeichneWetterHinten(g, s.wetter, w, t)
   // pulsierende Wellenringe auf Wunsch des Auftraggebers wieder entfernt (05.11.2026: „gefallen mir gar nicht“)
-  if (mit('rand')) randZeichnen(g, s, an.grund) // Verlauf ins Dunkle + Steinrand außen
-  if (mit('kupfer')) kupferband(g, s, an.grund) // hinter Rauch und Reaktor
+  if (mit('rand')) randZeichnen(g, s, an.grund * an.rand) // Verlauf ins Dunkle + Steinrand außen
+  if (mit('kupfer')) kupferband(g, s, an.grund * an.rand) // hinter Rauch und Reaktor
   if (mit('rauch')) rauch(g, s, t, an.nebel)
-  ebene(g, s, 'reaktor', an.grund, 'source-over', s.rot) // Reaktor steht vorn: Rauch und Wolken liegen dahinter/darunter
+  ebene(g, s, 'reaktor', an.grund * an.kern, 'source-over', s.rot) // Reaktor steht vorn: Rauch und Wolken liegen dahinter/darunter
   if (mit('reaktor')) reaktor(g, s, t, opt, an.reaktor)
   if (mit('schrift')) schrift(g, s, t, an.reaktor)
 
   const denkt = opt.loki === 'denkt' ? 1 : 0
   const hell = an.runen * (0.85 + 0.15 * Math.sin(t * 0.63))
-  mittelRing(g, s, t * ((Math.PI * 2) / 240) * (1 + denkt * 3), hell)
+  mittelRing(g, s, t * ((Math.PI * 2) / 240) * (1 + denkt * 3) + an.ringDreh, hell * an.ring)
+  s.zuenden = an.zuenden < 1 ? { welle: an.zuenden, aussen: an.vonAussen } : null
   s.versatz = opt.versatz ?? 0
-  seitenRunen(g, s, s.bahnLinks, t, -6, hell, 4) // links nach oben, rechts nach unten – gegenläufig wie die Mitte
-  seitenRunen(g, s, s.bahnRechts, t, 6, hell, 12)
+  seitenRunen(g, s, s.bahnLinks, t, -6, hell * an.seiten, 4) // links nach oben, rechts nach unten – gegenläufig wie die Mitte
+  seitenRunen(g, s, s.bahnRechts, t, 6, hell * an.seiten, 12)
   if (mit('wetter')) zeichneFrost(g, s.wetter) // Frost: Eiskristalle an den Bildschirmrändern
   g.restore()
 }

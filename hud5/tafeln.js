@@ -33,7 +33,7 @@ export function erstelleTafeln(huelle, versatz = 0, { skala = TAFEL.skala } = {}
   const flaeche = document.createElement('div') // 5760×1080-Fläche, auf die Fenstergröße skaliert
   Object.assign(flaeche.style, { position: 'absolute', left: '0', top: '0', width: '5760px', height: '1080px', transformOrigin: '0 0' })
   huelle.appendChild(flaeche)
-  const felder = {}
+  const felder = {}, buehnen = [] // buehnen: fürs Intro (Tafeln aufklappen/einblenden, tafelnStellen)
   for (const [seite, liste] of [['links', LINKS], ['rechts', RECHTS]]) {
     const x = seite === 'links' ? TAFEL.links : 5760 - TAFEL.links - br
     // zwei Bühnen: die Tafel selbst und darunter ihre Spiegelung im Wasser (Wunsch Auftraggeber 05.11.2026). Gespiegelt
@@ -48,6 +48,7 @@ export function erstelleTafeln(huelle, versatz = 0, { skala = TAFEL.skala } = {}
       Object.assign(tafel.style, { position: 'absolute', inset: '0', transformStyle: 'preserve-3d', transformOrigin: `${ox} 50%`, transform: drehen })
       if (spiegel) Object.assign(tafel.style, { transformStyle: 'flat', transformOrigin: `${ox} ${ho + SPIEGEL.abstand / 2}px`, transform: `${drehen} scaleY(-1)`, maskImage: `linear-gradient(to top, #000, transparent ${SPIEGEL.auslauf}px)` })
       buehne.appendChild(tafel); flaeche.appendChild(buehne)
+      buehnen.push({ seite, spiegel, buehne, tafel, drehen, deckkraft: spiegel ? SPIEGEL.deckkraft : 1, felder: [] })
       return tafel
     }
     const spiegelTafel = bauen(true), tafel = bauen(false)
@@ -56,12 +57,13 @@ export function erstelleTafeln(huelle, versatz = 0, { skala = TAFEL.skala } = {}
       const c = document.createElement('canvas'); c.width = Math.round(b * k * AUFLOESUNG); c.height = Math.round(h * k * AUFLOESUNG); Object.assign(c.style, lage); tafel.appendChild(c)
       const s = document.createElement('canvas'); s.width = Math.ceil(b / 4); s.height = Math.ceil(h / 4); Object.assign(s.style, lage); spiegelTafel.appendChild(s)
       const sauber = document.createElement('canvas'); sauber.width = s.width; sauber.height = s.height // unverzerrte Kopie, daraus wird je Bild gewellt
+      buehnen.at(-1).felder.push(c); buehnen.at(-2).felder.push(s)
       felder[id] = { c, g: c.getContext('2d'), b, h, k: k * AUFLOESUNG, sg: s.getContext('2d'), sb: s.width, sh: s.height, sauber, sq: sauber.getContext('2d'), phase: fx * 0.013 + fy * 0.02 }
     }
   }
   const passen = () => { const f = (huelle.clientHeight || innerHeight) / 1080; flaeche.style.transform = `scale(${f}) translateX(${-versatz}px)` }
   passen(); addEventListener('resize', passen)
-  return { felder, kennung: '' }
+  return { felder, buehnen, kennung: '' }
 }
 
 function feldZeichnen(f, id, daten, t) {
@@ -99,4 +101,27 @@ export function zeichneTafeln(st, daten, t) {
   const alles = kennung !== st.kennung
   st.kennung = kennung
   for (const [id, f] of Object.entries(st.felder)) { if (alles || BEWEGT.has(id)) feldZeichnen(f, id, daten, t); spiegelWellen(f, t) }
+}
+
+/** Intro: Tafeln einer Seite erscheinen lassen. p = { links, rechts } je 0..1 (1 = Endstand wie im Wallpaper).
+ *  art: 'klappen' (klappt an der Außenkante aus der Kante auf), 'gleiten' (gleitet von außen herein), 'holo' (flackert
+ *  Fenster für Fenster an), 'flach' (liegt erst flach, kippt dann in die Schräge). Danach steht alles exakt wie sonst. */
+export function tafelnStellen(st, art, p) {
+  const ein = (x) => 1 - Math.pow(1 - Math.max(0, Math.min(1, x)), 3)
+  for (const b of st.buehnen) {
+    const v = Math.max(0, Math.min(1, p[b.seite] ?? 1)), e = ein(v), vz = b.seite === 'links' ? 1 : -1
+    const n = b.felder.length
+    let dreh = b.drehen, verschub = '', deck = 1
+    if (art === 'klappen') { dreh = `rotateY(${vz * (24 + (88 - 24) * (1 - e))}deg)`; deck = Math.min(1, v * 4) }
+    else if (art === 'gleiten') { verschub = `translateX(${-vz * 900 * (1 - e)}px) `; deck = e }
+    else if (art === 'flach') { dreh = `rotateY(${vz * 24 * e}deg) scale(${0.92 + 0.08 * e})`; deck = Math.min(1, v * 2.5) }
+    else if (art === 'holo') deck = v > 0 ? 1 : 0
+    b.tafel.style.transform = verschub + dreh + (b.spiegel ? ' scaleY(-1)' : '')
+    b.buehne.style.opacity = String(b.deckkraft * deck)
+    b.felder.forEach((c, i) => { // Fenster nacheinander (von innen nach außen) – beim Holo-Flackern mit Zufallsflimmern
+      const a = Math.max(0, Math.min(1, (v * (n + 2) - i) / 2))
+      const flimmer = art === 'holo' && a > 0 && a < 1 ? (Math.sin(v * 900 + i * 7) > 0.1 ? 1 : 0.15) : 1
+      c.style.opacity = String(v >= 1 ? 1 : a * flimmer)
+    })
+  }
 }
