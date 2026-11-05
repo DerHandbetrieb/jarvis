@@ -27,6 +27,7 @@ function zufallsfolge(s) { return () => { s = (s * 16807) % 2147483647; return s
 const LICHT = {
   cyan: { kern: '#d8fdff', hof: CYAN },
   gold: { kern: '#fff1cf', hof: '#f2a93b' },
+  kupfer: { kern: '#e9a178', hof: '#a9542a' }, // Kupfer wie die Spulen im Reaktor (Wunsch Auftraggeber 05.11.2026: Ringtext nicht hellgelb)
   silber: { kern: '#ffffff', hof: '#9fdcff' },
 }
 /** Stile des Rings um den Reaktor (Vorschläge 05.11.2026, Wahl Auftraggeber: D): Runen größer, wahlweise Gold; Wörter
@@ -117,10 +118,11 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
     { text: `KW ${a.kw}`, farbe: 'cyan' },
     variante === 'info-d' ? { symbol, text: grad, farbe: 'cyan' } : { symbol, text: `${grad} ${wort}`, farbe: 'cyan' },
   ]
-  // Breite eines Abschnitts als Winkel
-  const winkel = (seg, h, rr) => ((seg.symbol ? h * 2.3 : 0) + textBreite(seg.text, h * (seg.gross ?? 1))) / rr
+  // Breite eines Abschnitts als Winkel (laufende Uhrzeit: feste Zellen je Zeichen)
+  const winkel = (seg, h, rr) => (seg.live ? uhrBreite(h) : (seg.symbol ? h * 2.3 : 0) + textBreite(seg.text, h * (seg.gross ?? 1))) / rr
   // Abschnitt ab Winkel w zeichnen (zwei Durchgänge: Lichthof, dann heller Kern)
   const abschnitt = (g, seg, w, h, rr) => {
+    if (seg.live) return // Uhrzeit mit Sekunden wird in jedem Bild eingesetzt (mittelRing)
     const hh = h * (seg.gross ?? 1), lr = LICHT[seg.farbe]
     for (let d = 0; d < 2; d++) {
       g.strokeStyle = d ? lr.kern : lr.hof; g.fillStyle = g.strokeStyle; g.shadowColor = lr.hof
@@ -163,6 +165,7 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
       if (bis > von) knotenband(g, rr, von, bis, h)
     }
     for (const t of teile) (t.seg.farbe === 'dunkel' ? abschnittDunkel : abschnitt)(g, t.seg, t.mitte - t.halb, h, rr)
+    return teile.filter((t) => t.seg.live).map((t) => t.mitte - t.halb)
   }
   // Bedeutung von L.O.K.I. – feste Inschrift (gravur | ringspur | imring | see)
   const inschrift = (g, art, rr, h, text) => {
@@ -222,13 +225,13 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
   if (variante === 'info-x') { // Runde 3 (Wunsch Auftraggeber 05.11.2026): Angaben doppelt, alles gleich groß, Gold; dazwischen
     // dunkles Knotenband (schwarz mit blauem Schimmer wie die Eck-Knoten); Schrift und Bedeutung von L.O.K.I. wählbar
     SCHRIFT.stil = opt.schrift ?? 'strich'
-    const gold = angaben.map((seg) => ({ ...seg, farbe: 'gold', gross: 1 }))
+    const gold = angaben.map((seg, i) => ({ ...seg, farbe: 'kupfer', gross: 1, ...(i === 0 ? { text: '00:00:00', live: true } : {}) })) // Uhrzeit mit Sekunden (Wunsch Auftraggeber 05.11.2026)
     const h = hoehe * 0.8, NAME = 'LOKALE · OHNEHIN · KLÜGERE · INTELLIGENZ'
     const segmente = opt.name === 'imring' ? [...gold, ...NAME.split(' · ').slice(0, 2).map((t) => ({ text: t, farbe: 'dunkel' })), ...gold, ...NAME.split(' · ').slice(2).map((t) => ({ text: t, farbe: 'dunkel' }))] : [...gold, ...gold]
-    kreisKnoten(gd, segmente, r, h)
+    const plaetze = kreisKnoten(gd, segmente, r, h)
     inschrift(gf, opt.name ?? 'gravur', r, h, NAME)
     SCHRIFT.stil = 'strich'
-    return { dreh, fest }
+    return { dreh, fest: opt.name === 'ohne' ? null : fest, uhr: { plaetze, h, r } }
   }
   const NEU = { 'info-e': { doppelt: false, uhr: 1.15, kasten: 'gerade' }, 'info-f': { doppelt: true, uhr: 1.15, kasten: 'kerbe' }, 'info-g': { doppelt: true, uhr: 1.45, kasten: 'bogen' }, 'info-h': { doppelt: true, uhr: 1.3, kasten: 'kerbe', linien: true } }[variante]
   if (NEU) {
@@ -321,14 +324,38 @@ function kupferband(g, s, anteil) {
   g.drawImage(s.kupfer.bild, k.x - gr / 2, k.y - gr / 2, gr, gr); g.globalAlpha = 1
 }
 
-/** Ring-Angaben bei neuer Minute oder neuem Wetter neu beschriften (nur bei den Info-Varianten) */
+/** laufende Uhrzeit im Ring: feste Zellenbreite je Zeichen (Ziffern gleich breit, Doppelpunkt schmal) */
+const uhrZelle = (z, h) => (z === ':' ? 1.2 : 3) * (h / 6) + 1.7 * (h / 6)
+const uhrBreite = (h) => 6 * uhrZelle('0', h) + 2 * uhrZelle(':', h) - 1.7 * (h / 6)
+/** Ziffern und Doppelpunkt einmal mit Goldschein vorzeichnen (doppelte Auflösung) */
+function zifferBilder(h) {
+  return Object.fromEntries([...'0123456789:'].map((z) => {
+    const b = Math.ceil(uhrZelle(z, h) + h), hh = Math.ceil(h * 2.2), c = leinwand(b * FEIN, hh * FEIN), g = c.getContext('2d')
+    g.scale(FEIN, FEIN); g.translate(b / 2, hh / 2)
+    for (let d = 0; d < 2; d++) {
+      g.strokeStyle = d ? LICHT.kupfer.kern : LICHT.kupfer.hof; g.fillStyle = g.strokeStyle; g.shadowColor = LICHT.kupfer.hof
+      g.lineWidth = d ? Math.max(1.4, h * 0.1) : h * 0.16; g.shadowBlur = d ? h * 0.3 : h * 0.8; g.lineCap = 'round'; g.lineJoin = 'round'
+      zeichen(g, z, h)
+    }
+    return [z, c]
+  }))
+}
+let uhrCache = { sek: -1, text: '' }
+function uhrJetzt() {
+  const sek = Math.floor(Date.now() / 1000)
+  if (sek !== uhrCache.sek) uhrCache = { sek, text: new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(new Date(sek * 1000)) }
+  return uhrCache.text
+}
+
+/** Ring-Angaben bei neuem Tag oder neuem Wetter neu beschriften (die Uhrzeit läuft separat in jedem Bild) */
 function ringAktualisieren(s, wetter) {
   if (!s.infoVariante) return
-  const a = { ...zeitAngaben(), wetter }, kennung = JSON.stringify([a.uhr, a.datum, wetter?.code, Math.round(wetter?.grad ?? -99)])
+  const a = { ...zeitAngaben(), wetter }, kennung = JSON.stringify([s.infoVariante === 'info-x' ? '' : a.uhr, a.datum, wetter?.code, Math.round(wetter?.grad ?? -99)])
   if (kennung === s.ringKennung) return
   s.ringKennung = kennung
-  const { dreh, fest } = infoRing(s.geo.ringMitte.r, 30, s.infoVariante, a, s.ringOpt)
-  s.ringMitte = dreh; s.ringFest = fest
+  const { dreh, fest, uhr } = infoRing(s.geo.ringMitte.r, 30, s.infoVariante, a, s.ringOpt)
+  s.ringMitte = dreh; s.ringFest = fest; s.ringUhr = uhr ?? null
+  if (uhr && !s.ziffern) s.ziffern = zifferBilder(uhr.h)
 }
 
 /** Maske für den Ring um den Reaktor: oben voll, unten zum See hin weich ausgeblendet (keine harte Kante) */
@@ -858,6 +885,19 @@ function mittelRing(g, s, winkel, alpha) {
   const p = s.ringPuffer, pg = p.getContext('2d'), k = s.geo.ringMitte, gr = p.width
   pg.globalCompositeOperation = 'source-over'; pg.clearRect(0, 0, gr, gr)
   pg.save(); pg.translate(gr / 2, gr / 2); pg.rotate(winkel); pg.drawImage(s.ringMitte, -gr / 2, -gr / 2); pg.restore()
+  if (s.ringUhr && s.ziffern) { // Uhrzeit mit Sekunden an ihren festen Plätzen im Ring
+    const { plaetze, h, r } = s.ringUhr, text = uhrJetzt()
+    pg.save(); pg.translate(gr / 2, gr / 2); pg.rotate(winkel); pg.scale(FEIN, FEIN)
+    for (const start of plaetze) {
+      let w = start
+      for (const z of text) {
+        const zw = uhrZelle(z, h) / r, bild = s.ziffern[z]
+        if (bild) { pg.save(); pg.rotate(w + zw / 2 - (0.85 * (h / 6)) / r); pg.translate(0, -r); pg.drawImage(bild, -bild.width / FEIN / 2, -bild.height / FEIN / 2, bild.width / FEIN, bild.height / FEIN); pg.restore() }
+        w += zw
+      }
+    }
+    pg.restore()
+  }
   pg.globalCompositeOperation = 'destination-in'; pg.drawImage(s.ringMitteMaske, 0, 0)
   g.globalAlpha = alpha; g.globalCompositeOperation = 'lighter'
   g.imageSmoothingQuality = 'high'; g.drawImage(p, k.x - gr / FEIN / 2, k.y - gr / FEIN / 2, gr / FEIN, gr / FEIN)
