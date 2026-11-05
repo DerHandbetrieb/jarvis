@@ -241,14 +241,15 @@ function energie(g, b, h, pv, t) {
   for (const [a, z, w] of fl) { // Lichtpunkte
     if (w < 20) continue
     const p = bahn(a, z), anzahl = Math.min(9, 2 + Math.round(w / 800)), tempo = 0.25 + Math.min(1.2, w / 4000)
-    const farbe = a === 'pv' ? GOLD : z === 'netz' ? '#7dffb0' : a === 'netz' ? '#ff8a6a' : CYAN
+    // Farbe nach Herkunft (Wunsch Auftraggeber 05.11.2026): Sonnenstrom grün (auch Überschuss in Akku/Netz), Akku türkis, Netz rot
+    const farbe = a === 'netz' ? '#ff4a3a' : a === 'akku' ? CYAN : '#5dff8a'
     for (let i = 0; i < anzahl; i++) {
       const f = ((t * tempo + i / anzahl) % 1) * 0.86 + 0.07, [x, yy] = p(f)
       const v = g.createRadialGradient(x, yy, 0, x, yy, 6); v.addColorStop(0, farbe); v.addColorStop(1, 'rgba(0,0,0,0)')
       g.fillStyle = v; g.fillRect(x - 6, yy - 6, 12, 12)
     }
   }
-  for (const [id, name, wert, farbe] of [['pv', 'PV', pv?.pvW, GOLD], ['akku', 'AKKU', pv?.akkuW, CYAN], ['haus', 'HAUS', pv?.hausW, HELL], ['netz', 'NETZ', pv?.netzW, BLASS]]) {
+  for (const [id, name, wert, farbe] of [['pv', 'PV', pv?.pvW, '#5dff8a'], ['akku', 'AKKU', pv?.akkuW, CYAN], ['haus', 'HAUS', pv?.hausW, HELL], ['netz', 'NETZ', pv?.netzW, (pv?.netzW ?? 0) > 20 ? '#ff4a3a' : BLASS]]) {
     const [x, yy] = K[id]
     g.fillStyle = 'rgba(4,20,28,0.9)'; g.beginPath(); g.arc(x, yy, R, 0, Math.PI * 2); g.fill()
     g.strokeStyle = 'rgba(95,246,255,0.45)'; g.lineWidth = 1.2; g.stroke()
