@@ -538,7 +538,8 @@ export async function ladeSzene(basis, einstellung = {}) {
     rotBilder: Object.fromEntries(['reaktor', 'kernscheibe', 'zellen', 'halo', 'kern', 'schrift'].filter((n) => bilder[n]).map((n) => [n, rotFassung(bilder[n])])),
     seePuffer: leinwand(B, H - HORIZONT), seeMaske: seeMaske(),
   }
-  if (einstellung.praegung !== 'aus') szene.praegung = praegungBild(szene) // Standard ab 05.11.2026 zum Ausprobieren: geprägt
+  if (einstellung.praegung === 'voll') szene.inschrift = inschriftBild(szene)
+  else if (einstellung.praegung !== 'aus') szene.praegung = praegungBild(szene) // Standard ab 05.11.2026 zum Ausprobieren: geprägt
   return szene
 }
 
@@ -998,8 +999,53 @@ function praegungBild(s) {
   g.drawImage(farbig('rgba(8,10,10,0.78)'), 0, 0) // Vertiefung
   return c
 }
+/**
+ * Volle Bedeutung von L.O.K.I. unten in der Steinrundung des Reaktors (Entwurf 05.11.2026, Wunsch Auftraggeber): Drachen
+ * und das einzelne LOKI weg; „LOKALE OHNEHIN KLÜGERE INTELLIGENZ“ dunkel eingeprägt, nur die Anfangsbuchstaben L-O-K-I
+ * pulsieren türkis. Prägung einmal vorgezeichnet (doppelte Auflösung), die Anfangsbuchstaben je Bild.
+ */
+const INSCHRIFT = { r: 236, h: 19, spanne: 1.75 } // Radius der Schriftmitte, Schrifthöhe, Bogen in Bogenmaß (unten)
+function inschriftLayout(g, h) {
+  const woerter = ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], zeichen = []
+  g.font = `700 ${h}px Georgia, "Times New Roman", serif`
+  const luecke = h * 0.9, sperr = h * 0.18
+  for (const [k, w] of woerter.entries()) { for (const [i, z] of [...w].entries()) zeichen.push({ z, b: g.measureText(z).width + sperr, anfang: i === 0 }); if (k < 3) zeichen.push({ z: ' ', b: luecke }) }
+  const ges = zeichen.reduce((a, c) => a + c.b, 0)
+  return { zeichen, ges }
+}
+function inschriftBild(s) {
+  const k = s.geo.kern, gr = 2 * (INSCHRIFT.r + 40), c = leinwand(gr * FEIN, gr * FEIN), g = c.getContext('2d')
+  g.scale(FEIN, FEIN); g.translate(gr / 2, gr / 2)
+  const { zeichen, ges } = inschriftLayout(g, INSCHRIFT.h), r = INSCHRIFT.r, skala = Math.min(1, (INSCHRIFT.spanne * r) / ges)
+  const h = INSCHRIFT.h * skala, lay = inschriftLayout(g, h)
+  g.font = `700 ${h}px Georgia, "Times New Roman", serif`; g.textAlign = 'center'; g.textBaseline = 'middle'
+  const plaetze = []
+  for (const [farbe, dx, dy] of [['rgba(200,210,200,0.30)', 0.7, 0.9], ['rgba(0,0,0,0.85)', -0.5, -0.6], ['rgba(10,12,12,0.85)', 0, 0]]) {
+    let w = Math.PI / 2 + lay.ges / r / 2 // unten, von links nach rechts lesbar
+    g.fillStyle = farbe
+    for (const z of lay.zeichen) {
+      const zw = z.b / r, mitte = w - zw / 2
+      if (z.z !== ' ') { g.save(); g.rotate(mitte); g.translate(r, 0); g.rotate(-Math.PI / 2); g.fillText(z.z, dx, dy); g.restore(); if (farbe.startsWith('rgba(10') && z.anfang) plaetze.push({ z: z.z, w: mitte }) }
+      w -= zw
+    }
+  }
+  return { bild: c, gr, plaetze, h }
+}
+function inschrift(g, s, t, anteil) {
+  const i = s.inschrift, k = s.geo.kern
+  g.globalAlpha = anteil; g.drawImage(i.bild, k.x - i.gr / 2, k.y - i.gr / 2, i.gr, i.gr)
+  const puls = 0.65 + 0.35 * Math.sin((t * Math.PI * 2) / 2.8)
+  g.save(); g.translate(k.x, k.y); g.font = `700 ${i.h}px Georgia, "Times New Roman", serif`; g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.globalCompositeOperation = 'lighter'
+  for (const [farbe, blur, a] of [['#5ff6ff', i.h * 1.4, 1], ['#5ff6ff', i.h * 0.6, 1], ['#e8feff', i.h * 0.2, 1]]) {
+    g.fillStyle = farbe; g.shadowColor = '#5ff6ff'; g.shadowBlur = blur; g.globalAlpha = anteil * puls * a
+    for (const p of i.plaetze) { g.save(); g.rotate(p.w); g.translate(INSCHRIFT.r, 0); g.rotate(-Math.PI / 2); g.fillText(p.z, 0, 0); g.restore() }
+  }
+  g.restore(); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
+}
 function schrift(g, s, t, anteil) {
   if (anteil <= 0) return
+  if (s.inschrift) { inschrift(g, s, t, anteil); return }
   if (s.praegung) { const e = s.geo.ebenen.schrift; ebene(g, s, 'gravur', anteil * 0.5, 'source-over'); g.globalAlpha = anteil; g.drawImage(s.praegung, e.x, e.y, e.b, e.h); g.globalAlpha = 1; return }
   const hell = anteil * (0.9 + 0.1 * Math.sin((t * Math.PI * 2) / 2.8))
   ebene(g, s, 'gravur', anteil * 0.75, 'source-over')
