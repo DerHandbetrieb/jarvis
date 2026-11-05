@@ -10,7 +10,9 @@ const TAFEL = { links: 450, oben: 165, breite: 1240, hoehe: 760, neigung: 24, ti
 // Felder auf der flachen Tafel (x, y, Breite, Höhe) – links Werkstatt, rechts Haus (gleiche Anordnung, gespiegelt)
 const LINKS = [['verkaeufe', 0, 0, 610, 260], ['umsatz', 630, 0, 610, 260], ['ton', 0, 280, 1240, 160], ['aufgaben', 0, 460, 610, 300], ['bestellungen', 630, 460, 610, 300]]
 // rechts gespiegelt: Feld bei x 630 landet innen (links) – CAM 01 links, CAM 02 rechts (Rückmeldung 05.11.2026)
-const RECHTS = [['kamera2', 0, 0, 610, 260], ['kamera1', 630, 0, 610, 260], ['energie', 0, 280, 1240, 160], ['wetter', 0, 460, 610, 300], ['system', 630, 460, 610, 300]]
+// Umbau 05.11.2026 (Wunsch Auftraggeber): schmaler Streifen für den L.O.K.I.-Systemstatus, unten innen Wetter, unten
+// außen groß die PV-Anlage
+const RECHTS = [['kamera2', 0, 0, 610, 260], ['kamera1', 630, 0, 610, 260], ['system', 0, 280, 1240, 64], ['energie', 0, 364, 610, 396], ['wetter', 630, 364, 610, 396]]
 const BEWEGT = new Set(['ton', 'kamera1', 'kamera2', 'energie']) // energie: laufende Lichtpunkte
 
 /** Tafeln anlegen. huelle = Element über der Szenen-Leinwand (gleiche Größe); faktor = Bildschirm-Pixel je Szenen-Pixel */

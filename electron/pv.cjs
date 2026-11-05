@@ -2,7 +2,7 @@
 // „REST/JSON lesend“ (im Standard-Lieferumfang, docs.fenecon.de/de/fems/fems-app/App_REST-JSON_read_access.html):
 // GET http://<FEMS>/rest/channel/_sum/<Kanal>, Anmeldung per HTTP-Basic im Kopf (Benutzername beliebig, nur das Passwort
 // zählt), Antwort JSON mit „value“. Nur lesen, nur private IPv4-Adressen, alle 5 s, Zugang verschlüsselt (safeStorage).
-const KANAELE = ['EssSoc', 'EssActivePower', 'GridActivePower', 'ProductionActivePower', 'ConsumptionActivePower', 'State', 'GridMode']
+const KANAELE = ['EssSoc', 'EssDischargePower', 'EssActivePower', 'GridActivePower', 'ProductionActivePower', 'ConsumptionActivePower', 'State', 'GridMode']
 // FEMS ist ein kleiner Rechner: gemessen beim Auftraggeber 05.11.2026 – 7 gleichzeitige Abfragen liefen in Zeitüberschreitung.
 // Darum: eine Sammelabfrage (regulärer Ausdruck, laut OpenEMS-Doku erlaubt), sonst nacheinander; großzügige Zeitgrenze.
 const TAKT_MS = 5000, ZEITGRENZE_MS = 10_000, FEHLER_AB = 3
@@ -37,7 +37,10 @@ function erstellePv({ speicher, holen = fetch, protokoll = console.error, jetzt 
     }
     return {
       akku: aus.EssSoc, // %
-      akkuW: aus.EssActivePower, // + entladen, − laden (laut FENECON)
+      // + entladen, − laden. EssDischargePower = Leistung auf der Akku-Seite (bei FENECON-Hybridanlagen hängen PV und Akku am
+      // selben Wechselrichter – EssActivePower enthält dann auch den Solarstrom und zeigte „entlädt“, obwohl der Akku lud;
+      // Rückmeldung Auftraggeber 05.11.2026). Nur wenn die Anlage den Wert nicht kennt: EssActivePower.
+      akkuW: aus.EssDischargePower ?? aus.EssActivePower,
       netzW: aus.GridActivePower, // + Bezug, − Einspeisung
       pvW: aus.ProductionActivePower,
       hausW: aus.ConsumptionActivePower,

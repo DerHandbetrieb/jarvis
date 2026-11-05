@@ -220,8 +220,9 @@ const kw = (w) => (w == null ? '–' : Math.abs(w) >= 1000 ? `${(Math.abs(w) / 1
 function energie(g, b, h, pv, t) {
   const stoerung = pv && pv.zustand >= 3, warnung = pv && pv.zustand === 2
   kopf(g, 'ENERGIE · PV-ANLAGE', !pv ? 'NICHT VERBUNDEN' : stoerung ? 'STÖRUNG' : warnung ? 'WARNUNG' : pv.inselbetrieb ? 'INSELBETRIEB' : 'LIVE', b)
-  const y = 34 + (h - 34) / 2 - 6, R = 22
-  const K = { pv: [b * 0.1, y], akku: [b * 0.34, y], haus: [b * 0.62, y], netz: [b * 0.88, y] }
+  const hoch = h > 250, y = 34 + (h - 34) / 2 - 6, R = hoch ? 30 : 22
+  const K = hoch ? { pv: [b * 0.5, 92], haus: [b * 0.5, h * 0.52], akku: [b * 0.2, h * 0.8], netz: [b * 0.8, h * 0.8] }
+    : { pv: [b * 0.1, y], akku: [b * 0.34, y], haus: [b * 0.62, y], netz: [b * 0.88, y] }
   // Flüsse: [von, nach, Watt]; Richtung nach Vorzeichen
   const fl = !pv ? [] : [
     ['pv', 'haus', Math.max(0, pv.pvW ?? 0)],
@@ -230,7 +231,7 @@ function energie(g, b, h, pv, t) {
   ]
   const bahn = (a, z) => { // PV läuft im Bogen oben über den Akku zum Haus
     const [x1, y1] = K[a], [x2, y2] = K[z]
-    return a === 'pv' || z === 'pv' ? (f) => [x1 + (x2 - x1) * f, y1 - Math.sin(f * Math.PI) * 30] : (f) => [x1 + (x2 - x1) * f, y1 + (y2 - y1) * f]
+    return !hoch && (a === 'pv' || z === 'pv') ? (f) => [x1 + (x2 - x1) * f, y1 - Math.sin(f * Math.PI) * 30] : (f) => [x1 + (x2 - x1) * f, y1 + (y2 - y1) * f]
   }
   for (const [a, z] of [['pv', 'haus'], ['akku', 'haus'], ['netz', 'haus']]) { // Leitungen
     const p = bahn(a, z); g.strokeStyle = 'rgba(95,246,255,0.18)'; g.lineWidth = 1.2; g.beginPath()
@@ -255,9 +256,10 @@ function energie(g, b, h, pv, t) {
       g.strokeStyle = pv.akku < 15 ? ROT : CYAN; g.lineWidth = 3
       g.beginPath(); g.arc(x, yy, R + 4, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * pv.akku) / 100); g.stroke()
     }
-    text(g, id === 'akku' && pv?.akku != null ? `${Math.round(pv.akku)}%` : name, x, yy + 5, 12, farbe, 'center', 600)
+    text(g, id === 'akku' && pv?.akku != null ? `${Math.round(pv.akku)}%` : name, x, yy + (hoch ? 6 : 5), hoch ? 16 : 12, farbe, 'center', 600)
     const zusatz = !pv ? '' : id === 'akku' ? ((pv.akkuW ?? 0) < -20 ? ' LÄDT' : (pv.akkuW ?? 0) > 20 ? ' ENTLÄDT' : '') : id === 'netz' ? ((pv.netzW ?? 0) < -20 ? ' EINSPEISUNG' : (pv.netzW ?? 0) > 20 ? ' BEZUG' : '') : ''
-    text(g, `${id === 'akku' ? 'AKKU' : name} ${kw(wert)}${zusatz}`, x, yy + R + 20, 11, BLASS, 'center', 600)
+    if (hoch) { text(g, kw(wert), x, yy + R + 24, 18, HELL, 'center', 600); text(g, `${id === 'akku' ? 'AKKU' : name}${zusatz}`, x, yy + R + 42, 11, BLASS, 'center', 600) }
+    else text(g, `${id === 'akku' ? 'AKKU' : name} ${kw(wert)}${zusatz}`, x, yy + R + 20, 11, BLASS, 'center', 600)
   }
 }
 function wetter(g, b, h, w) {
@@ -269,7 +271,6 @@ function wetter(g, b, h, w) {
   text(g, 'Wetterstation: noch nicht verbunden · Quelle Open-Meteo', 16, h - 14, 11, BLASS)
 }
 function system(g, b, h, d) {
-  kopf(g, 'SYSTEM · L.O.K.I.', d.uhr ?? '', b)
   const z = d.loki?.zustand ?? 'aus'
   const zeilen = [
     ['L.O.K.I.', { bereit: 'HÖRT ZU', spricht: 'SPRICHT', denkt: 'DENKT NACH', laedt: 'LÄDT', aus: 'AUS', fehler: 'STÖRUNG' }[z] ?? z.toUpperCase(), z === 'fehler' ? ROT : CYAN],
@@ -278,6 +279,17 @@ function system(g, b, h, d) {
     ['KAMERA', d.kamera ? 'BEREIT' : 'NICHT EINGERICHTET', d.kamera ? CYAN : BLASS],
     ['SELBSTTEST', d.selbsttest ?? '–', d.selbsttestRot ? ROT : CYAN],
   ]
+  if (h < 120) { // schmaler Streifen (rechter Bildschirm, 05.11.2026): alles in einer Zeile
+    text(g, 'SYSTEM · L.O.K.I.', 16, h / 2 + 5, 13, CYAN, 'left', 600)
+    const x0 = 190, sp = (b - x0 - 90) / zeilen.length
+    zeilen.forEach(([n, wert, farbe], i) => {
+      const x = x0 + i * sp
+      text(g, n, x, h / 2 - 4, 10, BLASS); text(g, wert, x, h / 2 + 13, 13, farbe, 'left', 600)
+    })
+    text(g, d.uhr ?? '', b - 16, h / 2 + 6, 15, GOLD, 'right', 600)
+    return
+  }
+  kopf(g, 'SYSTEM · L.O.K.I.', d.uhr ?? '', b)
   zeilen.forEach(([n, wert, farbe], i) => {
     const y = 60 + i * 36
     text(g, n, 16, y, 13, BLASS); text(g, wert, b - 16, y, 14, farbe, 'right', 600)

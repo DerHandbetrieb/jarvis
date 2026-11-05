@@ -20,11 +20,11 @@ describe('PV-Anlage FENECON', () => {
   })
   it('nutzt die Sammelabfrage, wenn die Anlage eine Liste liefert (eine Anfrage statt sieben)', async () => {
     const adressen = []
-    const holen = async (url) => { adressen.push(url); return { status: 200, ok: true, json: async () => (url.includes('%7C') ? [{ address: '_sum/EssSoc', value: 80 }, { address: '_sum/GridActivePower', value: 300 }] : { value: null }), text: async () => '' } }
+    const holen = async (url) => { adressen.push(url); return { status: 200, ok: true, json: async () => (url.includes('%7C') ? [{ address: '_sum/EssSoc', value: 80 }, { address: '_sum/GridActivePower', value: 300 }, { address: '_sum/EssActivePower', value: 2500 }, { address: '_sum/EssDischargePower', value: -1800 }] : { value: null }), text: async () => '' } }
     const pv = erstellePv({ speicher: speicher(), holen, protokoll: () => {} })
     const s = await pv.einrichten({ adresse: '192.168.178.38', passwort: 'x' }); pv.stoppen()
     expect(adressen.every((u) => u.includes('%7C'))).toBe(true) // jede Abfrage ist eine Sammelabfrage, keine Einzelkanäle
-    expect(s.werte).toMatchObject({ akku: 80, netzW: 300 })
+    expect(s.werte).toMatchObject({ akku: 80, netzW: 300, akkuW: -1800 }) // Akku-Seite hat Vorrang (Hybridanlage)
   })
   it('meldet ein falsches Passwort und speichert nichts', async () => {
     const sp = speicher()
