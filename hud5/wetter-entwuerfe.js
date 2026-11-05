@@ -5,7 +5,7 @@ const CYAN = '#5ff6ff', HELL = '#e8fdff', BLASS = 'rgba(165,230,240,0.62)', GOLD
 const SCHRIFT = 'Bahnschrift, "Segoe UI", Arial, sans-serif'
 function text(g, t, x, y, gr, farbe = HELL, ausr = 'left', gew = 600) { g.font = `${gew} ${gr}px ${SCHRIFT}`; g.fillStyle = farbe; g.textAlign = ausr; g.fillText(t, x, y) }
 const z = (v, n = 0) => (v == null ? '–' : (Math.round(v * 10 ** n) / 10 ** n).toFixed(n).replace('.', ','))
-function kopf(g, b, w) { text(g, 'WETTER · ÖHRINGEN', 14, 22, 13, CYAN); text(g, 'EIGENE STATION', b - 14, 22, 11, BLASS, 'right'); g.strokeStyle = 'rgba(95,246,255,0.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(14, 30.5); g.lineTo(b - 14, 30.5); g.stroke() }
+function kopf(g, b, w) { text(g, `WETTER · ${String(w?.ort ?? 'Obersontheim').toUpperCase()}`, 28, 22, 13, CYAN); text(g, 'EIGENE STATION', b - 14, 22, 11, BLASS, 'right'); g.strokeStyle = 'rgba(95,246,255,0.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(14, 30.5); g.lineTo(b - 14, 30.5); g.stroke() }
 const RICHTUNG = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW']
 const richtung = (grad) => (grad == null ? '' : RICHTUNG[Math.round(grad / 45) % 8])
 
@@ -110,4 +110,4 @@ export const WETTER_ENTWURF = {
     })
   },
 }
-export const BEISPIEL_WETTER = { ort: 'Öhringen', grad: 3.1, code: 2, station: { grad: 3.1, gefuehlt: 1.4, feuchte: 90, wind: 7.2, boe: 12.6, richtung: 245, druck: 1012, regenHeute: 0.4 } }
+export const BEISPIEL_WETTER = { ort: 'Obersontheim', grad: 3.1, code: 2, station: { grad: 3.1, gefuehlt: 1.4, feuchte: 90, wind: 7.2, boe: 12.6, richtung: 245, druck: 1012, regenHeute: 0.4 } }

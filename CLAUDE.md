@@ -163,7 +163,7 @@ Jarvis liest später Aufgaben, Lager, Verkäufe, Amazon-Probleme und offene Frei
 - Weitere Bausteine der Morgen-Lage: Börse, KI-Neuigkeiten (freie Quellen prüfen, keine Anlageberatung).
 - **Handy** und **PC des Kollegen** (dort ohne Ollama keine freien Fragen).
 - Eigenes Programmsymbol (heute zeigt der Installer das Electron-Symbol) – mit der Gestaltung.
-- Wetterort wählbar machen (heute immer Öhringen).
+- Wetterort: Standard Obersontheim (Wohnort Auftraggeber, Korrektur 05.11.2026; Öhringen = Kollege), Dauer-HUD fest Obersontheim.
 
 ## 9. Projektordner und Konten
 

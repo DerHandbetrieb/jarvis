@@ -440,9 +440,9 @@ if (!app.requestSingleInstanceLock()) {
     let hudWetter = null
     const wetterHolen = async () => {
       try {
-        const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=49.2&longitude=9.5&current=temperature_2m,weather_code,cloud_cover&timezone=Europe%2FBerlin', { signal: AbortSignal.timeout(15_000) })
+        const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=49.057&longitude=9.899&current=temperature_2m,weather_code,cloud_cover&timezone=Europe%2FBerlin', { signal: AbortSignal.timeout(15_000) })
         const c = r.ok ? (await r.json())?.current : null
-        if (c) hudWetter = { ort: 'Öhringen', grad: c.temperature_2m ?? null, code: c.weather_code ?? null, wolken: c.cloud_cover ?? 0, geholt: Date.now() }
+        if (c) hudWetter = { ort: 'Obersontheim', grad: c.temperature_2m ?? null, code: c.weather_code ?? null, wolken: c.cloud_cover ?? 0, geholt: Date.now() }
       } catch { /* nächster Versuch in 15 Minuten */ }
     }
     void wetterHolen(); setInterval(() => void wetterHolen(), 15 * 60_000)

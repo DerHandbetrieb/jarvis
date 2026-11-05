@@ -68,7 +68,7 @@ function text(g, t, x, y, groesse, farbe = HELL, ausr = 'left', gewicht = 400) {
   g.font = `${gewicht} ${groesse}px ${SCHRIFT}`; g.fillStyle = farbe; g.textAlign = ausr; g.textBaseline = 'alphabetic'; g.fillText(t, x, y)
 }
 function kopf(g, titel, rechts, b) {
-  text(g, titel, 14, 24, 14, CYAN, 'left', 600)
+  text(g, titel, 28, 24, 14, CYAN, 'left', 600) /* 28 statt 14: Abstand zur Schräge links (Wunsch 05.11.2026) */
   if (rechts) text(g, rechts, b - 14, 24, 14, GOLD, 'right', 600)
   g.strokeStyle = 'rgba(95,246,255,0.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(14, 32.5); g.lineTo(b - 14, 32.5); g.stroke()
 }
@@ -331,7 +331,7 @@ export function ausHud(antwort, jetzt, sequenzDaten, wetterText) {
     werkstatt: { ...d, stand: roh ? d.stand : null, tage, heute, offeneBestellungen: lage.offeneBestellungen ?? null }, // Beispiel: ohne „Stand“
     // Wetterstation (Ecowitt) hat Vorrang für die Messwerte; Himmel/Bewölkung weiter von Open-Meteo (05.11.2026)
     wetter: (() => { const st = antwort?.station; const grad = Number.isFinite(st?.grad) ? st.grad : w?.grad; if (!Number.isFinite(grad)) return null
-      return { ort: w?.ort ?? 'Öhringen', grad, code: w?.code, wolken: w?.wolken, text: w ? wetterText?.(w) ?? '' : '', station: st ? { feuchte: st.feuchte, wind: st.wind, boe: st.boe, richtung: st.richtung, druck: st.druck, regenHeute: st.regenHeute, regenRate: st.regenRate, gefuehlt: st.gefuehlt, sonne: st.sonne } : null } })(),
+      return { ort: w?.ort ?? 'Obersontheim', grad, code: w?.code, wolken: w?.wolken, text: w ? wetterText?.(w) ?? '' : '', station: st ? { feuchte: st.feuchte, wind: st.wind, boe: st.boe, richtung: st.richtung, druck: st.druck, regenHeute: st.regenHeute, regenRate: st.regenRate, gefuehlt: st.gefuehlt, sonne: st.sonne } : null } })(),
     kamera: antwort?.kamera ?? null,
     pv: antwort?.pv ?? null,
     loki: antwort?.loki ?? null,

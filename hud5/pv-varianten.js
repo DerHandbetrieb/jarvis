@@ -5,7 +5,7 @@ const GR = '#5dff8a', CYAN = '#5ff6ff', ROT = '#ff4a3a', HELL = '#e8fdff', BLASS
 const SCHRIFT = 'Bahnschrift, "Segoe UI", Arial, sans-serif'
 function text(g, t, x, y, gr, farbe = HELL, ausr = 'left', gew = 600) { g.font = `${gew} ${gr}px ${SCHRIFT}`; g.fillStyle = farbe; g.textAlign = ausr; g.fillText(t, x, y) }
 const kw = (w) => (w == null ? '–' : Math.abs(w) >= 1000 ? `${(Math.abs(w) / 1000).toFixed(1).replace('.', ',')} kW` : `${Math.round(Math.abs(w))} W`)
-function kopf(g, b, pv) { text(g, 'ENERGIE · PV-ANLAGE', 14, 22, 13, CYAN); text(g, 'LIVE', b - 14, 22, 12, '#f2b04a', 'right'); g.strokeStyle = 'rgba(95,246,255,0.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(14, 30.5); g.lineTo(b - 14, 30.5); g.stroke() }
+function kopf(g, b, pv) { text(g, 'ENERGIE · PV-ANLAGE', 28, 22, 13, CYAN); text(g, 'LIVE', b - 14, 22, 12, '#f2b04a', 'right'); g.strokeStyle = 'rgba(95,246,255,0.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(14, 30.5); g.lineTo(b - 14, 30.5); g.stroke() }
 const werte = (pv) => { const netz = pv.netzW ?? 0, akku = pv.akkuW ?? 0; return { pv: Math.max(0, pv.pvW ?? 0), haus: pv.hausW, bezug: Math.max(0, netz), verkauf: Math.max(0, -netz), akku, soc: pv.akku, laedt: akku < -20, entlaedt: akku > 20, aut: pv.hausW > 0 ? Math.round(Math.max(0, Math.min(1, 1 - Math.max(0, netz) / pv.hausW)) * 100) : null } }
 function punkte(g, [x1, y1], [x2, y2], w, farbe, t) {
   const an = Math.abs(w) >= 20; g.strokeStyle = an ? farbe + '55' : 'rgba(95,246,255,0.12)'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke()

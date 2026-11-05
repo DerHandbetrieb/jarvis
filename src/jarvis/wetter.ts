@@ -1,5 +1,5 @@
 // Wetter für die Morgen-Lage (übernommen aus der Werkstatt-App: src/lib/wetterort.ts und src/wikinger/wetterlage.ts).
-// Daten kostenlos von Open-Meteo, ohne Konto und ohne Schlüssel. Ort je Gerät (localStorage „wetter.ort“), Start Öhringen.
+// Daten kostenlos von Open-Meteo, ohne Konto und ohne Schlüssel. Ort je Gerät (localStorage „wetter.ort“), Start Obersontheim.
 
 export type Ort = 'oehringen' | 'obersontheim'
 
@@ -11,8 +11,8 @@ export const ORTE: Record<Ort, { name: string; breite: number; laenge: number }>
 export type WetterAntwort = { current?: { temperature_2m?: number; weather_code?: number; cloud_cover?: number } }
 
 export function wetterOrt(): Ort {
-  try { if (localStorage.getItem('wetter.ort') === 'obersontheim') return 'obersontheim' } catch { /* Startwert */ }
-  return 'oehringen'
+  try { if (localStorage.getItem('wetter.ort') === 'oehringen') return 'oehringen' } catch { /* Startwert */ }
+  return 'obersontheim' // Wohnort des Auftraggebers (Korrektur 05.11.2026: Öhringen ist der Kollege)
 }
 
 export async function holeWetter(o: Ort): Promise<WetterAntwort> {
