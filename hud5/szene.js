@@ -324,6 +324,40 @@ function kupferband(g, s, anteil) {
   g.drawImage(s.kupfer.bild, k.x - gr / 2, k.y - gr / 2, gr, gr); g.globalAlpha = 1
 }
 
+/**
+ * Rand außen links/rechts (Entwürfe 05.11.2026, Wunsch Auftraggeber): das Bild wird ab dem äußeren Drittel der Seiten-
+ * bildschirme nach außen dunkel (Runenbogen mit Goldlinie und dunklem Streifen bleibt hell ausgespart); dahinter wahlweise
+ * Stein im Stil des Reaktors (Magnific), mit Moos und gebogener Flechtband-Leiste. art: a nur Verlauf | b | c | d
+ */
+function verlaufBild(seite, m) {
+  const BR = 760, c = leinwand(BR, H), g = c.getContext('2d'), rechts = seite === 'rechts', ox = rechts ? B - BR : 0
+  const v = g.createLinearGradient(rechts ? 0 : 640, 0, rechts ? 640 : 0, 0) // vom äußeren Drittel (640 px) bis zur Kante
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(0.55, 'rgba(0,0,0,0.5)'); v.addColorStop(1, 'rgba(0,0,0,0.88)')
+  g.fillStyle = v; g.fillRect(rechts ? BR - 640 : 0, 0, 640, H)
+  // Runenbogen aussparen: Ring zwischen innerer Bandkante und dunklem Streifen hinter der Goldlinie, weiche Ränder
+  const k = m[seite], innen = k.r - 150, aussen = k.r + m.abstand
+  g.globalCompositeOperation = 'destination-out'
+  const r = g.createRadialGradient(k.x - ox, k.y, innen - 20, k.x - ox, k.y, aussen + 6)
+  const t = (x) => (x - (innen - 20)) / (aussen + 6 - (innen - 20))
+  r.addColorStop(0, 'rgba(0,0,0,0)'); r.addColorStop(t(innen), '#000'); r.addColorStop(t(aussen), '#000'); r.addColorStop(1, 'rgba(0,0,0,0)')
+  g.fillStyle = r; g.fillRect(0, 0, BR, H)
+  return c
+}
+async function randLaden(basis, art) {
+  if (!art || art === 'aus') return null
+  const m = await (await fetch(basis + 'rand.json')).json()
+  const stein = art === 'a' ? {} : Object.fromEntries(await Promise.all(['links', 'rechts'].map(async (s) => [s, await bildLaden(basis + `rand-${art}-${s}.webp`)])))
+  return { breite: m.breite, verlauf: { links: verlaufBild('links', m), rechts: verlaufBild('rechts', m) }, stein }
+}
+function randZeichnen(g, s, anteil) {
+  if (!s.rand || anteil <= 0) return
+  const { breite, verlauf, stein } = s.rand
+  g.globalAlpha = anteil
+  g.drawImage(verlauf.links, 0, 0); g.drawImage(verlauf.rechts, B - breite, 0)
+  if (stein.links) { g.drawImage(stein.links, 0, 0); g.drawImage(stein.rechts, B - breite, 0) }
+  g.globalAlpha = 1
+}
+
 /** laufende Uhrzeit im Ring: feste Zellenbreite je Zeichen (Ziffern gleich breit, Doppelpunkt schmal) */
 const uhrZelle = (z, h) => (z === ':' ? 1.2 : 3) * (h / 6) + 1.7 * (h / 6)
 const uhrBreite = (h) => 6 * uhrZelle('0', h) + 2 * uhrZelle(':', h) - 1.7 * (h / 6)
@@ -475,6 +509,7 @@ export async function ladeSzene(basis, einstellung = {}) {
   const bilder = Object.fromEntries(await Promise.all(namen.map(async (n) => [n, await bildLaden(basis + n + '.webp')])))
   bilder.grund = knotenUmfaerben(bilder.grund, einstellung.knoten ?? 'anthrazit') // Wahl Auftraggeber 05.11.2026
   const zufall = zufallsfolge(7)
+  const rand = await randLaden(basis, einstellung.rand)
   let kupfer = null
   const kupferNr = /^kupfer(\d)$/.exec(einstellung.name ?? '')?.[1]
   if (kupferNr) { const masse = await (await fetch(basis + 'kupfer.json')).json(); kupfer = kupferBild(await bildLaden(basis + `kupfer-${kupferNr}.webp`), masse[kupferNr]) }
@@ -484,7 +519,7 @@ export async function ladeSzene(basis, einstellung = {}) {
   const ringMitte = infoVariante ? infoRing(geo.ringMitte.r, 30, infoVariante, { ...zeitAngaben(), wetter: null }).dreh : ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
   return {
     geo, bilder,
-    kupfer, ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
+    kupfer, rand, ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
     runen: runenBilder(38),
     bahnLinks: bahnVorbereiten(geo.bahnLinks, true),
     bahnRechts: bahnVorbereiten(geo.bahnRechts, false),
@@ -942,6 +977,7 @@ export function zeichneSzene(g, s, t, opt = {}) {
   const w = wetterArt(opt.wetter)
   if (mit('wetter')) zeichneWetterHinten(g, s.wetter, w, t)
   // pulsierende Wellenringe auf Wunsch des Auftraggebers wieder entfernt (05.11.2026: „gefallen mir gar nicht“)
+  if (mit('rand')) randZeichnen(g, s, an.grund) // Verlauf ins Dunkle + Steinrand außen
   if (mit('kupfer')) kupferband(g, s, an.grund) // hinter Rauch und Reaktor
   if (mit('rauch')) rauch(g, s, t, an.nebel)
   ebene(g, s, 'reaktor', an.grund, 'source-over', s.rot) // Reaktor steht vorn: Rauch und Wolken liegen dahinter/darunter
