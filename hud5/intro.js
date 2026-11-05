@@ -2,7 +2,6 @@
 // Alle vier enden exakt im Bild des Dauer-HUDs (alle Anteile 1, Tafeln in der Schräge) – danach übernimmt das Wallpaper.
 // Zeitmarken passen zum Ton (Gerüst 9: Visier 1,4 · Verwandlung 4,6 · Dunkel 9,2 · Einschlag 10,5 · Gruß 12,8).
 import { B, H } from './szene.js'
-import { VARIANTE5, E as E5, nebelWaende } from './intro5.js'
 
 export const ZEIT = { VISIER: 1.4, VERWANDLUNG: 4.6, DUNKEL: 9.2, EINSCHLAG: 10.5, GRUSS: 12.8, FERTIG: 13.5 }
 const Z = ZEIT
@@ -88,8 +87,6 @@ export const VARIANTEN = {
   },
 }
 
-VARIANTEN[5] = VARIANTE5
-
 /** Zustand einer Variante zur Zeit t; nach dem Ende (FERTIG) überall 1 */
 export function introZustand(nr, t) {
   if (t >= Z.FERTIG + 0.5) return { an: {}, tafeln: { art: 'klappen', links: 1, rechts: 1 }, fertig: true }
@@ -119,7 +116,6 @@ export function zeichneIntroLicht(g, s, t, z, versatz = 0) {
   }
   // Reaktor lädt (Variante 1): wachsender Lichtkern
   if (z.laden > 0.01) halo(g, k.x, k.y, 40 + 120 * z.laden, `rgba(140,250,255,${0.55 * z.laden})`)
-  if (z.v5) { nebelWaende(g, s, t); const f = E5.funken.findLast((x) => t >= x && t < x + 0.13); z = { ...z, funken: f != null ? 1 : 0 } }
   // Funken im Reaktor (Variante 3): kurze Zickzack-Entladungen
   if (z.funken > 0) {
     const n = Math.floor(1 + z.funken * 4), takt = Math.floor(t * 18)
