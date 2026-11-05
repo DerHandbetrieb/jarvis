@@ -89,4 +89,11 @@ describe('Dauer-HUD-Gegenstelle', () => {
     expect(a).toMatch(/^[0-9a-f]{64}$/)
     expect(hudSchluessel(fs, datei)).toBe(a)
   })
+  it('Schlüssel: kurz gesperrte Datei wird erneut gelesen, nicht durch einen neuen ersetzt', () => {
+    const alt = 'a'.repeat(64)
+    let versuche = 0, geschrieben = false
+    const gesperrt = { readFileSync: () => { if (++versuche < 3) throw Object.assign(new Error('gesperrt'), { code: 'EBUSY' }); return alt }, writeFileSync: () => { geschrieben = true } }
+    expect(hudSchluessel(gesperrt, 'x')).toBe(alt)
+    expect(geschrieben).toBe(false)
+  })
 })

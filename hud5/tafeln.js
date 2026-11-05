@@ -15,7 +15,7 @@ const LINKS = [['verkaeufe', 0, 0, 940, 260], ['umsatz', 960, 0, 280, 260], ['to
 // Umbau 05.11.2026 (Wunsch Auftraggeber): schmaler Streifen für den L.O.K.I.-Systemstatus, unten innen Wetter, unten
 // außen groß die PV-Anlage
 const RECHTS = [['kamera2', 0, 0, 610, 260], ['kamera1', 630, 0, 610, 260], ['system', 0, 280, 1240, 64], ['energie', 0, 364, 800, 396], ['wetter', 820, 364, 420, 396]] // PV breiter, Wetter schmaler (05.11.2026)
-const SPIEGEL = { abstand: 14, deckkraft: 0.5, unschaerfe: 1.5, auslauf: 150 } // nur der obere Streifen ist zu sehen (Bildrand)
+const SPIEGEL = { abstand: 14, deckkraft: 0.45, unschaerfe: 1.5, auslauf: 150 } // nur der obere Streifen ist zu sehen (Bildrand)
 const BEWEGT = new Set(['ton', 'kamera1', 'kamera2', 'energie']) // energie: laufende Lichtpunkte
 
 /** Tafeln anlegen. huelle = Element über der Szenen-Leinwand (gleiche Größe); faktor = Bildschirm-Pixel je Szenen-Pixel */
@@ -27,18 +27,21 @@ export function erstelleTafeln(huelle, versatz = 0) {
   const felder = {}
   for (const [seite, liste] of [['links', LINKS], ['rechts', RECHTS]]) {
     const x = seite === 'links' ? TAFEL.links : 5760 - TAFEL.links - TAFEL.breite
-    // zwei Bühnen: die Tafel selbst und darunter ihre Spiegelung im Wasser (Wunsch Auftraggeber 05.11.2026) – gleiche
-    // Perspektive, senkrecht gekippt, unscharf und nach unten auslaufend; Inhalt in Viertel-Auflösung kopiert (billig)
-    const bauen = (oben, spiegel) => {
+    // zwei Bühnen: die Tafel selbst und darunter ihre Spiegelung im Wasser (Wunsch Auftraggeber 05.11.2026). Gespiegelt
+    // wird im Raum an der Wasserlinie knapp unter der Tafel – VOR der Perspektive (sonst laufen Tafel- und Spiegelkante
+    // wie ein „V“ auseinander, Rückmeldung 05.11.2026); beide Bühnen haben denselben Fluchtpunkt. Spiegelbild unscharf,
+    // blasser, läuft nach unten aus; Inhalt in Viertel-Auflösung kopiert (billig)
+    const bauen = (spiegel) => {
       const buehne = document.createElement('div')
-      Object.assign(buehne.style, { position: 'absolute', left: x + 'px', top: oben + 'px', width: TAFEL.breite + 'px', height: TAFEL.hoehe + 'px', perspective: TAFEL.tiefe + 'px', perspectiveOrigin: '50% 50%' })
-      if (spiegel) Object.assign(buehne.style, { transform: 'scaleY(-1)', opacity: String(SPIEGEL.deckkraft), filter: `blur(${SPIEGEL.unschaerfe}px)`, maskImage: `linear-gradient(to top, #000, transparent ${SPIEGEL.auslauf}px)` })
-      const tafel = document.createElement('div')
-      Object.assign(tafel.style, { position: 'absolute', inset: '0', transformStyle: 'preserve-3d', transformOrigin: seite === 'links' ? '0% 50%' : '100% 50%', transform: `rotateY(${seite === 'links' ? TAFEL.neigung : -TAFEL.neigung}deg)` })
+      Object.assign(buehne.style, { position: 'absolute', left: x + 'px', top: TAFEL.oben + 'px', width: TAFEL.breite + 'px', height: TAFEL.hoehe + 'px', perspective: TAFEL.tiefe + 'px', perspectiveOrigin: '50% 50%' })
+      if (spiegel) Object.assign(buehne.style, { opacity: String(SPIEGEL.deckkraft), filter: `blur(${SPIEGEL.unschaerfe}px)` })
+      const tafel = document.createElement('div'), ox = seite === 'links' ? '0%' : '100%', drehen = `rotateY(${seite === 'links' ? TAFEL.neigung : -TAFEL.neigung}deg)`
+      Object.assign(tafel.style, { position: 'absolute', inset: '0', transformStyle: 'preserve-3d', transformOrigin: `${ox} 50%`, transform: drehen })
+      if (spiegel) Object.assign(tafel.style, { transformStyle: 'flat', transformOrigin: `${ox} ${TAFEL.hoehe + SPIEGEL.abstand / 2}px`, transform: `${drehen} scaleY(-1)`, maskImage: `linear-gradient(to top, #000, transparent ${SPIEGEL.auslauf}px)` })
       buehne.appendChild(tafel); flaeche.appendChild(buehne)
       return tafel
     }
-    const spiegelTafel = bauen(TAFEL.oben + TAFEL.hoehe + SPIEGEL.abstand, true), tafel = bauen(TAFEL.oben, false)
+    const spiegelTafel = bauen(true), tafel = bauen(false)
     for (const [id, fx, fy, b, h] of liste) {
       const lage = { position: 'absolute', left: (seite === 'links' ? fx : TAFEL.breite - fx - b) + 'px', top: fy + 'px', width: b + 'px', height: h + 'px' }
       const c = document.createElement('canvas'); c.width = b; c.height = h; Object.assign(c.style, lage); tafel.appendChild(c)

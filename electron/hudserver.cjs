@@ -73,7 +73,14 @@ function erstelleHudServer({ port, schluessel, daten, kamera = async () => null,
 
 /** Zugriffsschlüssel: einmal zufällig erzeugen und merken (Datei in Lokis Datenordner) */
 function hudSchluessel(fs, datei) {
-  try { const s = fs.readFileSync(datei, 'utf8').trim(); if (/^[0-9a-f]{64}$/.test(s)) return s } catch { /* neu anlegen */ }
+  // 05.11.2026: nach einer Installation lief L.O.K.I. mit einem anderen Schlüssel als das Wallpaper (403, keine Daten) –
+  // vermutlich war die Datei beim Start kurz gesperrt. Darum mehrmals lesen; neu angelegt wird nur, wenn sie fehlt.
+  for (let versuch = 0; versuch < 10; versuch++) {
+    try { const s = fs.readFileSync(datei, 'utf8').trim(); if (/^[0-9a-f]{64}$/.test(s)) return s; break } catch (f) {
+      if (f?.code === 'ENOENT') break
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 200) // kurz warten, dann neu versuchen
+    }
+  }
   const s = crypto.randomBytes(32).toString('hex')
   fs.writeFileSync(datei, s)
   return s
