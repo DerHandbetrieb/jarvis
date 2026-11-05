@@ -182,20 +182,22 @@ function aufBahn(b, s) {
 /** Gold-Knoten in den vier äußeren Bildschirmecken (Teil des Grundbilds) umfärben – Rückmeldung Auftraggeber 05.11.2026:
  *  „springen zu sehr ins Auge“. art: gold (unverändert) | gedaempft | bronze | cyan | anthrazit | weg. Erkannt werden nur goldene
  *  Bildpunkte in den Eckfeldern; der Rest des Bilds bleibt unberührt. */
-const KNOTEN_FELD = { b: 240, h: 260 }
+const KNOTEN_FELD = { b: 300, h: 300, grenze: 308 } // grenze: Abstand-Summe zur Ecke (x + 0,83·y) – dahinter liegt der goldene Runenbogen, der bleibt
 function knotenUmfaerben(bild, art) {
   if (!art || art === 'gold') return bild
   const c = leinwand(bild.width, bild.height), g = c.getContext('2d'); g.drawImage(bild, 0, 0)
   const { b: fb, h: fh } = KNOTEN_FELD
-  for (const [x, y] of [[0, 0], [0, c.height - fh], [c.width - fb, 0], [c.width - fb, c.height - fh]]) {
+  for (const [x, y, rechts, unten] of [[0, 0, 0, 0], [0, c.height - fh, 0, 1], [c.width - fb, 0, 1, 0], [c.width - fb, c.height - fh, 1, 1]]) {
     const d = g.getImageData(x, y, fb, fh), p = d.data
     for (let i = 0; i < p.length; i += 4) {
+      const px = (i / 4) % fb, py = Math.floor(i / 4 / fb), ax = rechts ? fb - 1 - px : px, ay = unten ? fh - 1 - py : py
+      if (ax + 0.83 * ay > KNOTEN_FELD.grenze) continue // Runenbogen nicht anfassen
       const r = p[i], gr = p[i + 1], bl = p[i + 2], gold = r - bl
-      if (gold < 25 || r < gr) continue // nur goldene Bildpunkte
-      const l = Math.max(r, gr, bl), w = Math.min(1, (gold - 25) / 60) // weicher Übergang an den Rändern des Ornaments
+      if (gold < 15 || r < gr) continue // nur goldene Bildpunkte
+      const l = Math.max(r, gr, bl), w = Math.min(1, (gold - 15) / 40) // weicher Übergang an den Rändern des Ornaments
       const neu = art === 'gedaempft' ? [r * 0.45, gr * 0.45, bl * 0.45] : art === 'bronze' ? [l * 0.42, l * 0.28, l * 0.16]
         : art === 'cyan' ? [l * 0.18, l * 0.55, l * 0.6]
-        : art === 'anthrazit' ? (() => { const v = 26 + Math.pow(l / 255, 4) * 125; return [v * 0.95, v, v * 1.06] })() // dunkles Grau, helle Stellen glänzen (Wunsch 05.11.2026)
+        : art === 'anthrazit' ? (() => { const y = 0.3 * r + 0.59 * gr + 0.11 * bl, v = 8 + Math.pow(Math.max(0, (y - 150) / 105), 2) * 170; return [v * 0.95, v, v * 1.06] })() // fast Schwarz, nur die hellsten Stellen glänzen (Wunsch 05.11.2026: „Richtung Schwarz mit Glanzpunkten“)
         : [10, 16, 22]
       p[i] = r + (neu[0] - r) * w; p[i + 1] = gr + (neu[1] - gr) * w; p[i + 2] = bl + (neu[2] - bl) * w
     }
