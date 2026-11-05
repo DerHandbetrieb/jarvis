@@ -21,7 +21,7 @@
     <script>
       if (typeof window.wallpaperRegisterAudioListener === 'function') {
         window.LOKI_TON_ANGEMELDET = true
-        window.wallpaperRegisterAudioListener(function (a) { window.LOKI_TON = { werte: a, zeit: performance.now() } })
+        window.wallpaperRegisterAudioListener(function (a) { window.LOKI_TON_WE = performance.now(); window.LOKI_TON = { werte: a, zeit: window.LOKI_TON_WE } })
       }
     </script>
   </body>
