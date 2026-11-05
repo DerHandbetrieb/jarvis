@@ -17,13 +17,13 @@
           if (!strom.getAudioTracks().length) { window.tonFenster.meldung('kein-ton'); return }
           const ctx = new AudioContext()
           const quelle = ctx.createMediaStreamSource(new MediaStream(strom.getAudioTracks()))
-          const analyse = ctx.createAnalyser(); analyse.fftSize = 256; analyse.smoothingTimeConstant = 0.55
+          const analyse = ctx.createAnalyser(); analyse.fftSize = 256; analyse.smoothingTimeConstant = 0.15 // wenig Glättung: Reaktor trifft den Beat (Rückmeldung 05.11.2026: zu spät)
           quelle.connect(analyse) // nicht an die Lautsprecher (sonst doppelt)
           const daten = new Uint8Array(analyse.frequencyBinCount)
           setInterval(() => {
             analyse.getByteFrequencyData(daten)
             window.tonFenster.werte(daten.slice(1, 65)) // 64 Bänder, Bass zuerst
-          }, 33)
+          }, 16)
         } catch (f) { window.tonFenster.meldung('fehler') }
       })()
     </script>

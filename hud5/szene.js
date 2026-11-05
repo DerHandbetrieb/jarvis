@@ -907,6 +907,36 @@ function beatFolgen(s, ton, t) {
   return b
 }
 
+/**
+ * Leuchtmaske des Reaktors: alle bläulich leuchtenden Stellen (Kern, Zellen, Runen auf den Steinen), nicht Stein und Kupfer.
+ * Daraus färbt beatVerlauf das Leuchten im Beat um – von innen nach außen wie im Audiofeld: Bass rot, Mitten türkis,
+ * Höhen weiß, mit weichen Übergängen (Wunsch Auftraggeber 05.11.2026). Überdeckend statt addiert, damit das vorhandene
+ * Blau ersetzt wird und sich nicht mit den Farben mischt.
+ */
+function leuchtMaske(s) {
+  const e = s.geo.ebenen.reaktor, c = leinwand(e.b, e.h), g = c.getContext('2d')
+  for (const n of ['reaktor', 'zellen', 'kernscheibe', 'kern']) { const q = s.geo.ebenen[n], b = s.bilder[n]; if (q && b) { g.globalCompositeOperation = n === 'reaktor' ? 'source-over' : 'lighter'; g.drawImage(b, q.x - e.x, q.y - e.y, q.b, q.h) } }
+  const d = g.getImageData(0, 0, e.b, e.h), p = d.data
+  for (let i = 0; i < p.length; i += 4) {
+    const r = p[i], gr = p[i + 1], bl = p[i + 2], hell = Math.max(r, gr, bl)
+    const a = Math.min(1, Math.max(0, (Math.max(gr, bl) - r - 30) / 90)) * Math.min(1, Math.max(0, (hell - 70) / 120))
+    p[i] = p[i + 1] = p[i + 2] = 255; p[i + 3] = a * 255
+  }
+  g.globalCompositeOperation = 'source-over'; g.putImageData(d, 0, 0)
+  return { maske: c, puffer: leinwand(e.b, e.h), e }
+}
+function beatVerlauf(g, s, r, bass, mitte, hoch, anteil) {
+  if (bass + mitte + hoch < 0.02 || anteil <= 0) return
+  const L = (s.leucht ??= leuchtMaske(s)), pg = L.puffer.getContext('2d'), e = L.e, cx = r.x - e.x, cy = r.y - e.y
+  const v = pg.createRadialGradient(cx, cy, 0, cx, cy, 230), a = (x) => Math.min(1, x * 1.1).toFixed(3)
+  // dunkelrot innen (Bass) fließend bis ganz weiß außen (Höhen) – kein Türkis dazwischen (Wunsch Auftraggeber 05.11.2026)
+  v.addColorStop(0, `rgba(170,12,6,${a(bass)})`); v.addColorStop(0.36, `rgba(170,12,6,${a(bass)})`)
+  v.addColorStop(0.58, `rgba(235,140,130,${a((bass + hoch) / 2 + mitte * 0.3)})`); v.addColorStop(0.77, `rgba(255,255,255,${a(hoch)})`); v.addColorStop(1, `rgba(255,255,255,${a(hoch)})`)
+  pg.globalCompositeOperation = 'source-over'; pg.clearRect(0, 0, e.b, e.h); pg.fillStyle = v; pg.fillRect(0, 0, e.b, e.h)
+  pg.globalCompositeOperation = 'destination-in'; pg.drawImage(L.maske, 0, 0)
+  g.globalAlpha = anteil; g.drawImage(L.puffer, e.x, e.y); g.globalAlpha = 1
+}
+
 /** eingefärbte Fassung einer Ebene (Helligkeit × Farbe) für das Pulsieren im Beat */
 function farbFassung(bild, [r, g0, bl]) {
   const c = leinwand(bild.width, bild.height), g = c.getContext('2d'); g.drawImage(bild, 0, 0)
@@ -933,8 +963,6 @@ function reaktor(g, s, t, opt, anteil) {
     g.save(); g.translate(r.x, r.y); g.rotate(-t * ((Math.PI * 2) / 50) * (1 + denkt * 2))
     g.drawImage(s.bilder.kernscheibe, kz.x - r.x, kz.y - r.y, kz.b, kz.h)
     if (rot > 0.002) { g.globalAlpha = rot; g.drawImage(s.rotBilder.kernscheibe, kz.x - r.x, kz.y - r.y, kz.b, kz.h); g.globalAlpha = 1 }
-    // Bass: Kernscheibe wird rot umgefärbt (überdeckend – addiert würde Rot auf Türkis nur weiß)
-    if (bassRot > 0.01) { g.globalAlpha = Math.min(1, bassRot * 1.3); g.drawImage(s.rotBilder.kernscheibe, kz.x - r.x, kz.y - r.y, kz.b, kz.h); g.globalAlpha = 1 }
     g.restore()
   }
   // Lauflicht durch die blauen Zellen zwischen den Spulen (16 Sektoren)
@@ -951,17 +979,13 @@ function reaktor(g, s, t, opt, anteil) {
       if (rot > 0.002) { g.globalAlpha = Math.min(1, a) * rot; g.drawImage(s.rotBilder.zellen, ze.x, ze.y, ze.b, ze.h) }
       g.restore()
     }
-    const zt = tuerkis > 0.01 && farbe(s, 'zellen', [40, 235, 215]) // Mitten: Spulenring pulsiert türkis
-    if (zt) { g.globalAlpha = Math.min(1, tuerkis * 1.4); g.drawImage(zt, ze.x, ze.y, ze.b, ze.h) }
     g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
   }
   blitze(g, s, t, (1 + denkt * 2 + spricht * 3) * (rot > 0.5 ? 0.4 : 1), anteil)
   const schlag = s.blitzHell ?? 0 // der Hauptblitz lässt Kern und Lichthof kurz aufleuchten
   ebene(g, s, 'halo', anteil * aus * flackern * (0.35 + 0.5 * puls + 0.4 * takt + 0.7 * spricht + 0.6 * schlag) * (1 - 0.4 * bassRot), 'lighter', Math.max(rot, bassRot))
   ebene(g, s, 'kern', anteil * aus * flackern * (0.25 + 0.45 * puls + 0.45 * takt + 0.6 * spricht + 0.5 * schlag) * (1 - 0.9 * bassRot), 'lighter', Math.max(rot, bassRot))
-  if (bassRot > 0.01) { // dunkelrotes Glühen in der Mitte, im Takt des Basses
-    const gl = g.createRadialGradient(r.x, r.y, 0, r.x, r.y, 120); gl.addColorStop(0, 'rgba(200,15,5,1)'); gl.addColorStop(0.5, 'rgba(150,8,2,0.7)'); gl.addColorStop(1, 'rgba(120,0,0,0)')
-    g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, bassRot * 1.2) * anteil; g.fillStyle = gl; g.fillRect(r.x - 120, r.y - 120, 240, 240); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over' }
+  beatVerlauf(g, s, r, bassRot, tuerkis, weiss, anteil)
 }
 
 /** Runen wandern links/rechts entlang der gemessenen Bahn im Band und laufen oben und unten aus dem Bild */
@@ -1004,9 +1028,6 @@ function mittelRing(g, s, winkel, alpha) {
   }
   pg.globalCompositeOperation = 'destination-in'; pg.drawImage(s.ringMitteMaske, 0, 0)
   // dunkler Schatten unter der Schrift: Lichtflecken im Hintergrund liegen dann sichtbar dahinter (Rückmeldung 05.11.2026)
-  if (s.ringUhr) { const bandH = s.ringUhr.h * 1.9; g.save(); g.globalAlpha = alpha; g.lineCap = 'butt'
-    for (const [b, a2] of [[bandH * 1.2, 0.45], [bandH * 0.75, 0.75]]) { g.beginPath(); g.arc(k.x, k.y, k.r, Math.PI * 1.04, Math.PI * 1.96); g.strokeStyle = `rgba(2,8,12,${a2})`; g.lineWidth = b; g.stroke() }
-    g.restore() }
   g.globalAlpha = alpha; g.globalCompositeOperation = 'lighter'
   g.imageSmoothingQuality = 'high'; g.drawImage(p, k.x - gr / FEIN / 2, k.y - gr / FEIN / 2, gr / FEIN, gr / FEIN)
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
@@ -1074,8 +1095,43 @@ function inschrift(g, s, t, anteil) {
   }
   g.restore(); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
+/**
+ * LOKI und die beiden Figuren dünn in den Stein geprägt, mit feinem Leuchten statt großem Lichthof (Wunsch Auftraggeber
+ * 05.11.2026: „sehen aus wie draufgesetzt“); die Figuren sitzen ein Stück tiefer. Aus der Leuchtschrift-Ebene wird nur
+ * der helle Kern genommen (dünne Linie); die alte Rillen-Ebene entfällt (sie läge an der alten Stelle der Figuren).
+ */
+const FIGUR_TIEFER = 16 // Szenenpixel
+function getoentRot(L) { if (!L.rot) { const c = leinwand(L.cyan.width, L.cyan.height), cg = c.getContext('2d'); cg.drawImage(L.weiss, 0, 0); cg.globalCompositeOperation = 'source-in'; cg.fillStyle = '#ff5040'; cg.fillRect(0, 0, c.width, c.height); L.rot = c } return L.rot }
+function lokiFein(s) {
+  const e = s.geo.ebenen.schrift, bild = s.bilder.schrift
+  if (!e || !bild) return null
+  const w = bild.width, h = bild.height, k = w / e.b, versatz = Math.round(FIGUR_TIEFER * k)
+  // 1) Quelle mit tiefer gesetzten Figuren (links und rechts je 27 % der Breite)
+  const quelle = leinwand(w, h + versatz), qg = quelle.getContext('2d'), rand = Math.round(w * 0.27)
+  qg.drawImage(bild, rand, 0, w - 2 * rand, h, rand, 0, w - 2 * rand, h)
+  qg.drawImage(bild, 0, 0, rand, h, 0, versatz, rand, h); qg.drawImage(bild, w - rand, 0, rand, h, w - rand, versatz, rand, h)
+  // 2) nur der helle Kern → dünne Linie
+  const d = qg.getImageData(0, 0, w, h + versatz), p = d.data
+  for (let i = 0; i < p.length; i += 4) { const l = Math.max(p[i], p[i + 1], p[i + 2]) / 255, a = Math.min(1, Math.max(0, (l - 0.86) * 9)) * (p[i + 3] / 255); p[i] = p[i + 1] = p[i + 2] = 255; p[i + 3] = a * 255 }
+  qg.putImageData(d, 0, 0)
+  const getoent = (farbe) => { const c = leinwand(w, h + versatz), cg = c.getContext('2d'); cg.drawImage(quelle, 0, 0); cg.globalCompositeOperation = 'source-in'; cg.fillStyle = farbe; cg.fillRect(0, 0, w, h + versatz); return c }
+  // 3) Prägung: dunkle Rille, Schattenkante oben links, Lichtkante unten rechts
+  const praeg = leinwand(w, h + versatz), pg = praeg.getContext('2d')
+  pg.drawImage(getoent('rgba(190,205,200,0.3)'), 0.8 * k, 1 * k); pg.drawImage(getoent('rgba(0,0,0,0.85)'), -0.7 * k, -0.8 * k); pg.drawImage(getoent('rgba(6,10,12,0.9)'), 0, 0)
+  return { praeg, cyan: getoent('#7ff4ff'), weiss: getoent('#ffffff'), x: e.x, y: e.y, b: e.b, h: e.h + FIGUR_TIEFER }
+}
 function schrift(g, s, t, anteil) {
   if (anteil <= 0) return
+  const L = (s.lokiFein ??= lokiFein(s))
+  if (L && !s.inschrift) {
+    g.globalAlpha = anteil; g.drawImage(L.praeg, L.x, L.y, L.b, L.h)
+    const puls = 0.5 + 0.5 * Math.sin((t * Math.PI * 2) / 2.8), hoch = s.beat ? s.beat.musik * s.beat.hoch : 0
+    g.save(); g.globalCompositeOperation = 'lighter'; g.shadowColor = '#5ff6ff'; g.shadowBlur = 4 // kleiner Lichthof
+    g.globalAlpha = anteil * (0.18 + 0.27 * puls) * (1 - s.rot); g.drawImage(L.cyan, L.x, L.y, L.b, L.h)
+    if (s.rot > 0.01) { g.shadowColor = '#ff3020'; g.globalAlpha = anteil * (0.35 + 0.35 * puls) * s.rot; g.drawImage(getoentRot(L), L.x, L.y, L.b, L.h) }
+    if (hoch > 0.02) { g.shadowColor = '#ffffff'; g.globalAlpha = anteil * Math.min(0.7, hoch); g.drawImage(L.weiss, L.x, L.y, L.b, L.h) } // Höhen: weiß
+    g.restore(); return
+  }
   if (s.inschrift) { inschrift(g, s, t, anteil); return }
   if (s.praegung) { const e = s.geo.ebenen.schrift; ebene(g, s, 'gravur', anteil * 0.5, 'source-over'); g.globalAlpha = anteil; g.drawImage(s.praegung, e.x, e.y, e.b, e.h); g.globalAlpha = 1; return }
   const hell = anteil * (0.9 + 0.1 * Math.sin((t * Math.PI * 2) / 2.8))

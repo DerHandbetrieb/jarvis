@@ -91,7 +91,7 @@ setInterval(async () => {
     const r = await fetch(`http://127.0.0.1:${zugang.port}/ton`, { headers: kopf(), signal: AbortSignal.timeout(2000) })
     if (r.status === 200) { const w = await r.json(); if (Array.isArray(w) && w.length === 128) { window.LOKI_TON = { werte: w, zeit: performance.now() }; tonVonLoki = true } }
   } catch { /* L.O.K.I. läuft nicht */ } finally { tonHolen = false }
-}, 30)
+}, 15)
 const tonStatus = () => (tonVonLoki || jemalsTon ? 'STILLE' : !window.LOKI_TON_ANGEMELDET ? 'KEIN TON-ZUGRIFF' : 'WARTET AUF TON')
 window.wallpaperPropertyListener = { setPaused: (p) => { const war = pausiert; pausiert = !!p; if (war && !pausiert) { lauf++; requestAnimationFrame((ms) => schleife(ms, lauf)) } } }
 
