@@ -7,6 +7,7 @@
 // Rechts Haus (gespiegelte Fenster): CAM 01, CAM 02, Energie (FENECON), Wetter, Systemstatus.
 
 const B = 5760, H = 1080
+import { symbol, auto } from './pv-zeichen.js'
 const CYAN = '#5ff6ff', GOLD = '#f2b04a', ROT = '#ff5a4a', HELL = '#e8fdff', BLASS = 'rgba(165,230,240,0.62)'
 const SCHRIFT = 'Bahnschrift, "Segoe UI", Arial, sans-serif'
 
@@ -100,11 +101,11 @@ function verkaeufe(g, b, h, d) {
   text(g, '▮ UMSATZ  ', x0, y0 - 2 + 12, 10, CYAN); text(g, '● BESTELLUNGEN', x0 + 64, y0 + 10, 10, GOLD)
 }
 function umsatz(g, b, h, d) {
-  kopf(g, 'UMSATZ', d.stand ? `STAND ${d.stand}` : '', b)
-  text(g, 'GESTERN', 16, 58, 12, BLASS)
-  text(g, euro(d.gestern?.umsatz ?? 0), 16, 92, 32, HELL, 'left', 600)
-  const nb = d.gestern?.bestellungen ?? 0
-  text(g, `${nb} ${nb === 1 ? 'BESTELLUNG' : 'BESTELLUNGEN'} · ${d.gestern?.stueck ?? 0} STÜCK`, 16, 114, 12, CYAN)
+  // heute statt gestern (Wunsch Auftraggeber 05.11.2026: gestern steht schon in den Verkäufen daneben)
+  kopf(g, 'UMSATZ · HEUTE', d.stand ? `STAND ${d.stand}` : '', b)
+  const heute = d.heute ?? { umsatz: 0, bestellungen: 0, stueck: 0 }, nb = heute.bestellungen
+  text(g, euro(heute.umsatz), 16, 94, 36, HELL, 'left', 600)
+  text(g, `${nb} ${nb === 1 ? 'BESTELLUNG' : 'BESTELLUNGEN'} · ${heute.stueck} STÜCK`, 16, 116, 12, CYAN)
   // Mini-Verlauf 14 Tage (Fläche)
   const tage = d.tage ?? [], x0 = 16, x1 = b - 16, y0 = 124, y1 = h - 14, maxU = Math.max(10, ...tage.map((t) => t.umsatz))
   if (tage.length > 1) {
@@ -217,51 +218,56 @@ function kamera(g, b, h, bild, name, alarm, t) {
  * Vorzeichen laut FENECON: Akku + = entladen, − = laden; Netz + = Bezug, − = Einspeisung.
  */
 const kw = (w) => (w == null ? '–' : Math.abs(w) >= 1000 ? `${(Math.abs(w) / 1000).toFixed(1).replace('.', ',')} kW` : `${Math.round(Math.abs(w))} W`)
+/** PV-Anlage (Wahl Auftraggeber 05.11.2026: Entwurf 7 „Drei Spalten“) – links Erzeugung, in der breiten Mitte groß das
+ *  Haus (kaum Leuchten), rechts Speicher/Verkauf/Auto. Lichtpunkte laufen in Flussrichtung, Farbe nach Herkunft: Sonnenstrom
+ *  grün, Akku türkis, Netzbezug rot; der Strommast selbst bleibt grau. Auto: Wallbox kommt später (Werte dann aus FENECON). */
 function energie(g, b, h, pv, t) {
   const stoerung = pv && pv.zustand >= 3, warnung = pv && pv.zustand === 2
   kopf(g, 'ENERGIE · PV-ANLAGE', !pv ? 'NICHT VERBUNDEN' : stoerung ? 'STÖRUNG' : warnung ? 'WARNUNG' : pv.inselbetrieb ? 'INSELBETRIEB' : 'LIVE', b)
-  const hoch = h > 250, y = 34 + (h - 34) / 2 - 6, R = hoch ? 30 : 22
-  const K = hoch ? { pv: [b * 0.5, 92], haus: [b * 0.5, h * 0.52], akku: [b * 0.2, h * 0.8], netz: [b * 0.8, h * 0.8] }
-    : { pv: [b * 0.1, y], akku: [b * 0.34, y], haus: [b * 0.62, y], netz: [b * 0.88, y] }
-  // Flüsse: [von, nach, Watt]; Richtung nach Vorzeichen
-  const fl = !pv ? [] : [
-    ['pv', 'haus', Math.max(0, pv.pvW ?? 0)],
-    (pv.akkuW ?? 0) >= 0 ? ['akku', 'haus', pv.akkuW ?? 0] : ['haus', 'akku', -(pv.akkuW ?? 0)],
-    (pv.netzW ?? 0) >= 0 ? ['netz', 'haus', pv.netzW ?? 0] : ['haus', 'netz', -(pv.netzW ?? 0)],
-  ]
-  const bahn = (a, z) => { // PV läuft im Bogen oben über den Akku zum Haus
-    const [x1, y1] = K[a], [x2, y2] = K[z]
-    return !hoch && (a === 'pv' || z === 'pv') ? (f) => [x1 + (x2 - x1) * f, y1 - Math.sin(f * Math.PI) * 30] : (f) => [x1 + (x2 - x1) * f, y1 + (y2 - y1) * f]
-  }
-  for (const [a, z] of [['pv', 'haus'], ['akku', 'haus'], ['netz', 'haus']]) { // Leitungen
-    const p = bahn(a, z); g.strokeStyle = 'rgba(95,246,255,0.18)'; g.lineWidth = 1.2; g.beginPath()
-    for (let i = 0; i <= 30; i++) { const [x, yy] = p(i / 30); i ? g.lineTo(x, yy) : g.moveTo(x, yy) }
-    g.stroke()
-  }
-  for (const [a, z, w] of fl) { // Lichtpunkte
-    if (w < 20) continue
-    const p = bahn(a, z), anzahl = Math.min(9, 2 + Math.round(w / 800)), tempo = 0.25 + Math.min(1.2, w / 4000)
-    // Farbe nach Herkunft (Wunsch Auftraggeber 05.11.2026): Sonnenstrom grün (auch Überschuss in Akku/Netz), Akku türkis, Netz rot
-    const farbe = a === 'netz' ? '#ff4a3a' : a === 'akku' ? CYAN : '#5dff8a'
+  const GR = '#5dff8a', NETZROT = '#ff4a3a', MASTF = 'rgba(205,225,232,0.85)', AUS = 'rgba(165,230,240,0.35)'
+  const s1 = b * 0.24, s2 = b * 0.76, xl = s1 / 2, xm = b / 2, xr = (s2 + b) / 2, o = 34, hh = h - o, zeile = (f) => o + hh * f
+  for (const [x, n] of [[xl, 'ERZEUGUNG'], [xm, 'HAUS'], [xr, 'SPEICHER & ABGABE']]) text(g, n, x, o + 18, 10, BLASS, 'center', 600)
+  g.strokeStyle = 'rgba(95,246,255,0.1)'; g.lineWidth = 1
+  for (const x of [s1, s2]) { g.beginPath(); g.moveTo(Math.round(x) + 0.5, o + 8); g.lineTo(Math.round(x) + 0.5, h - 8); g.stroke() }
+  const zahl = (w) => (pv ? kw(w) : '–'), pvW = Math.max(0, pv?.pvW ?? 0), akkuW = pv?.akkuW ?? 0, netzW = pv?.netzW ?? 0, soc = pv?.akku
+  const yH = zeile(0.46), hausGr = Math.min(s2 - s1 - 70, hh * 0.56), rand = hausGr * 0.42
+  // Fluss: Linie + Lichtpunkte; w > 0 läuft von a nach z, w < 0 zurück
+  const fluss = ([x1, y1], [x2, y2], w, farbe) => {
+    const an = Math.abs(w) >= 20
+    g.strokeStyle = an ? farbe + '55' : 'rgba(95,246,255,0.12)'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke()
+    if (!an) return
+    const anzahl = Math.min(8, 2 + Math.round(Math.abs(w) / 800)), tempo = 0.25 + Math.min(1.2, Math.abs(w) / 4000)
     for (let i = 0; i < anzahl; i++) {
-      const f = ((t * tempo + i / anzahl) % 1) * 0.86 + 0.07, [x, yy] = p(f)
-      const v = g.createRadialGradient(x, yy, 0, x, yy, 6); v.addColorStop(0, farbe); v.addColorStop(1, 'rgba(0,0,0,0)')
-      g.fillStyle = v; g.fillRect(x - 6, yy - 6, 12, 12)
+      let f = ((t * tempo + i / anzahl) % 1) * 0.9 + 0.05; if (w < 0) f = 1 - f
+      const x = x1 + (x2 - x1) * f, y = y1 + (y2 - y1) * f, v = g.createRadialGradient(x, y, 0, x, y, 6)
+      v.addColorStop(0, farbe); v.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = v; g.fillRect(x - 6, y - 6, 12, 12)
     }
   }
-  for (const [id, name, wert, farbe] of [['pv', 'PV', pv?.pvW, '#5dff8a'], ['akku', 'AKKU', pv?.akkuW, CYAN], ['haus', 'HAUS', pv?.hausW, HELL], ['netz', 'NETZ', pv?.netzW, (pv?.netzW ?? 0) > 20 ? '#ff4a3a' : BLASS]]) {
-    const [x, yy] = K[id]
-    g.fillStyle = 'rgba(4,20,28,0.9)'; g.beginPath(); g.arc(x, yy, R, 0, Math.PI * 2); g.fill()
-    g.strokeStyle = 'rgba(95,246,255,0.45)'; g.lineWidth = 1.2; g.stroke()
-    if (id === 'akku' && pv?.akku != null) { // Ladestand als Ring
-      g.strokeStyle = pv.akku < 15 ? ROT : CYAN; g.lineWidth = 3
-      g.beginPath(); g.arc(x, yy, R + 4, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * pv.akku) / 100); g.stroke()
-    }
-    text(g, id === 'akku' && pv?.akku != null ? `${Math.round(pv.akku)}%` : name, x, yy + (hoch ? 6 : 5), hoch ? 16 : 12, farbe, 'center', 600)
-    const zusatz = !pv ? '' : id === 'akku' ? ((pv.akkuW ?? 0) < -20 ? ' LÄDT' : (pv.akkuW ?? 0) > 20 ? ' ENTLÄDT' : '') : id === 'netz' ? ((pv.netzW ?? 0) < -20 ? ' EINSPEISUNG' : (pv.netzW ?? 0) > 20 ? ' BEZUG' : '') : ''
-    if (hoch) { text(g, kw(wert), x, yy + R + 24, 18, HELL, 'center', 600); text(g, `${id === 'akku' ? 'AKKU' : name}${zusatz}`, x, yy + R + 42, 11, BLASS, 'center', 600) }
-    else text(g, `${id === 'akku' ? 'AKKU' : name} ${kw(wert)}${zusatz}`, x, yy + R + 20, 11, BLASS, 'center', 600)
+  const eintrag = (art, x, y, gr, farbe, name, w, wertFarbe, zusatz = '') => {
+    if (art === 'auto') auto(g, x, y, gr, farbe, 0.12); else symbol(g, art, x, y, gr, farbe, soc ?? 0, 0.18)
+    text(g, name, x, y + gr * 0.62 + 12, 10, BLASS, 'center', 600)
+    text(g, zahl(w), x, y + gr * 0.62 + 31, 17, wertFarbe, 'center', 600)
+    if (zusatz) text(g, zusatz, x, y + gr * 0.62 + 44, 9, wertFarbe, 'center', 600)
   }
+  // links: Erzeugung
+  const ySo = zeile(0.3), yNb = zeile(0.72), bezug = Math.max(0, netzW)
+  fluss([xl + 30, ySo], [xm - rand, yH - hausGr * 0.08], pvW, GR); fluss([xl + 30, yNb], [xm - rand, yH + hausGr * 0.2], bezug, NETZROT)
+  eintrag('sonne', xl, ySo - 10, 44, GR, 'SONNE', pvW, GR)
+  eintrag('mast', xl, yNb - 10, 42, MASTF, 'NETZBEZUG', bezug, bezug > 20 ? NETZROT : AUS)
+  // rechts: Speicher und Abgabe
+  const yAk = zeile(0.2), yVk = zeile(0.5), yAu = zeile(0.8), verkauf = Math.max(0, -netzW), laedt = akkuW < -20, entlaedt = akkuW > 20
+  const akkuF = soc != null && soc < 15 ? ROT : CYAN
+  fluss([xm + rand, yH - hausGr * 0.12], [xr - 30, yAk], -akkuW, laedt ? GR : CYAN)
+  fluss([xm + rand, yH + hausGr * 0.04], [xr - 30, yVk], verkauf, GR)
+  fluss([xm + rand, yH + hausGr * 0.2], [xr - 30, yAu], 0, AUS)
+  eintrag('akku', xr, yAk - 8, 36, akkuF, soc != null ? `AKKU ${Math.round(soc)} %` : 'AKKU', akkuW, akkuF, laedt ? 'LÄDT' : entlaedt ? 'ENTLÄDT' : '')
+  eintrag('mast', xr, yVk - 8, 36, MASTF, 'VERKAUF', verkauf, verkauf > 20 ? GR : AUS)
+  eintrag('auto', xr, yAu - 8, 40, AUS, 'AUTO', 0, AUS, 'NICHT VERBUNDEN')
+  // Mitte: Haus groß, kaum Leuchten
+  symbol(g, 'haus', xm, yH - 8, hausGr, HELL, 0, 0.04)
+  text(g, zahl(pv?.hausW), xm, yH + hausGr * 0.42 + 22, 26, HELL, 'center', 600)
+  const aut = pv && pv.hausW > 0 ? Math.round(Math.max(0, Math.min(1, 1 - bezug / pv.hausW)) * 100) : null
+  text(g, aut != null ? `VERBRAUCH · AUTARKIE ${aut} %` : 'VERBRAUCH', xm, yH + hausGr * 0.42 + 40, 10, BLASS, 'center', 600)
 }
 function wetter(g, b, h, w) {
   kopf(g, 'WETTER · ' + (w?.ort ?? 'ÖHRINGEN').toUpperCase(), '', b)
@@ -358,11 +364,14 @@ export function ausHud(antwort, jetzt, sequenzDaten, wetterText) {
   const d = sequenzDaten({ ...lage, geholt: roh ? lage.geholt : jetzt.getTime() }, jetzt)
   // echte, aber veraltete/unvollständige Daten: keine Zahlen zeigen, die wie aktuelle aussehen (Prüf-Agent)
   if (roh && !d) return { beispiel: false, veraltet: true, werkstatt: {}, wetter: null, kamera: antwort?.kamera ?? null, pv: antwort?.pv ?? null, loki: antwort?.loki ?? null, uhr: jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) }
-  const tage = (lage.verkauf?.tage ?? []).map((t) => ({ tag: `${String(t.tag).slice(8, 10)}.${String(t.tag).slice(5, 7)}`, umsatz: (Number(t.umsatzCent) || 0) / 100, bestellungen: Number(t.bestellungen) || 0 }))
+  const tage = (lage.verkauf?.tage ?? []).map((t) => ({ tag: `${String(t.tag).slice(8, 10)}.${String(t.tag).slice(5, 7)}`, umsatz: (Number(t.umsatzCent) || 0) / 100, bestellungen: Number(t.bestellungen) || 0, stueck: Number(t.stueck) || 0 }))
+  // letzter Tag der Liste ist heute (Serverfunktion zählt bis heute, deutsche Zeit) – nur nehmen, wenn das Datum stimmt
+  const heuteTag = jetzt.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }), letzter = (lage.verkauf?.tage ?? []).at(-1)
+  const heute = letzter && String(letzter.tag).slice(0, 10) === heuteTag ? tage.at(-1) : { umsatz: 0, bestellungen: 0, stueck: 0 }
   const w = antwort?.wetter
   return {
     beispiel: !roh,
-    werkstatt: { ...d, stand: roh ? d.stand : null, tage, offeneBestellungen: lage.offeneBestellungen ?? null }, // Beispiel: ohne „Stand“
+    werkstatt: { ...d, stand: roh ? d.stand : null, tage, heute, offeneBestellungen: lage.offeneBestellungen ?? null }, // Beispiel: ohne „Stand“
     wetter: w && Number.isFinite(w.grad) ? { ort: w.ort ?? 'Öhringen', grad: w.grad, wolken: w.wolken, text: wetterText?.(w) ?? '' } : null,
     kamera: antwort?.kamera ?? null,
     pv: antwort?.pv ?? null,
@@ -373,7 +382,7 @@ export function ausHud(antwort, jetzt, sequenzDaten, wetterText) {
 
 /** Beispieldaten (nur wenn L.O.K.I. keine Werkstatt-Daten liefert – überall als „BEISPIEL“ markiert) */
 function BEISPIEL_LAGE(jetzt) {
-  const tag = (minus) => new Date(jetzt.getTime() - minus * 86_400_000).toISOString().slice(0, 10)
+  const tag = (minus) => new Date(jetzt.getTime() - minus * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' })
   const tage = Array.from({ length: 14 }, (_, i) => ({ tag: tag(13 - i), bestellungen: [3, 5, 2, 6, 4, 7, 5, 3, 8, 6, 4, 9, 7, 5][i], umsatzCent: [9200, 15400, 6100, 18800, 12100, 21900, 14800, 9900, 24800, 17600, 12500, 27900, 20300, 15600][i] }))
   return {
     aufgaben: { offen: 7, neu: 2, amazonAnzahl: 0, wichtigste: [

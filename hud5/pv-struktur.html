@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="de"><head><meta charset="UTF-8" /><title>L.O.K.I. – PV-Aufbauten</title>
+<style>html,body{margin:0;background:#06121a;font:600 18px Bahnschrift,sans-serif;color:#9ef} .feld{display:inline-block;margin:8px} canvas{display:block}</style></head>
+<body><div id="wurzel"></div>
+<script type="module">
+import { STRUKTUR } from './pv-struktur.js'
+import { BEISPIEL } from './pv-entwuerfe.js'
+import { RAHMEN_STILE } from './rahmen.js'
+const namen = { 1: '1 · Schaltplan', 2: '2 · Querschnitt', 3: '3 · Säulen', 4: '4 · Versorgungsring', 5: '5 · Bilanz-Bänder', 6: '6 · Kacheln', 7: '7 · Drei Spalten', 8: '8 · Waben' }
+const nur = new URLSearchParams(location.search).get('nur')
+for (const k of nur ? nur.split(',').map(Number) : [1, 2, 3, 4, 5, 6, 7, 8]) {
+  const d = document.createElement('div'); d.className = 'feld'; d.textContent = namen[k]
+  const c = document.createElement('canvas'); c.width = 800; c.height = 396; const g = c.getContext('2d')
+  RAHMEN_STILE[1].zeichne(g, 800, 396); STRUKTUR[k](g, 800, 396, BEISPIEL)
+  d.appendChild(c); document.getElementById('wurzel').appendChild(d)
+}
+</script></body></html>
