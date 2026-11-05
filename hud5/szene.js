@@ -531,7 +531,7 @@ export async function ladeSzene(basis, einstellung = {}) {
   const ringMitte = infoVariante ? infoRing(geo.ringMitte.r, 30, infoVariante, { ...zeitAngaben(), wetter: null }).dreh : ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
   const szene = {
     geo, bilder,
-    kupfer, rand, praegung: null, lokiStil: einstellung.loki ?? 'fein', // Bronze-Relief (?loki-stil=relief) wartet auf Entscheidung ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
+    kupfer, rand, praegung: null, lokiStil: einstellung.loki ?? 'fein', /* bronze: Magnific-Entwurf, relief: Code-Entwurf */ ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
     runen: runenBilder(38),
     bahnLinks: bahnVorbereiten(geo.bahnLinks, true),
     bahnRechts: bahnVorbereiten(geo.bahnRechts, false),
@@ -1176,6 +1176,9 @@ function lokiRelief(s) {
 }
 function schrift(g, s, t, anteil) {
   if (anteil <= 0) return
+  if (s.lokiStil === 'bronze' && s.bilder.lokiBronze) { // Bronze-Flechtwerk (Magnific), ruhig, ohne Leuchten
+    const e = s.geo.ebenen.lokiBronze; g.globalAlpha = anteil; g.drawImage(s.bilder.lokiBronze, e.x, e.y, e.b, e.h); g.globalAlpha = 1; return
+  }
   const RL = s.lokiStil === 'relief' ? (s.lokiRelief ??= lokiRelief(s)) : null
   if (RL) {
     const puls = 0.5 + 0.5 * Math.sin((t * Math.PI * 2) / 2.8), m = s.beat ? s.beat.musik : 0
