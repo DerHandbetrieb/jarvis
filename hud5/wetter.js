@@ -12,7 +12,14 @@ export function wetterArt(w) {
     : (c >= 71 && c <= 77) || c === 85 || c === 86 ? 'schnee'
       : (c >= 51 && c <= 67) || (c >= 80 && c <= 82) || c >= 95 ? 'regen' : null
   const staerke = { 51: 0.25, 53: 0.4, 55: 0.6, 56: 0.4, 57: 0.6, 61: 0.4, 63: 0.65, 65: 1, 66: 0.5, 67: 0.9, 71: 0.35, 73: 0.6, 75: 1, 77: 0.3, 80: 0.5, 81: 0.75, 82: 1, 85: 0.5, 86: 1, 95: 0.9, 96: 1, 99: 1, 45: 0.7, 48: 0.9 }[c] ?? 0
-  return { art, staerke, frost }
+  const st = w.station
+  if (!st) return { art, staerke, frost }
+  // eigene Wetterstation hat Vorrang (05.11.2026): Niederschlag nur, wenn sie ihn misst; bei ≤ 1 °C als Schnee;
+  // Nebel aus der Vorhersage oder bei fast gesättigter Luft und Windstille; Frost nach der gemessenen Temperatur
+  const rate = Number(st.regenRate) || 0, grad = Number.isFinite(st.grad) ? st.grad : w.grad
+  if (rate > 0) return { art: grad <= 1 ? 'schnee' : 'regen', staerke: Math.min(1, 0.25 + rate / 8), frost: grad <= 0 }
+  const nebel = art === 'nebel' || ((Number(st.feuchte) || 0) >= 97 && (Number(st.wind) || 0) < 3)
+  return { art: nebel ? 'nebel' : null, staerke: nebel ? Math.max(staerke, 0.5) : 0, frost: Number.isFinite(grad) && grad <= 0 }
 }
 
 function leinwand(b, h) { const c = document.createElement('canvas'); c.width = b; c.height = h; return c }

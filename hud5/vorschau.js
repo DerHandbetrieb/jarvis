@@ -10,6 +10,8 @@ const s = await ladeSzene('./ebenen/', { ring: new URLSearchParams(location.sear
 let loki = new URLSearchParams(location.search).get('loki') ?? 'hoert', zoom = false, stopp = false
 // Prüfhilfe ?wetter=regen|schnee|nebel|frost
 const probeWetter = { regen: { code: 63, grad: 8 }, schnee: { code: 73, grad: -2 }, nebel: { code: 45, grad: 3 }, frost: { code: 0, grad: -4 } }[new URLSearchParams(location.search).get('wetter')] ?? { code: 2, grad: 9 }
+const stationProbe = { regen: { grad: 6, regenRate: 3.5, feuchte: 92, wind: 5 }, schnee: { grad: 0.4, regenRate: 1.2, feuchte: 95, wind: 4 }, frost: { grad: -3, regenRate: 0, feuchte: 80, wind: 2 }, trocken: { grad: 9, regenRate: 0, feuchte: 70, wind: 8 } }[new URLSearchParams(location.search).get('station')]
+if (stationProbe) Object.assign(probeWetter, { grad: stationProbe.grad, station: stationProbe })
 const frage = new URLSearchParams(location.search)
 if (frage.get('kante')) KANTE.art = frage.get('kante')
 if (frage.get('spiegel')) SPIEGEL.abstand = Number(frage.get('spiegel'))
