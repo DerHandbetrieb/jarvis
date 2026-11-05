@@ -18,25 +18,38 @@ def kreis(pts):
     return cx, cy, math.sqrt(c + cx * cx + cy * cy)
 
 def goldlinie(rechts):
-    """Goldlinie je Zeile (x zur Bildmitte hin am innersten Goldpunkt), Ausreißer per Kreis entfernt, geglättet;
-    außerhalb des Bildes mit dem Kreis fortgesetzt → Punktliste (x, y) von oben nach unten"""
-    roh = {}
-    for y in range(0, H):
-        row = grund[y]
-        xs = range(B - 1, B - 460, -1) if rechts else range(0, 460)
+    """Goldlinie verfolgen (Rückmeldung 05.11.2026: oben/unten wird die Linie hell-türkis und biegt stärker ein als ein
+    Kreis): von der Bildmitte aus Zeile für Zeile nach oben und unten, je Zeile die hellste Stelle in einem schmalen
+    Fenster um die vorige Lage → Punktliste (x, y) von oben nach unten, außerhalb des Bildes geradlinig fortgesetzt"""
+    hell = grund.sum(axis=2)
+    def start_x(y):  # in der Mitte: innerster Goldpunkt
+        row = grund[y]; xs = range(B - 1, B - 460, -1) if rechts else range(0, 460)
         gold = [x for x in xs if row[x][0] - row[x][2] > 55 and row[x][0] > 110]
-        if gold: roh[y] = min(gold) if rechts else max(gold)
-    cx, cy, r = kreis([(x, y) for y, x in roh.items()])
-    for _ in range(2):  # Knoten und Fremdpunkte weg: nur Punkte nahe am Kreis
-        roh = {y: x for y, x in roh.items() if abs(math.hypot(x - cx, y - cy) - r) < 14}
-        cx, cy, r = kreis([(x, y) for y, x in roh.items()])
-    def kreis_x(y):
-        dy = y - cy; dx = math.sqrt(max(0, r * r - dy * dy)); return cx + dx if rechts else cx - dx
-    ys = np.arange(-300, H + 300, 2)
-    xs = np.array([roh.get(int(y), np.nan) if 0 <= y < H else kreis_x(y) for y in ys], np.float64)
-    luecke = np.isnan(xs); xs[luecke] = [kreis_x(y) for y in ys[luecke]]
-    k = 15; xs = np.convolve(np.pad(xs, k, mode='edge'), np.ones(2 * k + 1) / (2 * k + 1), mode='valid')  # glätten
-    return np.c_[xs, ys], (cx, cy, r)
+        return min(gold) if rechts else max(gold)
+    ym = 560; lage = {ym: start_x(ym)}
+    for schritt in (-1, 1):
+        x = lage[ym]; y = ym + schritt
+        while 0 <= y < H:
+            fenster = np.arange(int(round(x)) - 5, int(round(x)) + 6)
+            fenster = fenster[(fenster >= 0) & (fenster < B)]
+            werte = hell[y, fenster]
+            if werte.max() < 90: break  # Linie verlässt das Bild / verlischt
+            # Schwerpunkt der hellsten Pixel → ruhiger als das reine Maximum
+            w = np.clip(werte - werte.max() * 0.75, 0, None)
+            x = float((fenster * w).sum() / w.sum()); lage[y] = x; y += schritt
+    ys_bild = np.array(sorted(lage)); xs_bild = np.array([lage[y] for y in ys_bild])
+    k = 6; xs_bild = np.convolve(np.pad(xs_bild, k, mode='edge'), np.ones(2 * k + 1) / (2 * k + 1), mode='valid')
+    # außerhalb geradlinig mit der Steigung der letzten 20 Zeilen fortsetzen
+    oben_m = (xs_bild[20] - xs_bild[0]) / (ys_bild[20] - ys_bild[0]); unten_m = (xs_bild[-1] - xs_bild[-21]) / (ys_bild[-1] - ys_bild[-21])
+    ys = np.arange(ys_bild[0] - 300, ys_bild[-1] + 300, 2, dtype=np.float64)
+    xs = np.interp(ys, ys_bild, xs_bild)
+    xs = np.where(ys < ys_bild[0], xs_bild[0] + (ys - ys_bild[0]) * oben_m, xs)
+    xs = np.where(ys > ys_bild[-1], xs_bild[-1] + (ys - ys_bild[-1]) * unten_m, xs)
+    p = np.c_[xs, ys]
+    A = np.c_[2 * p[:, 0], 2 * p[:, 1], np.ones(len(p))]
+    cx, cy, c = np.linalg.lstsq(A, (p ** 2).sum(1), rcond=None)[0]
+    print('  Linie verfolgt von y', int(ys_bild[0]), 'bis', int(ys_bild[-1]))
+    return p, (float(cx), float(cy), math.sqrt(c + cx * cx + cy * cy))
 
 def kachel(name, skala):
     t = Image.open(f'grafik/magnific/{name}.png').convert('RGB')

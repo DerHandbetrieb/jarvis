@@ -859,12 +859,38 @@ function blitze(g, s, t, rate, anteil) {
   g.restore()
 }
 
+/**
+ * Beat-Erkennung für den Reaktor (Wunsch Auftraggeber 05.11.2026: läuft Musik, pulsiert der Reaktor im Beat; sonst im
+ * eigenen Rhythmus). Gleiche Tondaten wie das Audiofeld (2 × 64 Bänder). Bass = tiefste Bänder; ein Schlag, wenn der Bass
+ * deutlich über seinen gleitenden Schnitt springt; Hüllkurve folgt dem Bass; „musik“ blendet weich zwischen eigenem
+ * Rhythmus (0) und Beat (1) um.
+ */
+function beatFolgen(s, ton, t) {
+  const b = s.beat ?? (s.beat = { schnitt: 0, huelle: 0, schlag: 0, musik: 0, letzter: -1, t })
+  const dt = Math.min(0.1, Math.max(0, t - b.t)); b.t = t
+  let bass = 0, gesamt = 0
+  if (ton && ton.length) {
+    const halb = ton.length >= 128 ? 64 : ton.length, tief = (i) => (ton[i] ?? 0) + (ton[i + halb] ?? 0)
+    for (let i = 0; i < 6; i++) bass += tief(i) / 12
+    for (const v of ton) gesamt += v / ton.length
+  }
+  b.schnitt += (bass - b.schnitt) * Math.min(1, dt * 1.6)
+  if (bass > b.schnitt * 1.3 + 0.03 && t - b.letzter > 0.2) { b.schlag = 1; b.letzter = t }
+  b.schlag *= Math.exp(-dt * 6.5)
+  b.huelle = Math.max(Math.min(1, bass * 1.8), b.huelle * Math.exp(-dt * 5))
+  const laeuft = gesamt > 0.015
+  b.musik += ((laeuft ? 1 : 0) - b.musik) * Math.min(1, dt * (laeuft ? 4 : 0.7)) // schnell rein, langsam zurück
+  return b
+}
+
 /** Reaktor: Kernscheibe dreht, Lauflicht wandert durch die Zellen, Kern und Lichthof pulsieren, Blitze */
 function reaktor(g, s, t, opt, anteil) {
   const r = s.geo.kern ?? s.geo.reaktor, kz = s.geo.ebenen.kernscheibe, ze = s.geo.ebenen.zellen
   const spricht = opt.loki === 'spricht' ? Math.min(1, opt.pegel ?? 0.5) : 0
   const denkt = opt.loki === 'denkt' ? 1 : 0, aus = 1, rot = s.rot // stumm: rot statt blau (weich überblendet)
-  const puls = 0.5 + 0.5 * Math.sin((t * Math.PI * 2) / 2.8)
+  const eigen = 0.5 + 0.5 * Math.sin((t * Math.PI * 2) / 2.8), beat = beatFolgen(s, opt.ton, t)
+  const imBeat = Math.min(1, 0.25 * beat.huelle + 0.85 * beat.schlag), m = beat.musik
+  const puls = eigen * (1 - m) + imBeat * m, takt = beat.schlag * m // takt: kurzes Aufflackern je Schlag
   const flackern = 0.9 + 0.1 * Math.sin(t * 23) * Math.sin(t * 7.3)
   // Kernscheibe (runde Mitte mit den Lichtpunkten) dreht sich langsam gegen den Uhrzeigersinn
   if (kz && anteil > 0) {
@@ -880,7 +906,7 @@ function reaktor(g, s, t, opt, anteil) {
     for (let i = 0; i < sektoren; i++) {
       const w0 = (i / sektoren) * Math.PI * 2, w1 = ((i + 1) / sektoren) * Math.PI * 2, mitte = (w0 + w1) / 2
       const naehe = Math.pow(Math.max(0, Math.cos(mitte - kopf)), 6)
-      const a = anteil * aus * (0.18 + 0.55 * naehe + 0.12 * puls + 0.5 * spricht)
+      const a = anteil * aus * (0.18 + 0.55 * naehe * (1 - 0.5 * m) + 0.12 * puls + 0.55 * takt + 0.5 * spricht)
       if (a < 0.01) continue
       g.save(); g.beginPath(); g.moveTo(r.x, r.y); g.arc(r.x, r.y, 230, w0, w1); g.closePath(); g.clip()
       g.globalAlpha = Math.min(1, a) * (1 - rot); g.drawImage(s.bilder.zellen, ze.x, ze.y, ze.b, ze.h)
@@ -891,8 +917,8 @@ function reaktor(g, s, t, opt, anteil) {
   }
   blitze(g, s, t, (1 + denkt * 2 + spricht * 3) * (rot > 0.5 ? 0.4 : 1), anteil)
   const schlag = s.blitzHell ?? 0 // der Hauptblitz lässt Kern und Lichthof kurz aufleuchten
-  ebene(g, s, 'halo', anteil * aus * flackern * (0.35 + 0.5 * puls + 0.7 * spricht + 0.6 * schlag), 'lighter', rot)
-  ebene(g, s, 'kern', anteil * aus * flackern * (0.25 + 0.45 * puls + 0.6 * spricht + 0.5 * schlag), 'lighter', rot)
+  ebene(g, s, 'halo', anteil * aus * flackern * (0.35 + 0.5 * puls + 0.4 * takt + 0.7 * spricht + 0.6 * schlag), 'lighter', rot)
+  ebene(g, s, 'kern', anteil * aus * flackern * (0.25 + 0.45 * puls + 0.45 * takt + 0.6 * spricht + 0.5 * schlag), 'lighter', rot)
 }
 
 /** Runen wandern links/rechts entlang der gemessenen Bahn im Band und laufen oben und unten aus dem Bild */

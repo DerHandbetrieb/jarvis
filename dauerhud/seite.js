@@ -104,7 +104,8 @@ function schleife(ms, meine = lauf) {
   if (pausiert || meine !== lauf) return
   requestAnimationFrame((n) => schleife(n, meine))
   const t = ms / 1000, loki = antwort?.loki ?? null
-  zeichneSzene(g, szene, t, { wetter: antwort?.wetter ?? null, versatz: VERSATZ, loki: reaktorZustand(loki), pegel: 0.6 + 0.4 * Math.abs(Math.sin(t * 7)) })
+  const tonJetzt = performance.now() - letzterTon < 2000 ? ton : null
+  zeichneSzene(g, szene, t, { wetter: antwort?.wetter ?? null, versatz: VERSATZ, loki: reaktorZustand(loki), pegel: 0.6 + 0.4 * Math.abs(Math.sin(t * 7)), ton: tonJetzt }) // Reaktor pulsiert im Beat
   zeichneTafeln(tafeln, { ...daten, tonStatus: tonStatus(), ton: performance.now() - letzterTon < 2000 ? ton : null, kamBilder: [liveBild(0), liveBild(1)] }, t)
 }
 

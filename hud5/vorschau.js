@@ -26,7 +26,10 @@ function schleife(ms) {
   requestAnimationFrame(schleife)
   const a = performance.now()
   const pegel = loki === 'spricht' ? 0.5 + 0.5 * Math.abs(Math.sin(ms / 130) * Math.sin(ms / 370)) : 0
-  zeichneSzene(g, s, ms / 1000, { loki, pegel, wetter: probeWetter, versatz: zoom ? 1920 : 0, aus: (new URLSearchParams(location.search).get('aus') ?? '').split(',') })
+  // Prüfhilfe ?beat=120: simulierter Bass-Schlag (Schläge pro Minute) für den Reaktor
+  const bpm = Number(new URLSearchParams(location.search).get('beat')) || 0, ph = bpm ? ((ms / 1000) % (60 / bpm)) : 9
+  const beatTon = bpm ? Array.from({ length: 128 }, (_, i) => ((i % 64) < 6 ? Math.exp(-ph / 0.07) * 0.9 : 0.05)) : null
+  zeichneSzene(g, s, ms / 1000, { loki, pegel, wetter: probeWetter, versatz: zoom ? 1920 : 0, ton: beatTon, aus: (new URLSearchParams(location.search).get('aus') ?? '').split(',') })
   // Inhalte mit Beispieldaten (in der Vorschau gibt es keine Gegenstelle); Ton: Kunstwerte
   const ton = Array.from({ length: 128 }, (_, i) => Math.max(0, Math.sin(ms / 300 + i * 0.3) * Math.exp(-((i % 64) / 20)) * 0.8))
   zeichneTafeln(tafeln, { ...beispiel, ton, loki: { zustand: { hoert: 'bereit', denkt: 'denkt', spricht: 'spricht', aus: 'aus' }[loki], mikrofon: loki !== 'aus' } }, ms / 1000)
