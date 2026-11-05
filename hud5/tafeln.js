@@ -6,7 +6,7 @@ import { RAHMEN_STILE } from './rahmen.js'
 import { ZEICHNER } from './inhalte.js'
 
 const STIL = RAHMEN_STILE[1]
-const TAFEL = { links: 560, oben: 165, breite: 1240, hoehe: 760, neigung: 24, tiefe: 1900, skala: 1.1 } // Wahl Auftraggeber 05.11.2026: 10 % größer und weiter zur Bildschirmmitte (links war 450)
+const TAFEL = { links: 525, oben: 165, breite: 1240, hoehe: 760, neigung: 24, tiefe: 1900, skala: 1.1 } // Wahl Auftraggeber 05.11.2026: 10 % größer und weiter zur Bildschirmmitte (links war 450)
 // Felder auf der flachen Tafel (x, y, Breite, Höhe) – links Werkstatt, rechts Haus (gleiche Anordnung, gespiegelt)
 // 05.11.2026 (Wunsch Auftraggeber): Umsatz heute braucht wenig Platz, Verkäufe 14 Tage dafür breiter; Felder bewusst
 // unterschiedlich groß statt alle gleich
@@ -19,6 +19,9 @@ const RECHTS = [['kamera2', 0, 0, 610, 260], ['kamera1', 630, 0, 610, 260], ['sy
 // Auftraggeber 05.11.2026: sonst „schwebt“ es an der inneren Kante außerhalb vom Wasser); welle = waagerechtes Wabern in
 // Viertel-Bildpunkten, läuft mit der Zeit wie die Wellen im See
 export const SPIEGEL = { abstand: 70, deckkraft: 0.45, unschaerfe: 1.5, auslauf: 150, welle: 1.4 }
+// Inhalte in doppelter Auflösung zeichnen (Rückmeldung Auftraggeber 05.11.2026: leicht unscharf) – das schräge Kippen
+// vergrößert die vordere Kante; mit mehr Bildpunkten bleiben Linien und Schrift scharf
+const AUFLOESUNG = 2
 const BEWEGT = new Set(['ton', 'kamera1', 'kamera2', 'energie']) // energie: laufende Lichtpunkte
 
 /** Tafeln anlegen. huelle = Element über der Szenen-Leinwand (gleiche Größe); faktor = Bildschirm-Pixel je Szenen-Pixel.
@@ -50,10 +53,10 @@ export function erstelleTafeln(huelle, versatz = 0, { skala = TAFEL.skala } = {}
     const spiegelTafel = bauen(true), tafel = bauen(false)
     for (const [id, fx, fy, b, h] of liste) {
       const lage = { position: 'absolute', left: (seite === 'links' ? fx : TAFEL.breite - fx - b) * k + 'px', top: fy * k + 'px', width: b * k + 'px', height: h * k + 'px' }
-      const c = document.createElement('canvas'); c.width = Math.round(b * k); c.height = Math.round(h * k); Object.assign(c.style, lage); tafel.appendChild(c)
+      const c = document.createElement('canvas'); c.width = Math.round(b * k * AUFLOESUNG); c.height = Math.round(h * k * AUFLOESUNG); Object.assign(c.style, lage); tafel.appendChild(c)
       const s = document.createElement('canvas'); s.width = Math.ceil(b / 4); s.height = Math.ceil(h / 4); Object.assign(s.style, lage); spiegelTafel.appendChild(s)
       const sauber = document.createElement('canvas'); sauber.width = s.width; sauber.height = s.height // unverzerrte Kopie, daraus wird je Bild gewellt
-      felder[id] = { c, g: c.getContext('2d'), b, h, k, sg: s.getContext('2d'), sb: s.width, sh: s.height, sauber, sq: sauber.getContext('2d'), phase: fx * 0.013 + fy * 0.02 }
+      felder[id] = { c, g: c.getContext('2d'), b, h, k: k * AUFLOESUNG, sg: s.getContext('2d'), sb: s.width, sh: s.height, sauber, sq: sauber.getContext('2d'), phase: fx * 0.013 + fy * 0.02 }
     }
   }
   const passen = () => { const f = (huelle.clientHeight || innerHeight) / 1080; flaeche.style.transform = `scale(${f}) translateX(${-versatz}px)` }
