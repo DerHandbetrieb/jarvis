@@ -1246,14 +1246,11 @@ export function zeichneSzene(g, s, t, opt = {}) {
   if (mit('rand')) randZeichnen(g, s, an.grund * an.rand, an.randWeg ?? 0) // Verlauf ins Dunkle + Steinrand außen
   if (mit('kupfer')) kupferband(g, s, an.grund * an.rand) // hinter Rauch und Reaktor
   if (mit('rauch')) rauch(g, s, t, an.nebel)
-  if (opt.reaktorZeichnen) { /* Intro: der fertige Reaktor steckt auch im Grundbild – Fläche abdunkeln, dann Teile einsetzen */
-    const k = s.geo.reaktor ?? s.geo.ringMitte, v = g.createRadialGradient(k.x, k.y, 318, k.x, k.y, 350)
-    v.addColorStop(0, '#000'); v.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = v; g.fillRect(k.x - 350, k.y - 350, 700, 700)
-  }
+  if (opt.reaktorMaske) opt.reaktorMaske(g) /* Intro: der fertige Reaktor steckt auch im Grundbild – dort abdunkeln, dann Teile einsetzen */
   if (opt.hinten) opt.hinten(g) /* Intro: Rauch hinter dem Reaktor */
   if (opt.reaktorZeichnen) opt.reaktorZeichnen(g) /* Intro: Reaktor aus Einzelteilen (intro2.js) */; else ebene(g, s, 'reaktor', an.grund * an.kern, 'source-over', s.rot) // Reaktor steht vorn: Rauch und Wolken liegen dahinter/darunter
   if (mit('reaktor')) reaktor(g, s, t, opt, an.reaktor)
-  if (mit('schrift')) schrift(g, s, t, an.reaktor)
+  if (mit('schrift')) schrift(g, s, t, an.schrift ?? an.reaktor)
 
   const denkt = opt.loki === 'denkt' ? 1 : 0
   const hell = an.runen * (0.85 + 0.15 * Math.sin(t * 0.63))

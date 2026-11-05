@@ -115,13 +115,18 @@ export function tafelnStellen(st, art, p) {
     if (art === 'klappen') { dreh = `rotateY(${vz * (24 + (88 - 24) * (1 - e))}deg)`; deck = Math.min(1, v * 4) }
     else if (art === 'gleiten') { verschub = `translateX(${-vz * 900 * (1 - e)}px) `; deck = e }
     else if (art === 'flach') { dreh = `rotateY(${vz * 24 * e}deg) scale(${0.92 + 0.08 * e})`; deck = Math.min(1, v * 2.5) }
-    else if (art === 'holo') deck = v > 0 ? 1 : 0
+    else if (art === 'holo' || art.startsWith('feld-')) deck = v > 0 ? 1 : 0
     b.tafel.style.transform = verschub + dreh + (b.spiegel ? ' scaleY(-1)' : '')
     b.buehne.style.opacity = String(b.deckkraft * deck)
-    b.felder.forEach((c, i) => { // Fenster nacheinander (von innen nach außen) – beim Holo-Flackern mit Zufallsflimmern
-      const a = Math.max(0, Math.min(1, (v * (n + 2) - i) / 2))
+    b.felder.forEach((c, i) => { // Fenster nacheinander (von oben nach unten) – je nach Art einzeln mit eigenem Effekt
+      const a = Math.max(0, Math.min(1, (v * (n + 2) - i) / 2)), ea = ein(a), fertig = v >= 1 || a >= 1
       const flimmer = art === 'holo' && a > 0 && a < 1 ? (Math.sin(v * 900 + i * 7) > 0.1 ? 1 : 0.15) : 1
-      c.style.opacity = String(v >= 1 ? 1 : a * flimmer)
+      let tr = '', fi = '', op = a * flimmer
+      if (!fertig && art === 'feld-klappen') { tr = `scaleY(${Math.max(0.004, ea)})`; fi = `brightness(${1 + 2.5 * (1 - ea)})`; op = a > 0 ? 1 : 0 } // klappt aus einer Lichtlinie auf
+      else if (!fertig && art === 'feld-fliegen') { tr = `translate3d(${-vz * 700 * (1 - ea)}px, ${(i % 2 ? 1 : -1) * 70 * (1 - ea)}px, ${650 * (1 - ea)}px) rotateY(${-vz * 35 * (1 - ea)}deg)`; op = Math.min(1, a * 2) } // fliegt von vorn außen herein
+      else if (!fertig && art === 'feld-schlag') { tr = `scale(${1 + 0.4 * (1 - ea)})`; fi = `brightness(${1 + 3 * (1 - ea)})`; op = Math.min(1, a * 3) } // schlägt mit Lichtblitz ein
+      c.style.transform = tr; c.style.filter = fi
+      c.style.opacity = String(v >= 1 ? 1 : op)
     })
   }
 }

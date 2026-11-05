@@ -3,7 +3,7 @@
 // Tasten 1–4 = Variante (startet neu mit Ton), R oder Leertaste = noch einmal, Esc = beenden.
 const { app, BrowserWindow, screen } = require('electron')
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
-const v = process.argv.slice(2).find((a) => /^[1-4]$/.test(a)) ?? '1'
+const v = process.argv.slice(2).find((a) => /^[1-5]$/.test(a)) ?? '1'
 app.whenReady().then(async () => {
   const alle = screen.getAllDisplays().map((d) => d.bounds)
   const x = Math.min(...alle.map((b) => b.x)), y = Math.min(...alle.map((b) => b.y))
