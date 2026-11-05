@@ -49,12 +49,14 @@ const breite = (z) => (z === ' ' ? 2.2 : PUNKTE[z] ? 1 : z === '·' ? 2 : Math.m
 // Roboto Thin/Light (Wunsch Auftraggeber 05.11.2026: feine, dünne Schrift; Roboto, OFL-1.1, lokal mitgeliefert)
 const ROBOTO = { 'roboto-100': 100, 'roboto-300': 300 }
 let messer = null
+/** Buchstabenabstand: Roboto enger gesperrt (05.11.2026: Platz für Trennlinien), Strichschrift wie bisher */
+export const sperrung = (h) => (ROBOTO[SCHRIFT.stil] ? 0.8 : 1.7) * (h / 6)
 const robotoFont = (h) => `${ROBOTO[SCHRIFT.stil]} ${(h / 0.711).toFixed(2)}px Roboto` // Versalhöhe von Roboto = 0,711 em
 function robotoBreite(z, h) { messer ??= document.createElement('canvas').getContext('2d'); messer.font = robotoFont(h); return messer.measureText(z).width }
 
 /** Breite eines Texts in Bildpunkten (Höhe h = Versalhöhe) */
 export function textBreite(text, h) {
-  if (ROBOTO[SCHRIFT.stil]) return [...text.toUpperCase()].reduce((s, z) => s + robotoBreite(z, h) + 1.7 * (h / 6), -1.7 * (h / 6))
+  if (ROBOTO[SCHRIFT.stil]) return [...text.toUpperCase()].reduce((s, z) => s + robotoBreite(z, h) + sperrung(h), -sperrung(h))
   const u = h / 6
   return [...text.toUpperCase()].reduce((s, z) => s + (breite(z) + 1.7) * u, -1.7 * u)
 }

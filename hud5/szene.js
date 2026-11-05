@@ -6,7 +6,7 @@
 // dem See, Wasser kräuselt sich und spiegelt den Reaktor, Runenringe drehen und laufen weich aus bzw. aus dem Bild.
 // Teuer ist nur das Vorzeichnen beim Laden; je Bild wird nur gedreht, verschoben und überblendet.
 import { FOLGE, rune } from './runen.js'
-import { textBreite, zeichen, wetterSymbol, wetterArt as wetterWort, zeitAngaben, SCHRIFT } from './ringschrift.js'
+import { textBreite, zeichen, wetterSymbol, wetterArt as wetterWort, zeitAngaben, SCHRIFT, sperrung } from './ringschrift.js'
 import { bergnebel, erstelleWetter, wetterArt, zeichneFrost, zeichneWetterHinten } from './wetter.js'
 
 export const B = 5760, H = 1080
@@ -130,7 +130,7 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
       g.lineWidth = d ? Math.max(1.4, hh * 0.1) : hh * 0.16; g.shadowBlur = d ? hh * 0.3 : hh * 0.8; g.lineCap = 'round'; g.lineJoin = 'round'
       let x = w
       if (seg.symbol) { const sw = (h * 2.3) / rr; g.save(); g.rotate(x + sw / 2); g.translate(0, -rr); g.lineWidth *= 0.8; wetterSymbol(g, seg.symbol, h * 1.7); g.restore(); x += sw }
-      for (const z of seg.text) { const zw = (textBreite(z, hh) + (hh / 6) * 1.7) / rr; g.save(); g.rotate(x + zw / 2); g.translate(0, -rr); zeichen(g, z, hh); g.restore(); x += zw }
+      for (const z of seg.text) { const zw = (textBreite(z, hh) + sperrung(hh)) / rr; g.save(); g.rotate(x + zw / 2); g.translate(0, -rr); zeichen(g, z, hh); g.restore(); x += zw }
     }
   }
   const raute = (g, w, rr, h, farbe = 'gold') => { const lr = LICHT[farbe]; g.save(); g.rotate(w); g.translate(0, -rr); g.rotate(Math.PI / 4); g.fillStyle = lr.kern; g.shadowColor = lr.hof; g.shadowBlur = h * 0.5; g.fillRect(-h * 0.1, -h * 0.1, h * 0.2, h * 0.2); g.restore() }
@@ -140,7 +140,7 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
       g.strokeStyle = d ? '#071116' : 'rgba(120,235,245,0.55)'; g.fillStyle = g.strokeStyle; g.shadowColor = 'rgba(95,246,255,0.6)'
       g.lineWidth = d ? Math.max(1.2, h * 0.09) : h * 0.17; g.shadowBlur = d ? 0 : h * 0.35; g.lineCap = 'round'
       let x = w
-      for (const z of seg.text) { const zw = (textBreite(z, h) + (h / 6) * 1.7) / rr; g.save(); g.rotate(x + zw / 2); g.translate(0, -rr); zeichen(g, z, h); g.restore(); x += zw }
+      for (const z of seg.text) { const zw = (textBreite(z, h) + sperrung(h)) / rr; g.save(); g.rotate(x + zw / 2); g.translate(0, -rr); zeichen(g, z, h); g.restore(); x += zw }
     }
   }
   // Knotenband (zweisträngiges Flechtband) zwischen zwei Winkeln: schwarze Stränge, Kanten mit blauem Schimmer, über/unter
@@ -158,6 +158,11 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
     const halb = 8 // Kreuzungen alle halbe Welle
     for (let k = 0; k < n * 2; k++) { const i0 = k * halb, i1 = Math.min(schritte, i0 + halb), oben = k % 2; stueck(1 - oben, i0, i1); stueck(oben, i0, i1) }
   }
+  const trennlinie = (g, rr, von, bis, h) => {
+    const lr = LICHT.petrol
+    for (let d = 0; d < 2; d++) { g.beginPath(); g.arc(0, 0, rr, von - Math.PI / 2, bis - Math.PI / 2); g.strokeStyle = d ? lr.kern : lr.hof; g.shadowColor = lr.hof; g.globalAlpha = d ? 0.55 : 0.35; g.lineWidth = d ? 0.8 : 1.6; g.shadowBlur = d ? h * 0.15 : h * 0.4; g.lineCap = 'round'; g.stroke() }
+    g.globalAlpha = 1
+  }
   const kreisKnoten = (g, segmente, rr, h) => {
     const n = segmente.length, luecke = (h * 0.9) / rr
     // nach Breite verteilen: gleich große Lücken (Flechtband) zwischen den Abschnitten, egal wie lang der Text ist
@@ -166,7 +171,7 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
     const teile = segmente.map((seg, k) => { const t = { seg, mitte: w0 + breiten[k] / 2, halb: breiten[k] / 2 }; w0 += breiten[k] + frei; return t })
     for (const [k, t] of teile.entries()) {
       const nx = teile[(k + 1) % n], von = t.mitte + t.halb + luecke, bis = nx.mitte + (k + 1 === n ? Math.PI * 2 : 0) - nx.halb - luecke
-      if (bis > von) knotenband(g, rr, von, bis, h)
+      if (bis > von) trennlinie(g, rr, von, bis, h) // feine gebogene Linie als Platzhalter (Wunsch Auftraggeber 05.11.2026)
     }
     for (const t of teile) (t.seg.farbe === 'dunkel' ? abschnittDunkel : abschnitt)(g, t.seg, t.mitte - t.halb, h, rr)
     return teile.filter((t) => t.seg.live).map((t) => t.mitte - t.halb)
@@ -180,7 +185,7 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
         if (farbe === 'dunkel') { g.strokeStyle = d ? '#071116' : 'rgba(120,235,245,0.6)'; g.lineWidth = d ? Math.max(1.2, hh * 0.09) : hh * 0.18; g.shadowColor = 'rgba(95,246,255,0.7)'; g.shadowBlur = d ? 0 : hh * 0.4 }
         g.fillStyle = g.strokeStyle; g.lineCap = 'round'
         let w = Math.PI / 2 + ges / 2
-        for (const z of text) { const zw = (textBreite(z, hh) + (hh / 6) * 1.7) / radius; g.save(); g.rotate(w - zw / 2); g.translate(radius, 0); g.rotate(-Math.PI / 2); zeichen(g, z, hh); g.restore(); w -= zw }
+        for (const z of text) { const zw = (textBreite(z, hh) + sperrung(hh)) / radius; g.save(); g.rotate(w - zw / 2); g.translate(radius, 0); g.rotate(-Math.PI / 2); zeichen(g, z, hh); g.restore(); w -= zw }
       }
       return ges
     }
@@ -273,7 +278,7 @@ function unterschrift(g, kasten, h) {
     g.shadowBlur = 0; g.fillStyle = 'rgba(3,12,16,0.88)'; g.fill(); g.strokeStyle = 'rgba(242,176,74,0.6)'; g.lineWidth = 1.3; g.stroke()
     for (let d = 0; d < 2; d++) {
       strich(d); let w = Math.PI / 2 + (ges / 2) - pad / rr
-      for (const z of text) { const zw = (textBreite(z, h) + (h / 6) * 1.7) / rr; g.save(); g.rotate(w - zw / 2); g.translate(rr, 0); g.rotate(-Math.PI / 2); zeichen(g, z, h); g.restore(); w -= zw }
+      for (const z of text) { const zw = (textBreite(z, h) + sperrung(h)) / rr; g.save(); g.rotate(w - zw / 2); g.translate(rr, 0); g.rotate(-Math.PI / 2); zeichen(g, z, h); g.restore(); w -= zw }
     }
     return
   }
@@ -282,7 +287,7 @@ function unterschrift(g, kasten, h) {
   g.shadowBlur = 0; g.fillStyle = 'rgba(3,12,16,0.88)'; g.fill(); g.strokeStyle = 'rgba(242,176,74,0.6)'; g.lineWidth = 1.3; g.stroke()
   for (let d = 0; d < 2; d++) {
     strich(d); let x = -tw / 2
-    for (const z of text) { const zw = textBreite(z, h) + (h / 6) * 1.7; g.save(); g.translate(x + textBreite(z, h) / 2, y); zeichen(g, z, h); g.restore(); x += zw }
+    for (const z of text) { const zw = textBreite(z, h) + sperrung(h); g.save(); g.translate(x + textBreite(z, h) / 2, y); zeichen(g, z, h); g.restore(); x += zw }
   }
   if (kasten === 'kerbe') { // kleine türkise Runen an den Enden
     g.strokeStyle = LICHT.cyan.kern; g.shadowColor = LICHT.cyan.hof; g.shadowBlur = h * 0.5; g.lineWidth = Math.max(1.2, h * 0.08)
@@ -363,8 +368,8 @@ function randZeichnen(g, s, anteil) {
 }
 
 /** laufende Uhrzeit im Ring: feste Zellenbreite je Zeichen (Ziffern gleich breit, Doppelpunkt schmal) */
-const uhrZelle = (z, h) => textBreite(z === ':' ? ':' : '0', h) + 1.7 * (h / 6) // feste Zelle je Zeichen (Ziffern gleich breit)
-const uhrBreite = (h) => 6 * uhrZelle('0', h) + 2 * uhrZelle(':', h) - 1.7 * (h / 6)
+const uhrZelle = (z, h) => textBreite(z === ':' ? ':' : '0', h) + sperrung(h) // feste Zelle je Zeichen (Ziffern gleich breit)
+const uhrBreite = (h) => 6 * uhrZelle('0', h) + 2 * uhrZelle(':', h) - sperrung(h)
 /** Ziffern und Doppelpunkt einmal mit Goldschein vorzeichnen (doppelte Auflösung) */
 function zifferBilder(h, farbe = 'kupfer') {
   return Object.fromEntries([...'0123456789:'].map((z) => {
@@ -884,12 +889,15 @@ function beatFolgen(s, ton, t) {
     for (let i = 0; i < 6; i++) bass += tief(i) / 12
     for (const v of ton) gesamt += v / ton.length
   }
-  b.schnitt += (bass - b.schnitt) * Math.min(1, dt * 1.6)
-  if (bass > b.schnitt * 1.3 + 0.03 && t - b.letzter > 0.2) { b.schlag = 1; b.letzter = t }
-  b.schlag *= Math.exp(-dt * 6.5)
-  b.huelle = Math.max(Math.min(1, bass * 1.8), b.huelle * Math.exp(-dt * 5))
+  // relativ zum gleitenden Mittel (Rückmeldung 05.11.2026: bei lauter Musik war der Bass dauernd hoch → kein Pulsieren)
+  const rel = Math.min(1, Math.max(0, (bass - b.schnitt) / (b.schnitt * 0.45 + 0.04)))
+  b.schnitt += (bass - b.schnitt) * Math.min(1, dt * 0.9)
+  if (rel > 0.45 && t - b.letzter > 0.18) { b.schlag = 1; b.letzter = t }
+  b.schlag *= Math.exp(-dt * 7)
+  b.huelle = Math.max(rel, b.huelle * Math.exp(-dt * 6))
   let hoch = 0; if (ton && ton.length) { const halb = ton.length >= 128 ? 64 : ton.length; for (let i = 16; i < halb; i++) hoch += ((ton[i] ?? 0) + (ton[i + halb] ?? 0)) / (2 * (halb - 16)) }
-  b.hoehe = Math.max(Math.min(1, hoch * 3), (b.hoehe ?? 0) * Math.exp(-dt * 6))
+  b.hschnitt = (b.hschnitt ?? hoch) + (hoch - (b.hschnitt ?? hoch)) * Math.min(1, dt * 0.9)
+  b.hoehe = Math.max(Math.min(1, Math.max(0, (hoch - b.hschnitt) / (b.hschnitt * 0.5 + 0.03))), (b.hoehe ?? 0) * Math.exp(-dt * 6))
   const laeuft = gesamt > 0.015
   b.musik += ((laeuft ? 1 : 0) - b.musik) * Math.min(1, dt * (laeuft ? 4 : 0.7)) // schnell rein, langsam zurück
   return b
@@ -901,11 +909,11 @@ function reaktor(g, s, t, opt, anteil) {
   const spricht = opt.loki === 'spricht' ? Math.min(1, opt.pegel ?? 0.5) : 0
   const denkt = opt.loki === 'denkt' ? 1 : 0, aus = 1, rot = s.rot // stumm: rot statt blau (weich überblendet)
   const eigen = 0.5 + 0.5 * Math.sin((t * Math.PI * 2) / 2.8), beat = beatFolgen(s, opt.ton, t)
-  const imBeat = Math.min(1, 0.25 * beat.huelle + 0.85 * beat.schlag), m = beat.musik
+  const imBeat = Math.min(1, 0.15 + 0.5 * beat.huelle + 0.6 * beat.schlag), m = beat.musik
   const puls = eigen * (1 - m) + imBeat * m, takt = beat.schlag * m // takt: kurzes Aufflackern je Schlag
   // Farben im Beat wie im Audiofeld (Wunsch Auftraggeber 05.11.2026): Kern glüht beim Bass dunkelrot, Zellen außen
   // leuchten mit Mitten/Höhen türkis bis weiß
-  const bassRot = m * Math.min(0.85, beat.huelle * 1.1 + beat.schlag * 0.3), weiss = m * (beat.hoehe ?? 0)
+  const bassRot = m * Math.min(0.85, beat.huelle * 0.8 + beat.schlag * 0.4), weiss = m * (beat.hoehe ?? 0)
   const flackern = 0.9 + 0.1 * Math.sin(t * 23) * Math.sin(t * 7.3)
   // Kernscheibe (runde Mitte mit den Lichtpunkten) dreht sich langsam gegen den Uhrzeigersinn
   if (kz && anteil > 0) {
