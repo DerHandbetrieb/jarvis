@@ -3,6 +3,7 @@ import { B, H, ladeSzene, zeichneSzene } from './szene.js'
 import { ausHud } from './inhalte.js'
 import { erstelleTafeln, zeichneTafeln, tafelnStellen } from './tafeln.js'
 import { VARIANTEN, introZustand, zeichneIntroLicht, ZEIT } from './intro.js'
+import { TON5, rauchHinten } from './intro5.js'
 import { sequenzDaten } from '../startsequenz/lageDaten.js'
 import { vorbereiten, starten, jetzt, verzoegerung, GERUESTE } from '../vorschau/start-sequenz/ton/tongerueste.js'
 
@@ -17,7 +18,7 @@ let variante = Number(frage.get('v')) || 1, ton = null, tonBereit = false, ohneT
 async function los(nr) {
   variante = nr
   ton?.stopp(); ton = null; festT = null
-  if (tonBereit && !ohneTon) ton = starten(TON, { lautstaerke: 0.8 })
+  if (tonBereit && !ohneTon) ton = starten(variante === 5 ? TON5 : TON, { lautstaerke: 0.8 })
   t0Bild = performance.now()
 }
 let festT = null
@@ -39,7 +40,7 @@ let vorher = performance.now(), laengste = 0
 function schleife(ms) {
   requestAnimationFrame(schleife)
   const a = performance.now(), t = zeit(), z = introZustand(variante, t)
-  zeichneSzene(g, s, t, { loki: 'hoert', an: z.an, wetter: { code: 2, grad: 9 }, aus: (frage.get('aus') ?? '').split(',') })
+  zeichneSzene(g, s, t, { loki: 'hoert', an: z.an, wetter: { code: 2, grad: 9 }, aus: (frage.get('aus') ?? '').split(','), aufbau: z.aufbau, hinten: z.v5 ? (gg) => rauchHinten(gg, s, t) : null })
   zeichneIntroLicht(g, s, t, z)
   tafelnStellen(tafeln, z.tafeln.art, z.tafeln)
   if (z.tafeln.links > 0 || z.tafeln.rechts > 0) zeichneTafeln(tafeln, { ...daten, ton: Array.from({ length: 128 }, (_, i) => Math.max(0, Math.sin(t * 3.3 + i * 0.3) * Math.exp(-((i % 64) / 20)) * 0.8)), loki: { zustand: 'bereit', mikrofon: true } }, t)

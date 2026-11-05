@@ -14,7 +14,7 @@ const NAMEN = ['start_metall', 'braam_metall', 'rumpeln', 'hud_akzent', 'hud_kli
   'nano_komplex', 'flaeche', 'reaktor_brumm', 'zahnrad_takt', 'hologramm', 'schluss_hit', 'stinger', 'subdrop', 'metall_boom', 'metall_riser',
   'modern_boom', 'gong', 'metall_schieben', 'zahnraeder', 'eisen_hammer', 'fass_hammer', 'metall_ton', 'metall_kreischen', 'metall_rueckwaerts',
   'dunkle_drohne', 'elektro_feld', 'elektro_feld_2', 'plasma_vorbei', 'puls', 'tor_metall', 'zahnrad_lang', 'spannung', 'energie_flaeche',
-  'granular', 'braam_dystopie', 'verzerrt_boom']
+  'granular', 'braam_dystopie', 'verzerrt_boom', 'hud_an', 'hud_glitch', 'hud_piep', 'zahnrad_hammer'] // letzte vier: Intro Runensturm (05.11.2026)
 
 let ac = null
 let tonOrdner = new URL('../3d/toene/', BASIS).href

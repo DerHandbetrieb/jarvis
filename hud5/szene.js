@@ -358,12 +358,12 @@ async function randLaden(basis, art) {
   const stein = art === 'a' ? {} : Object.fromEntries(await Promise.all(['links', 'rechts'].map(async (s) => [s, await bildLaden(basis + `rand-${art}-${s}.webp`)])))
   return { breite: m.breite, verlauf: { links: verlaufBild('links', m), rechts: verlaufBild('rechts', m) }, stein }
 }
-function randZeichnen(g, s, anteil) {
+function randZeichnen(g, s, anteil, weg = 0) { /* weg: Intro – Steinrand fährt von außen herein */
   if (!s.rand || anteil <= 0) return
   const { breite, verlauf, stein } = s.rand
   g.globalAlpha = anteil
-  g.drawImage(verlauf.links, 0, 0); g.drawImage(verlauf.rechts, B - breite, 0)
-  if (stein.links) { g.drawImage(stein.links, 0, 0); g.drawImage(stein.rechts, B - breite, 0) }
+  g.drawImage(verlauf.links, -weg, 0); g.drawImage(verlauf.rechts, B - breite + weg, 0)
+  if (stein.links) { g.drawImage(stein.links, -weg, 0); g.drawImage(stein.rechts, B - breite + weg, 0) }
   g.globalAlpha = 1
 }
 
@@ -1212,6 +1212,34 @@ function schrift(g, s, t, anteil) {
   if (sw) { g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, w * 1.5); g.drawImage(sw, e.x, e.y, e.b, e.h); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over' }
 }
 
+/** Intro: Reaktor aus Teilen zusammensetzen (Wunsch Auftraggeber 05.11.2026: „blockweise aufbauen, Ringe einzeln drehen“).
+ *  a = { bloecke: [0..1 je Steinblock], spulen: { an, dreh }, innen: { an, dreh }, kern: 0..1 }. Teile werden aus dem
+ *  Reaktor-Bild ausgeschnitten (Kreisringe bzw. Kreisstücke um die Mitte), bei 1/0 liegt alles exakt wie im Wallpaper. */
+export const REAKTOR_TEILE = { kern: 60, innen: [60, 110], spulen: [110, 198], stein: [198, 312], bloecke: 10, versatz: -Math.PI / 2 - Math.PI / 10 }
+function reaktorAufbau(g, s, a, hell = 1) {
+  const e = s.geo.ebenen.reaktor, bild = s.bilder.reaktor, k = s.geo.reaktor ?? s.geo.ringMitte, T = REAKTOR_TEILE
+  if (!e || !bild) return
+  const stueck = (r0, r1, w0, w1, alpha, dx = 0, dy = 0, dreh = 0) => {
+    if (alpha <= 0.002) return
+    g.save(); g.globalAlpha = Math.min(1, alpha) * hell
+    g.translate(k.x + dx, k.y + dy); g.rotate(dreh)
+    g.beginPath(); g.arc(0, 0, r1, w0, w1); if (r0 > 0) g.arc(0, 0, r0, w1, w0, true); else g.lineTo(0, 0); g.closePath(); g.clip()
+    g.drawImage(bild, e.x - k.x, e.y - k.y, e.b, e.h)
+    g.restore()
+  }
+  // Kern, innerer Ring, Spulenring: ganze Kreisringe, drehen sich bis zum Einrasten
+  stueck(0, T.kern, 0, Math.PI * 2, a.kern ?? 1)
+  stueck(T.innen[0], T.innen[1], 0, Math.PI * 2, a.innen?.an ?? 1, 0, 0, a.innen?.dreh ?? 0)
+  stueck(T.spulen[0], T.spulen[1], 0, Math.PI * 2, a.spulen?.an ?? 1, 0, 0, a.spulen?.dreh ?? 0)
+  // Steinring: Blöcke fliegen von außen heran (leicht verdreht), rasten nacheinander ein
+  const n = T.bloecke, breite = (Math.PI * 2) / n
+  for (let j = 0; j < n; j++) {
+    const p = a.bloecke?.[j] ?? 1; if (p <= 0) continue
+    const w0 = T.versatz + j * breite, mitte = w0 + breite / 2, weg = Math.pow(1 - p, 2) * 520
+    stueck(T.stein[0], T.stein[1], w0, w0 + breite, Math.min(1, p * 2.5), Math.cos(mitte) * weg, Math.sin(mitte) * weg, (1 - p) * (1 - p) * 0.5 * (j % 2 ? 1 : -1))
+  }
+}
+
 /**
  * Ein Bild zeichnen. t = Sekunden. opt:
  *  versatz  – waagerechte Verschiebung (einzelner Bildschirm: 1920 → nur die Mitte)
@@ -1243,10 +1271,15 @@ export function zeichneSzene(g, s, t, opt = {}) {
   const w = wetterArt(opt.wetter)
   if (mit('wetter')) zeichneWetterHinten(g, s.wetter, w, t)
   // pulsierende Wellenringe auf Wunsch des Auftraggebers wieder entfernt (05.11.2026: „gefallen mir gar nicht“)
-  if (mit('rand')) randZeichnen(g, s, an.grund * an.rand) // Verlauf ins Dunkle + Steinrand außen
+  if (mit('rand')) randZeichnen(g, s, an.grund * an.rand, an.randWeg ?? 0) // Verlauf ins Dunkle + Steinrand außen
   if (mit('kupfer')) kupferband(g, s, an.grund * an.rand) // hinter Rauch und Reaktor
   if (mit('rauch')) rauch(g, s, t, an.nebel)
-  ebene(g, s, 'reaktor', an.grund * an.kern, 'source-over', s.rot) // Reaktor steht vorn: Rauch und Wolken liegen dahinter/darunter
+  if (opt.aufbau) { /* Intro: der fertige Reaktor steckt auch im Grundbild – Fläche abdunkeln, dann Teile einsetzen */
+    const k = s.geo.reaktor ?? s.geo.ringMitte, v = g.createRadialGradient(k.x, k.y, 318, k.x, k.y, 350)
+    v.addColorStop(0, '#000'); v.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = v; g.fillRect(k.x - 350, k.y - 350, 700, 700)
+  }
+  if (opt.hinten) opt.hinten(g) /* Intro: Rauch hinter dem Reaktor */
+  if (opt.aufbau) reaktorAufbau(g, s, opt.aufbau, an.kern); else ebene(g, s, 'reaktor', an.grund * an.kern, 'source-over', s.rot) // Reaktor steht vorn: Rauch und Wolken liegen dahinter/darunter
   if (mit('reaktor')) reaktor(g, s, t, opt, an.reaktor)
   if (mit('schrift')) schrift(g, s, t, an.reaktor)
 
