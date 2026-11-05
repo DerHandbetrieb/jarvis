@@ -531,7 +531,7 @@ export async function ladeSzene(basis, einstellung = {}) {
   const ringMitte = infoVariante ? infoRing(geo.ringMitte.r, 30, infoVariante, { ...zeitAngaben(), wetter: null }).dreh : ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
   const szene = {
     geo, bilder,
-    kupfer, rand, praegung: null, ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
+    kupfer, rand, praegung: null, lokiStil: einstellung.loki ?? 'relief', ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
     runen: runenBilder(38),
     bahnLinks: bahnVorbereiten(geo.bahnLinks, true),
     bahnRechts: bahnVorbereiten(geo.bahnRechts, false),
@@ -1120,8 +1120,65 @@ function lokiFein(s) {
   pg.drawImage(getoent('rgba(190,205,200,0.3)'), 0.8 * k, 1 * k); pg.drawImage(getoent('rgba(0,0,0,0.85)'), -0.7 * k, -0.8 * k); pg.drawImage(getoent('rgba(6,10,12,0.9)'), 0, 0)
   return { praeg, cyan: getoent('#7ff4ff'), weiss: getoent('#ffffff'), x: e.x, y: e.y, b: e.b, h: e.h + FIGUR_TIEFER }
 }
+/**
+ * LOKI und Figuren als Bronze-Relief im Stil der Flechtband-Felder des Reaktors (Wunsch Auftraggeber 05.11.2026):
+ * goldenes Metall mit Licht von oben links, dunkler Mittelrille und Kontur, Schlagschatten auf den Stein. Die Form kommt
+ * aus der Leuchtschrift-Ebene (Figuren tiefer gesetzt). Gerechnet in 3facher Auflösung, einmal beim Laden.
+ * Im Beat/Takt pulsiert nur das Licht dahinter (zwischen den Formen), Buchstaben und Figuren bleiben ruhig.
+ */
+function lokiRelief(s) {
+  const e = s.geo.ebenen.schrift, bild = s.bilder.schrift
+  if (!e || !bild) return null
+  const F = 3, w0 = bild.width, h0 = bild.height, k = w0 / e.b, versatz = Math.round(FIGUR_TIEFER * k), rand = Math.round(w0 * 0.27)
+  const W = Math.round(e.b * F), Hh = Math.round((e.h + FIGUR_TIEFER) * F), sk = W / w0
+  // Form (Figuren tiefer), hochskaliert und weich
+  const form = leinwand(W, Hh), fg = form.getContext('2d'); fg.imageSmoothingQuality = 'high'
+  fg.drawImage(bild, rand, 0, w0 - 2 * rand, h0, rand * sk, 0, (w0 - 2 * rand) * sk, h0 * sk)
+  fg.drawImage(bild, 0, 0, rand, h0, 0, versatz * sk, rand * sk, h0 * sk); fg.drawImage(bild, w0 - rand, 0, rand, h0, (w0 - rand) * sk, versatz * sk, rand * sk, h0 * sk)
+  const roh = fg.getImageData(0, 0, W, Hh).data, M = new Float32Array(W * Hh)
+  for (let i = 0; i < M.length; i++) { const l = Math.max(roh[i * 4], roh[i * 4 + 1], roh[i * 4 + 2]) / 255; const v = Math.min(1, Math.max(0, (l - 0.6) / 0.08)); M[i] = v * v * (3 - 2 * v) * (roh[i * 4 + 3] / 255) } // harte Kante
+  // weichgezeichnete Höhe für Licht und Rille
+  const weich = (q, r) => { const o = new Float32Array(q.length), t = new Float32Array(q.length)
+    for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) { let a = 0, n = 0; for (let d = -r; d <= r; d++) { const xx = x + d; if (xx >= 0 && xx < W) { a += q[y * W + xx]; n++ } } t[y * W + x] = a / n }
+    for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) { let a = 0, n = 0; for (let d = -r; d <= r; d++) { const yy = y + d; if (yy >= 0 && yy < Hh) { a += t[yy * W + x]; n++ } } o[y * W + x] = a / n }
+    return o }
+  const B = weich(M, 2), B2 = weich(M, 6), weich3 = weich(M, 4)
+  const metall = leinwand(W, Hh), mg = metall.getContext('2d'), d = mg.createImageData(W, Hh), p = d.data
+  for (let y = 1; y < Hh - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const i = y * W + x, m = M[i]; if (m < 0.02) continue
+    const nx = B[i + 1] - B[i - 1], ny = B[i + W] - B[i - W]
+    const licht = Math.min(1.6, Math.max(0.25, 0.75 + 4.2 * (-nx * 0.7 - ny * 0.7)))
+    const mitte = Math.max(0, weich3[i] - 0.9) / 0.1 // Strangmitte → feine dunkle Rille
+    const rille = 1 - 0.6 * Math.min(1, mitte * 2)
+    const kante = Math.min(1, Math.max(0, (B[i] - 0.25) / 0.35)) // dunkle Kontur am Rand
+    const f2 = licht * rille * (0.22 + 0.78 * kante)
+    p[i * 4] = Math.min(255, 205 * f2); p[i * 4 + 1] = Math.min(255, 158 * f2); p[i * 4 + 2] = Math.min(255, 82 * f2); p[i * 4 + 3] = Math.min(1, m * 1.3) * 255
+  }
+  mg.putImageData(d, 0, 0)
+  // Schlagschatten (nach unten rechts) und Licht dahinter (für das Pulsieren)
+  const schatten = leinwand(W, Hh), sg = schatten.getContext('2d'), sd = sg.createImageData(W, Hh)
+  const glanz = leinwand(W, Hh), gg = glanz.getContext('2d'), gd = gg.createImageData(W, Hh)
+  const dx = 4 * F / 3 | 0, dy = 5 * F / 3 | 0
+  for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
+    const q = (y - dy) * W + (x - dx), v = y - dy >= 0 && x - dx >= 0 ? B2[q] : 0, i = y * W + x
+    sd.data[i * 4 + 3] = Math.min(1, v * 1.6) * 200
+    const hof = Math.max(0, B2[i] - M[i]) // nur um die Formen herum
+    gd.data[i * 4] = 95; gd.data[i * 4 + 1] = 246; gd.data[i * 4 + 2] = 255; gd.data[i * 4 + 3] = Math.min(1, hof * 2.2) * 255
+  }
+  sg.putImageData(sd, 0, 0); gg.putImageData(gd, 0, 0)
+  return { metall, schatten, glanz, x: e.x, y: e.y, b: e.b, h: e.h + FIGUR_TIEFER }
+}
 function schrift(g, s, t, anteil) {
   if (anteil <= 0) return
+  const RL = s.lokiStil === 'relief' ? (s.lokiRelief ??= lokiRelief(s)) : null
+  if (RL) {
+    const puls = 0.5 + 0.5 * Math.sin((t * Math.PI * 2) / 2.8), m = s.beat ? s.beat.musik : 0
+    const licht = (0.25 + 0.35 * puls) * (1 - m) + (s.beat ? Math.min(1, s.beat.hoch + 0.2 * s.beat.bass) : 0) * m
+    g.globalAlpha = anteil; g.drawImage(RL.schatten, RL.x, RL.y, RL.b, RL.h)
+    g.globalCompositeOperation = 'lighter'; g.globalAlpha = anteil * licht * (1 - s.rot * 0.5); g.drawImage(RL.glanz, RL.x, RL.y, RL.b, RL.h); g.globalCompositeOperation = 'source-over'
+    g.globalAlpha = anteil; g.drawImage(RL.metall, RL.x, RL.y, RL.b, RL.h); g.globalAlpha = 1
+    return
+  }
   const L = (s.lokiFein ??= lokiFein(s))
   if (L && !s.inschrift) {
     g.globalAlpha = anteil; g.drawImage(L.praeg, L.x, L.y, L.b, L.h)
