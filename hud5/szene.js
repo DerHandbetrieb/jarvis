@@ -531,7 +531,7 @@ export async function ladeSzene(basis, einstellung = {}) {
   const ringMitte = infoVariante ? infoRing(geo.ringMitte.r, 30, infoVariante, { ...zeitAngaben(), wetter: null }).dreh : ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
   const szene = {
     geo, bilder,
-    kupfer, rand, praegung: null, lokiStil: einstellung.loki ?? 'relief', ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
+    kupfer, rand, praegung: null, lokiStil: einstellung.loki ?? 'fein', // Bronze-Relief (?loki-stil=relief) wartet auf Entscheidung ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
     runen: runenBilder(38),
     bahnLinks: bahnVorbereiten(geo.bahnLinks, true),
     bahnRechts: bahnVorbereiten(geo.bahnRechts, false),
@@ -963,6 +963,8 @@ function reaktor(g, s, t, opt, anteil) {
     g.save(); g.translate(r.x, r.y); g.rotate(-t * ((Math.PI * 2) / 50) * (1 + denkt * 2))
     g.drawImage(s.bilder.kernscheibe, kz.x - r.x, kz.y - r.y, kz.b, kz.h)
     if (rot > 0.002) { g.globalAlpha = rot; g.drawImage(s.rotBilder.kernscheibe, kz.x - r.x, kz.y - r.y, kz.b, kz.h); g.globalAlpha = 1 }
+    // Bass: Kernscheibe wird rot umgefärbt (überdeckend – addiert würde Rot auf Türkis nur weiß)
+    if (bassRot > 0.01) { g.globalAlpha = Math.min(1, bassRot * 1.3); g.drawImage(s.rotBilder.kernscheibe, kz.x - r.x, kz.y - r.y, kz.b, kz.h); g.globalAlpha = 1 }
     g.restore()
   }
   // Lauflicht durch die blauen Zellen zwischen den Spulen (16 Sektoren)
@@ -979,13 +981,17 @@ function reaktor(g, s, t, opt, anteil) {
       if (rot > 0.002) { g.globalAlpha = Math.min(1, a) * rot; g.drawImage(s.rotBilder.zellen, ze.x, ze.y, ze.b, ze.h) }
       g.restore()
     }
+    const zt = tuerkis > 0.01 && farbe(s, 'zellen', [40, 235, 215]) // Mitten: Spulenring pulsiert türkis
+    if (zt) { g.globalAlpha = Math.min(1, tuerkis * 1.4); g.drawImage(zt, ze.x, ze.y, ze.b, ze.h) }
     g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
   }
   blitze(g, s, t, (1 + denkt * 2 + spricht * 3) * (rot > 0.5 ? 0.4 : 1), anteil)
   const schlag = s.blitzHell ?? 0 // der Hauptblitz lässt Kern und Lichthof kurz aufleuchten
   ebene(g, s, 'halo', anteil * aus * flackern * (0.35 + 0.5 * puls + 0.4 * takt + 0.7 * spricht + 0.6 * schlag) * (1 - 0.4 * bassRot), 'lighter', Math.max(rot, bassRot))
   ebene(g, s, 'kern', anteil * aus * flackern * (0.25 + 0.45 * puls + 0.45 * takt + 0.6 * spricht + 0.5 * schlag) * (1 - 0.9 * bassRot), 'lighter', Math.max(rot, bassRot))
-  beatVerlauf(g, s, r, bassRot, tuerkis, weiss, anteil)
+  if (bassRot > 0.01) { // dunkelrotes Glühen in der Mitte, im Takt des Basses
+    const gl = g.createRadialGradient(r.x, r.y, 0, r.x, r.y, 120); gl.addColorStop(0, 'rgba(200,15,5,1)'); gl.addColorStop(0.5, 'rgba(150,8,2,0.7)'); gl.addColorStop(1, 'rgba(120,0,0,0)')
+    g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, bassRot * 1.2) * anteil; g.fillStyle = gl; g.fillRect(r.x - 120, r.y - 120, 240, 240); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over' } // Verlauf (beatVerlauf) abgelehnt 05.11.2026 – zurück zu rot/türkis/weiß
 }
 
 /** Runen wandern links/rechts entlang der gemessenen Bahn im Band und laufen oben und unten aus dem Bild */
