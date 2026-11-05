@@ -8,6 +8,7 @@
 import { holeWetter, wetterAusCode, wetterOrt } from './wetter'
 import type { BausteinSchluessel, LageEingabe } from './morgenlage'
 import { werkstattBruecke, type WerkstattLage } from './desktop'
+import { istFreigabeSammelkarte } from './neuigkeiten'
 
 const WETTER_WORT = { klar: 'klarer Himmel', wolkig: 'bewölkt', regen: 'Regen', gewitter: 'Gewitter' } as const
 const HOECHSTENS_ALT = 60 * 60_000
@@ -22,7 +23,8 @@ export function ausWerkstatt(l: WerkstattLage | null, jetzt: Date): WerkstattTei
   // Selbsttest zählt nur, wenn er aus den letzten 24 Stunden stammt
   const testRot = !!l.selbsttest && l.selbsttest.rot > 0 && jetzt.getTime() - new Date(l.selbsttest.am).getTime() < 24 * 3_600_000
   return {
-    aufgaben: { anzahl: l.aufgaben.offen, neu: l.aufgaben.neu, wichtigste: l.aufgaben.wichtigste.slice(0, 3).map((w) => w.titel) },
+    // die Freigabe-Sammelkarte nicht als „wichtigste Aufgabe“ vorlesen – die Freigaben hat ein eigener Baustein
+    aufgaben: { anzahl: l.aufgaben.offen, neu: l.aufgaben.neu, wichtigste: l.aufgaben.wichtigste.filter((w) => !istFreigabeSammelkarte(w.titel)).slice(0, 3).map((w) => w.titel) },
     probleme: { amazon: l.aufgaben.amazonProbleme, selbsttestRot: testRot },
     lager: { namen: l.lagerKnapp.map((k) => (k.variante ? `${k.name} ${k.variante}` : k.name)) },
     verkauf: { bestellungen: l.verkauf.gestern.bestellungen, stueck: l.verkauf.gestern.stueck, umsatzCent: l.verkauf.gestern.umsatzCent },

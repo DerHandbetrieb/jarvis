@@ -26,9 +26,15 @@ export const gruppeVon = (n: Neuigkeit): NeuGruppe => (n.art === 'amazon' || n.a
 /** Werkstatt-Konto des Auftraggebers (profiles „Alex“) – seine eigenen Karten kennt er schon (Interview 04.11.2026) */
 export const EIGENES_KONTO = '71f61d5f-318c-426c-8563-d0565fc53a1d'
 
-/** gewünschte Arten, eigene Karten weg */
+/** Sammelkarte der Montags-Auswertung („Abarbeiten: Vorschläge freigeben“, bis Werkstatt 0.148.0 „Marketing: …“) –
+ *  keine eigene Aufgabe: die Vorschläge selbst kommen schon als Freigaben (die Werkstatt-App blendet sie ebenfalls aus) */
+export const istFreigabeSammelkarte = (titel: string) => /^\s*(abarbeiten|marketing)\s*:\s*vorschläge freigeben/i.test(titel)
+
+/** gewünschte Arten, eigene Karten und die Freigabe-Sammelkarte weg */
 export function auswaehlen(liste: Neuigkeit[], gruppen: NeuGruppe[], eigenesKonto = EIGENES_KONTO): Neuigkeit[] {
-  return liste.filter((n) => gruppen.includes(gruppeVon(n)) && !((n.art === 'aufgabe' || n.art === 'amazon') && n.von && n.von === eigenesKonto))
+  return liste.filter((n) => gruppen.includes(gruppeVon(n))
+    && !((n.art === 'aufgabe' || n.art === 'amazon') && n.von && n.von === eigenesKonto)
+    && !(n.art === 'aufgabe' && istFreigabeSammelkarte(n.titel)))
 }
 
 const ZAHL = ['null', 'eine', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwölf']

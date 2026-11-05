@@ -28,6 +28,10 @@ describe('Werkstatt-Daten für die Morgen-Lage', () => {
     expect(ausWerkstatt(null, JETZT)).toEqual(leer)
     expect(ausWerkstatt({ ...LAGE, geholt: JETZT.getTime() - 61 * 60_000 }, JETZT)).toEqual(leer)
   })
+  it('die Freigabe-Sammelkarte ist keine „wichtigste Aufgabe“ (Werkstatt 0.148.0)', () => {
+    const l = { ...LAGE, aufgaben: { ...LAGE.aufgaben, wichtigste: [{ titel: 'Abarbeiten: Vorschläge freigeben', faellig: null }, { titel: 'Marketing: Vorschläge freigeben (3)', faellig: null }, ...LAGE.aufgaben.wichtigste] } }
+    expect(ausWerkstatt(l, JETZT).aufgaben?.wichtigste).toEqual(['Kerzenständer nachproduzieren', 'Tassen schließen', 'Etsy-Fotos'])
+  })
   it('alter Selbsttest (über 24 Stunden) gilt nicht als Störung', () => {
     expect(ausWerkstatt({ ...LAGE, selbsttest: { am: '2026-11-01T03:00:00Z', rot: 2 } }, JETZT).probleme?.selbsttestRot).toBe(false)
   })

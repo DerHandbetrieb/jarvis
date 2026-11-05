@@ -204,6 +204,16 @@ describe('Neuigkeiten ansagen (04.11.2026)', () => {
     ]
     expect(auswaehlen(liste, ['aufgabe', 'problem']).map((n) => n.art === 'aufgabe' ? n.titel : n.art)).toEqual(['Von Pöp', 'knapp'])
   })
+  it('die Sammelkarte „Abarbeiten: Vorschläge freigeben“ ist keine neue Aufgabe (Werkstatt 0.148.0)', async () => {
+    const { auswaehlen } = await import('./neuigkeiten')
+    const liste = [
+      { art: 'aufgabe' as const, titel: 'Abarbeiten: Vorschläge freigeben', von: null, faellig: null },
+      { art: 'aufgabe' as const, titel: 'Marketing: Vorschläge freigeben', von: null, faellig: null },
+      { art: 'aufgabe' as const, titel: 'Werbeberichte prüfen (Amazon)', von: null, faellig: null },
+      { art: 'freigabe' as const, titel: 'Etsy-Entwurf' },
+    ]
+    expect(auswaehlen(liste, ['aufgabe', 'freigabe']).map((n) => n.art === 'aufgabe' || n.art === 'freigabe' ? n.titel : n.art)).toEqual(['Werbeberichte prüfen (Amazon)', 'Etsy-Entwurf'])
+  })
   it('alle Seitenhiebe: Platzhalter, kurz, keine Zahlen', async () => {
     const { NEU_SPITZEN } = await import('./neuSpitzen')
     for (const [bereich, liste] of Object.entries(NEU_SPITZEN)) {

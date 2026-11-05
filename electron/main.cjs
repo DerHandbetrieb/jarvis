@@ -39,7 +39,8 @@ function hudAuswahl(l) {
   return {
     geholt: l.geholt,
     aufgaben: { offen: zahl(l.aufgaben?.offen), neu: zahl(l.aufgaben?.neu), amazonAnzahl: (l.aufgaben?.amazonProbleme ?? []).length,
-      wichtigste: (l.aufgaben?.wichtigste ?? []).slice(0, 5).map((w) => ({ titel: String(w.titel ?? '').slice(0, 120), faellig: w.faellig ?? null })) },
+      // ohne die Freigabe-Sammelkarte (wie istFreigabeSammelkarte in src/jarvis/neuigkeiten.ts)
+      wichtigste: (l.aufgaben?.wichtigste ?? []).filter((w) => !/^\s*(abarbeiten|marketing)\s*:\s*vorschläge freigeben/i.test(String(w.titel ?? ''))).slice(0, 5).map((w) => ({ titel: String(w.titel ?? '').slice(0, 120), faellig: w.faellig ?? null })) },
     lagerKnapp: (l.lagerKnapp ?? []).slice(0, 4).map((k) => ({ name: String(k.name ?? ''), variante: k.variante ?? null, bestand: zahl(k.bestand), meldebestand: zahl(k.meldebestand) })),
     verkauf: {
       gestern: { bestellungen: zahl(l.verkauf?.gestern?.bestellungen), stueck: zahl(l.verkauf?.gestern?.stueck), umsatzCent: zahl(l.verkauf?.gestern?.umsatzCent) },
