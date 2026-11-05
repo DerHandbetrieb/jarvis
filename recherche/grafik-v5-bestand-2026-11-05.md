@@ -80,3 +80,11 @@ Quelle: `Downloads\LOKI_Mystic_Aurora_3x4K_Animationsassets_V5.zip` (Kopie in `H
 3. Als neues Wallpaper in Wallpaper Engine einrichten (altes bleibt als Sicherung).
 4. Intro auf derselben Szene, endet bildgleich mit dem Wallpaper.
 5. FENECON + Ecowitt nach Angabe von Modell/Adressen.
+
+## Schärfe (05.11.2026)
+- Vergleich (grafik/magnific/vergleich_*.png): geliefert · lokal Real-ESRGAN · Magnific Präzision 4x · Magnific Kreativ 4x
+  (ArtAndIllustration, Illusio, Kreativität −3, Ähnlichkeit 5, je 450 Credits, über die Magnific-Verbindung).
+- **Wahl Auftraggeber: Magnific Kreativ.** Datei `grafik/magnific/magnific_kreativ_4x.png` (nicht in Git);
+  Neuaufbau: `modelle/upscale/.venv/Scripts/python.exe scripts/grafik-v5-aufbereiten.py grafik/magnific/magnific_kreativ_4x.png`.
+- Aurora- und Wasser-Leuchtebene werden aus dem Grundbild selbst gewonnen (passt nach jeder Hochskalierung).
+- Runen: Gekritzel in den Bögen und im Ring um den Reaktor durch echte Runen ersetzt (hud5/runen.js), Reaktor-Runen unverändert.

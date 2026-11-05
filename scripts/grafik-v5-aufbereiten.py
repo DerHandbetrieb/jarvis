@@ -86,10 +86,17 @@ def ebene(name, bild):
     if not box: return
     k.crop(box).save(ZIEL + name + '.webp', quality=90, method=6, lossless=False)
     ebenen[name] = {'x': box[0], 'y': box[1], 'b': box[2] - box[0], 'h': box[3] - box[1]}
-aura = Image.open(Q + '01_BACKGROUND/AURORA_ORIGINAL_FARBANTEILE.png').convert('RGBA')
-voll = Image.new('RGBA', (11520, 2160)); voll.alpha_composite(aura, (91, 0)); ebene('aurora', voll)
+def ausGrund(name, maske):
+    """Leucht-Ebene aus dem (hochskalierten) Grundbild selbst – passt so immer genau, auch nach Magnific"""
+    a = cv2.GaussianBlur(np.clip(maske, 0, 1).astype(np.float32), (0, 0), 2)
+    bild = Image.fromarray(grund).convert('RGBA'); bild.putalpha(Image.fromarray((a * 255).astype(np.uint8))); ebene(name, bild)
+gf = grund.astype(np.float32)
+gruen = gf[..., 1] - np.maximum(gf[..., 0], gf[..., 2] * 0.85)  # Aurora: deutlich grüner als rot/blau
+ausGrund('aurora', (gruen - 12) / 50)
+yy = np.mgrid[0:H, 0:B][0]
+hell = (gf.max(axis=2) - 90) / 90  # Wasser: helle Glanzpunkte im See (unterhalb des Horizonts, mittlerer Bildschirm)
+ausGrund('wasser', hell * (yy > 835) * (np.abs(np.mgrid[0:H, 0:B][1] - 2880) < 1000))
 ebene('halo', monitore([None, FX + 'REACTOR_CORE_HALO_PULSE_RGBA_3840x2160.png', None]))
-ebene('wasser', monitore([None, A + 'MITTE_WASSERWELLEN_MITTE_3840x2160.png', None]))
 # Reaktor-Kern scharf aus dem Grundbild, Form aus der Kern-Maske (für das Pulsieren)
 kern = monitore([None, A + 'MITTE_REAKTOR_RING_01_ORIGINAL_PIXELS_3840x2160.png', None]).resize((B, H), Image.LANCZOS)
 kernScharf = Image.fromarray(grund).convert('RGBA'); kernScharf.putalpha(kern.getchannel('A')); ebene('kern', kernScharf)
