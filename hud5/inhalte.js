@@ -178,10 +178,12 @@ function tonwellen(g, b, h, ton, t, loki, tonStatus) {
     anzeige[i] += (ziel - anzeige[i]) * k
     spitze[i] = Math.max(anzeige[i], spitze[i] - dt * 0.35)
   }
-  const farbe = spricht ? [242, 176, 74] : [95, 246, 255]
+  // Farbe je Tonbereich (Wunsch Auftraggeber 05.11.2026): Bässe dunkelrot, Mitten Türkis (Hausfarbe), Höhen weiß – weich verlaufend
+  const mische = (a, b, f) => a.map((v, k) => Math.round(v + (b[k] - v) * f))
+  const farbeVon = (i) => { const f = i / (BALKEN - 1); return spricht ? [242, 176, 74] : f < 0.5 ? mische([150, 18, 32], [95, 246, 255], f / 0.5) : mische([95, 246, 255], [240, 250, 255], (f - 0.5) / 0.5) }
   g.save()
   for (let i = 0; i < BALKEN; i++) {
-    const x = x0 + i * breite + 1, bw = Math.max(1, breite - 3), hb = Math.max(1.5, anzeige[i] * hoehe)
+    const x = x0 + i * breite + 1, bw = Math.max(1, breite - 3), hb = Math.max(1.5, anzeige[i] * hoehe), farbe = farbeVon(i)
     const v = g.createLinearGradient(0, unten - hb, 0, unten)
     v.addColorStop(0, `rgba(${farbe},0.95)`); v.addColorStop(1, `rgba(${farbe},0.25)`)
     g.fillStyle = v; g.fillRect(x, unten - hb, bw, hb)
