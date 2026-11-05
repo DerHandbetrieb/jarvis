@@ -18,6 +18,14 @@ describe('PV-Anlage FENECON', () => {
     expect(s.werte).toMatchObject({ akku: 64, akkuW: -1200, netzW: -850, pvW: 4300, hausW: 2250, zustand: 0, inselbetrieb: false })
     expect(JSON.stringify(s)).not.toContain('geheim') // Passwort nie in der Antwort
   })
+  it('nutzt die Sammelabfrage, wenn die Anlage eine Liste liefert (eine Anfrage statt sieben)', async () => {
+    let anfragen = 0
+    const holen = async (url) => { anfragen++; return { status: 200, ok: true, json: async () => (url.includes('%7C') ? [{ address: '_sum/EssSoc', value: 80 }, { address: '_sum/GridActivePower', value: 300 }] : { value: null }), text: async () => '' } }
+    const pv = erstellePv({ speicher: speicher(), holen, protokoll: () => {} })
+    const s = await pv.einrichten({ adresse: '192.168.178.38', passwort: 'x' }); pv.stoppen()
+    expect(anfragen).toBe(1)
+    expect(s.werte).toMatchObject({ akku: 80, netzW: 300 })
+  })
   it('meldet ein falsches Passwort und speichert nichts', async () => {
     const sp = speicher()
     const pv = erstellePv({ speicher: sp, holen: antwort({}, 500), protokoll: () => {} })
