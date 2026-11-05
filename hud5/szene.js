@@ -132,14 +132,14 @@ function infoRing(r, hoehe, variante, a) {
   }
   const raute = (g, w, rr, h, farbe = 'gold') => { const lr = LICHT[farbe]; g.save(); g.rotate(w); g.translate(0, -rr); g.rotate(Math.PI / 4); g.fillStyle = lr.kern; g.shadowColor = lr.hof; g.shadowBlur = h * 0.5; g.fillRect(-h * 0.1, -h * 0.1, h * 0.2, h * 0.2); g.restore() }
   // ganzer Kreis: Abschnitte gleichmäßig verteilt, Lücken mit Runen gefüllt
-  const kreis = (g, segmente, rr, h, runenFarbe) => {
-    const n = segmente.length, runeH = h * 1.25, schritt = (runeH * 1.15) / rr
+  const kreis = (g, segmente, rr, h, runenFarbe, runeF = 1.25) => {
+    const n = segmente.length, runeH = h * runeF, schritt = (runeH * 1.3) / rr
     const teile = segmente.map((seg, k) => ({ seg, mitte: (k / n) * Math.PI * 2, halb: winkel(seg, h, rr) / 2 }))
     for (const t of teile) abschnitt(g, t.seg, t.mitte - t.halb, h, rr)
     const lr = LICHT[runenFarbe]
     for (const [k, t] of teile.entries()) {
       const nx = teile[(k + 1) % n], von = t.mitte + t.halb + schritt * 0.9, bis = nx.mitte + (k + 1 === n ? Math.PI * 2 : 0) - nx.halb - schritt * 0.9
-      raute(g, t.mitte + t.halb + schritt * 0.4, rr, h); raute(g, nx.mitte + (k + 1 === n ? Math.PI * 2 : 0) - nx.halb - schritt * 0.4, rr, h)
+      raute(g, t.mitte + t.halb + schritt * 0.4, rr, h, runenFarbe === 'cyan' && segmente[0].farbe === 'gold' ? 'gold' : 'gold'); raute(g, nx.mitte + (k + 1 === n ? Math.PI * 2 : 0) - nx.halb - schritt * 0.4, rr, h)
       const zahl = Math.max(0, Math.floor((bis - von) / schritt) + 1)
       for (let d = 0; d < 2; d++) {
         g.strokeStyle = d ? lr.kern : lr.hof; g.shadowColor = lr.hof; g.lineWidth = d ? Math.max(1.4, runeH * 0.075) : runeH * 0.12; g.shadowBlur = d ? runeH * 0.35 : runeH * 0.9
@@ -156,6 +156,14 @@ function infoRing(r, hoehe, variante, a) {
   }
   const gd = dreh.getContext('2d'), gf = fest.getContext('2d')
   for (const g of [gd, gf]) { g.scale(FEIN, FEIN); g.translate(gr / 2, gr / 2) }
+  const NEU = { 'info-e': { doppelt: false, uhr: 1.15, kasten: 'gerade' }, 'info-f': { doppelt: true, uhr: 1.15, kasten: 'kerbe' }, 'info-g': { doppelt: true, uhr: 1.45, kasten: 'bogen' }, 'info-h': { doppelt: true, uhr: 1.3, kasten: 'kerbe', linien: true } }[variante]
+  if (NEU) {
+    const gold = angaben.map((seg, i) => ({ ...seg, farbe: 'gold', gross: i === 0 ? NEU.uhr : 1 }))
+    kreis(gd, NEU.doppelt ? [...gold, ...gold] : gold, r, hoehe * 0.8, 'cyan', 0.85)
+    if (NEU.linien) { gd.strokeStyle = 'rgba(242,176,74,0.45)'; gd.lineWidth = 1; for (const d of [-hoehe * 0.85, hoehe * 0.85]) { gd.beginPath(); gd.arc(0, 0, r + d, 0, Math.PI * 2); gd.stroke() } }
+    unterschrift(gf, NEU.kasten, hoehe * 0.62)
+    return { dreh, fest }
+  }
   if (variante === 'info-a') kreis(gd, [...name, ...angaben], r, hoehe * 0.8, 'gold')
   else if (variante === 'info-d') kreis(gd, [angaben[0], name[0], name[1], angaben[1], name[2], name[3], angaben[2], angaben[3]], r, hoehe * 0.8, 'cyan')
   else {
@@ -172,6 +180,33 @@ function infoRing(r, hoehe, variante, a) {
     }
   }
   return { dreh, fest: variante === 'info-a' || variante === 'info-d' ? null : fest }
+}
+
+/** Bedeutung von L.O.K.I. fest unter dem Reaktor (Mittelpunkt = Ringmitte); kasten: gerade | kerbe | bogen */
+function unterschrift(g, kasten, h) {
+  const text = 'LOKALE · OHNEHIN · KLÜGERE · INTELLIGENZ', y = 338, pad = h * (kasten === 'kerbe' ? 2.6 : 1.4)
+  const strich = (d) => { g.strokeStyle = d ? LICHT.gold.kern : LICHT.gold.hof; g.fillStyle = g.strokeStyle; g.shadowColor = LICHT.gold.hof; g.lineWidth = d ? Math.max(1.3, h * 0.1) : h * 0.16; g.shadowBlur = d ? h * 0.3 : h * 0.8; g.lineCap = 'round'; g.lineJoin = 'round' }
+  if (kasten === 'bogen') { // Tafel folgt dem Kreis unten, Schrift aufrecht
+    const rr = y + 22, ges = (textBreite(text, h) + 2 * pad) / rr
+    g.beginPath(); g.arc(0, 0, rr + h * 1.05, Math.PI / 2 - ges / 2, Math.PI / 2 + ges / 2); g.arc(0, 0, rr - h * 1.05, Math.PI / 2 + ges / 2, Math.PI / 2 - ges / 2, true); g.closePath()
+    g.shadowBlur = 0; g.fillStyle = 'rgba(3,12,16,0.88)'; g.fill(); g.strokeStyle = 'rgba(242,176,74,0.6)'; g.lineWidth = 1.3; g.stroke()
+    for (let d = 0; d < 2; d++) {
+      strich(d); let w = Math.PI / 2 + (ges / 2) - pad / rr
+      for (const z of text) { const zw = (textBreite(z, h) + (h / 6) * 1.7) / rr; g.save(); g.rotate(w - zw / 2); g.translate(rr, 0); g.rotate(-Math.PI / 2); zeichen(g, z, h); g.restore(); w -= zw }
+    }
+    return
+  }
+  const tw = textBreite(text, h), b = tw + 2 * pad, hh = h * 2.1, x0 = -b / 2, y0 = y - hh / 2, e = kasten === 'kerbe' ? hh * 0.4 : 0
+  g.beginPath(); g.moveTo(x0 + e, y0); g.lineTo(x0 + b - e, y0); g.lineTo(x0 + b, y0 + e); g.lineTo(x0 + b, y0 + hh - e); g.lineTo(x0 + b - e, y0 + hh); g.lineTo(x0 + e, y0 + hh); g.lineTo(x0, y0 + hh - e); g.lineTo(x0, y0 + e); g.closePath()
+  g.shadowBlur = 0; g.fillStyle = 'rgba(3,12,16,0.88)'; g.fill(); g.strokeStyle = 'rgba(242,176,74,0.6)'; g.lineWidth = 1.3; g.stroke()
+  for (let d = 0; d < 2; d++) {
+    strich(d); let x = -tw / 2
+    for (const z of text) { const zw = textBreite(z, h) + (h / 6) * 1.7; g.save(); g.translate(x + textBreite(z, h) / 2, y); zeichen(g, z, h); g.restore(); x += zw }
+  }
+  if (kasten === 'kerbe') { // kleine türkise Runen an den Enden
+    g.strokeStyle = LICHT.cyan.kern; g.shadowColor = LICHT.cyan.hof; g.shadowBlur = h * 0.5; g.lineWidth = Math.max(1.2, h * 0.08)
+    for (const [sx, z] of [[x0 + pad * 0.5, 'ᚠ'], [x0 + b - pad * 0.5, 'ᚱ']]) { g.save(); g.translate(sx, y); rune(g, z, h * 0.9); g.restore() }
+  }
 }
 
 /** Ring-Angaben bei neuer Minute oder neuem Wetter neu beschriften (nur bei den Info-Varianten) */
