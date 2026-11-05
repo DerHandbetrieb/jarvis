@@ -21,7 +21,7 @@ Quelle: `Downloads\LOKI_Mystic_Aurora_3x4K_Animationsassets_V5.zip` (Kopie in `H
   Runenbogen + Ecken.
 
 ## Befunde (Blindspots)
-1. **Runen-Regel verletzt:** Im Reaktor oben rechts steht eine **ᛉ (Algiz, „Lebensrune“)** – laut unserer Regel
+1. **(Entscheidung Auftraggeber 05.11.2026: Runen bleiben unverändert, privat.)** Runen-Regel: Im Reaktor oben rechts steht eine **ᛉ (Algiz, „Lebensrune“)** – laut unserer Regel
    (Abschnitt 13 CLAUDE.md) wegen NS-Bezug verboten. Muss vor jeder Verwendung ersetzt werden (Stein retuschieren,
    andere Rune einsetzen, z. B. ᚦ, ᚠ oder ᛚ). Die anderen Reaktor-Runen (ᚱ, ᚹ, ᚴ, Triquetra) sind unbedenklich.
 2. **Runenbögen links/rechts sind Fantasie-Zeichen** (KI-Gekritzel), mehrere sehen aus wie ᛉ bzw. umgedrehtes ᛉ
