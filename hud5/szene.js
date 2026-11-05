@@ -18,21 +18,39 @@ function bildLaden(url) {
 function leinwand(b, h) { const c = document.createElement('canvas'); c.width = b; c.height = h; return c }
 function zufallsfolge(s) { return () => { s = (s * 16807) % 2147483647; return s / 2147483647 } }
 
-/** Runenring vorzeichnen: volle Runde, Runen tangential, mit Lichthof (einmal beim Laden) */
-function ringBild(r, hoehe, anzahl, versatz = 0) {
+/**
+ * Runenring vorzeichnen: volle Runde, Runen tangential, mit Lichthof (einmal beim Laden). Mit `text` läuft dazu ein
+ * Schriftzug im Ring mit (Wunsch Auftraggeber 05.11.2026: die volle Bedeutung von L.O.K.I. dreht sich mit) – an seiner
+ * Stelle entfallen so viele Runen, wie er Platz braucht.
+ */
+function ringBild(r, hoehe, anzahl, versatz = 0, text = '') {
   const rand = hoehe * 2, gr = Math.ceil(2 * (r + rand))
   const c = leinwand(gr, gr), g = c.getContext('2d')
   g.translate(gr / 2, gr / 2)
   g.lineCap = 'round'; g.lineJoin = 'round'
+  g.font = `600 ${Math.round(hoehe * 0.72)}px Georgia, "Times New Roman", serif`; g.textAlign = 'center'; g.textBaseline = 'middle'
+  const schritt = (Math.PI * 2) / anzahl, abstand = hoehe * 0.12
+  const breiten = [...text].map((z) => (g.measureText(z).width + abstand) / r)
+  const textWinkel = breiten.reduce((a, b) => a + b, 0)
+  const frei = text ? Math.ceil((textWinkel + schritt) / schritt) : 0 // Runen-Plätze, die der Text belegt
   for (let durchgang = 0; durchgang < 2; durchgang++) {
     // erst weiches Leuchten, dann der scharfe helle Kern
-    g.strokeStyle = durchgang ? '#d8fdff' : CYAN
+    g.strokeStyle = g.fillStyle = durchgang ? '#d8fdff' : CYAN
     g.lineWidth = durchgang ? Math.max(1.4, hoehe * 0.075) : hoehe * 0.12
     g.shadowColor = CYAN; g.shadowBlur = durchgang ? hoehe * 0.35 : hoehe * 0.9
     for (let i = 0; i < anzahl; i++) {
-      g.save(); g.rotate((i / anzahl) * Math.PI * 2); g.translate(0, -r)
+      // Plätze rund um 0 (oben) für den Text frei lassen
+      const abstandZurMitte = Math.min(i, anzahl - i)
+      if (frei && abstandZurMitte <= (frei - 1) / 2) continue
+      g.save(); g.rotate(i * schritt); g.translate(0, -r)
       rune(g, FOLGE[(i + versatz) % FOLGE.length], hoehe)
       g.restore()
+    }
+    let w = -textWinkel / 2 // von links nach rechts über die Oberseite
+    for (const [i, z] of [...text].entries()) {
+      w += breiten[i] / 2
+      g.save(); g.rotate(w); g.translate(0, -r); g.fillText(z, 0, 0); g.restore()
+      w += breiten[i] / 2
     }
   }
   return c
@@ -42,8 +60,8 @@ function ringBild(r, hoehe, anzahl, versatz = 0) {
 function ringMaske(gr) {
   const c = leinwand(gr, gr), g = c.getContext('2d')
   const v = g.createConicGradient(Math.PI / 2, gr / 2, gr / 2) // beginnt unten, läuft im Uhrzeigersinn
-  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(0.07, 'rgba(0,0,0,0)'); v.addColorStop(0.2, '#000')
-  v.addColorStop(0.8, '#000'); v.addColorStop(0.93, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0)')
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(0.13, 'rgba(0,0,0,0)'); v.addColorStop(0.25, '#000')
+  v.addColorStop(0.75, '#000'); v.addColorStop(0.87, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0)') // unter dem Horizont keine Runen
   g.fillStyle = v; g.fillRect(0, 0, gr, gr)
   return c
 }
@@ -127,7 +145,7 @@ export async function ladeSzene(basis) {
   const namen = ['grund', ...Object.keys(geo.ebenen)]
   const bilder = Object.fromEntries(await Promise.all(namen.map(async (n) => [n, await bildLaden(basis + n + '.webp')])))
   const zufall = zufallsfolge(7)
-  const ringMitte = ringBild(geo.ringMitte.r, 30, 24)
+  const ringMitte = ringBild(geo.ringMitte.r, 30, 24, 0, 'LOKALE · OHNEHIN · KLÜGERE · INTELLIGENZ')
   return {
     geo, bilder,
     ringMitte, ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
@@ -136,8 +154,7 @@ export async function ladeSzene(basis) {
     bahnRechts: bahnVorbereiten(geo.bahnRechts, false),
     nebel: nebelBild(2400, 300, zufall),
     nebel2: nebelBild(2400, 300, zufall, 60),
-    rauchStreifen: leinwand(1900, 260), rauchMaske: rauchMaske(1900, 260),
-    bedeutung: bedeutungBild(),
+    rauchStreifen: leinwand(1700, 300), rauchMaske: rauchMaske(1700, 300), wolke: wolkeBild(1024, 220, zufall),
     spiegel: geo.ebenen.reaktor ? spiegelBild(bilder.reaktor, geo.ebenen.reaktor) : null,
     blitze: [], naechsterBlitz: 0,
   }
@@ -196,79 +213,76 @@ function wasser(g, s, t, anteil) {
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
 
-// Unter dem Reaktor (Rückmeldung Auftraggeber 05.11.2026): keine Nebelfläche über dem ganzen See, sondern Rauchwolken
-// nur zwischen Reaktor und Wasser rund um die Lichtringe; die Ringe laufen sanft von innen nach außen wie Wellen nach
-// einem Steinwurf, der Rauch liegt darüber.
-const RING_MITTE = { x: 2880, y: 890 }, RING_RX = 600, RING_RY = 46 // Lichtringe auf dem Wasser (Grundbild)
+// Unter dem Reaktor (Rückmeldung Auftraggeber 05.11.2026): die starren Lichtringe sind aus dem Grundbild entfernt
+// (Magnific), stattdessen pulsieren Wellenringe von innen nach außen – schnell los, dann langsam ausklingend (wie eine
+// Tempo-Rampe im Video) –, darüber liegen Rauchwolken nur zwischen Reaktor und Wasser.
+const RING_MITTE = { x: 2880, y: 890 }, RING_RX = 640, RING_RY = 48
 
-/** Wellenringe: alle 2,6 s ein neuer, wächst von innen nach außen, wird dabei dünner und blasser */
+/** Wellenringe: alle 3,2 s ein neuer Puls; Radius läuft mit starker Abbremsung (schnell → langsam), Licht klingt aus */
 function wellen(g, t, anteil) {
   if (anteil <= 0) return
-  const takt = 2.6, lebens = 7.5
+  const takt = 3.2, lebens = 9
   g.save(); g.globalCompositeOperation = 'lighter'
   for (let k = Math.floor((t - lebens) / takt) + 1; k * takt <= t; k++) {
     const f = (t - k * takt) / lebens
     if (f < 0 || f > 1) continue
-    const rx = 30 + f * RING_RX * 1.05, ry = rx * (RING_RY / RING_RX)
-    const deck = anteil * Math.min(1, f / 0.08) * (1 - f) ** 1.6
-    for (const [breite, farbe, d] of [[9, 'rgba(95,246,255,1)', 0.12], [3, 'rgba(150,250,255,1)', 0.35], [1.2, '#eaffff', 0.7]]) {
+    const weg = 1 - (1 - f) ** 4 // Tempo-Rampe: schnell anfangen, lange langsam auslaufen
+    const rx = 20 + weg * RING_RX, ry = rx * (RING_RY / RING_RX)
+    const deck = anteil * Math.min(1, f / 0.03) * (1 - f) ** 2.2
+    for (const [breite, farbe, d] of [[12, 'rgba(95,246,255,1)', 0.13], [4, 'rgba(150,250,255,1)', 0.4], [1.4, '#eaffff', 0.85]]) {
       g.beginPath(); g.ellipse(RING_MITTE.x, RING_MITTE.y, rx, ry, 0, 0, Math.PI * 2)
-      g.lineWidth = breite * (1 - f * 0.5); g.strokeStyle = farbe; g.globalAlpha = deck * d; g.stroke()
+      g.lineWidth = breite * (1.2 - weg * 0.6); g.strokeStyle = farbe; g.globalAlpha = deck * d; g.stroke()
     }
   }
   g.restore()
 }
 
-/** Rauch zwischen Reaktor und Wasser: weiche Wolken, die langsam um die Mitte treiben, zusammengehalten von einer
- *  elliptischen Maske (dicht in der Mitte, zum Rand weich) – der Reaktor darüber bleibt frei */
+/** Rauch zwischen Reaktor und Wasser: wolkige, gebauschte Schwaden (eigene Rauchtextur), zwei Lagen gegenläufig,
+ *  elliptisch nach allen Seiten weich ausgeblendet – keine Kanten, der Reaktor darüber bleibt frei */
 function rauch(g, s, t, anteil) {
   if (anteil <= 0) return
-  const st = s.rauchStreifen, sg = st.getContext('2d')
+  const st = s.rauchStreifen, sg = st.getContext('2d'), w = s.wolke
   sg.globalCompositeOperation = 'source-over'; sg.clearRect(0, 0, st.width, st.height)
-  for (const [bild, tempo, dy, hoch, deck] of [[s.nebel, 9, -40, 1.1, 1], [s.nebel2, -7, 0, 1.0, 1], [s.nebel, 5, 50, 0.9, 0.9], [s.nebel2, -3, -90, 1.2, 0.8]]) {
+  for (const [tempo, dy, skala, deck] of [[7, 30, 1, 1], [-4.5, 70, 1.35, 0.85], [2.5, 10, 0.8, 0.7]]) {
     sg.globalAlpha = deck
-    const start = -(((t * tempo) % bild.width) + bild.width) % bild.width
-    for (let px = start; px < st.width; px += bild.width) sg.drawImage(bild, px, dy, bild.width, bild.height * hoch)
+    const bw = w.width * skala, bh = w.height * skala, start = -(((t * tempo) % bw) + bw) % bw
+    for (let px = start; px < st.width; px += bw) sg.drawImage(w, px, dy + Math.sin(t * 0.2 + skala) * 8, bw, bh)
   }
   sg.globalAlpha = 1; sg.globalCompositeOperation = 'destination-in'; sg.drawImage(s.rauchMaske, 0, 0)
   g.globalCompositeOperation = 'screen'
-  for (const d of [1, 0.7]) { g.globalAlpha = anteil * d; g.drawImage(st, RING_MITTE.x - st.width / 2, RING_MITTE.y - st.height * 0.62) }
+  for (const d of [1, 0.6]) { g.globalAlpha = anteil * d; g.drawImage(st, RING_MITTE.x - st.width / 2, RING_MITTE.y - st.height * 0.55) } // doppelt: dichter, wolkiger
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
 
-/** elliptische Maske für den Rauch: Mitte dicht, Rand weich, oben (zum Reaktor) schneller ausgeblendet */
+/** elliptische Maske: Mitte dicht, nach allen Seiten weich auf null (unten, oben, links, rechts – keine harte Kante) */
 function rauchMaske(b, h) {
   const c = leinwand(b, h), g = c.getContext('2d')
-  g.save(); g.translate(b / 2, h * 0.62); g.scale(1, (h * 0.5) / (b / 2))
+  g.translate(b / 2, h * 0.55); g.scale(1, (h * 0.45) / (b / 2))
   const v = g.createRadialGradient(0, 0, 0, 0, 0, b / 2)
-  v.addColorStop(0, '#000'); v.addColorStop(0.45, 'rgba(0,0,0,0.85)'); v.addColorStop(1, 'rgba(0,0,0,0)')
-  g.fillStyle = v; g.fillRect(-b / 2, -b, b, 2 * b); g.restore()
-  g.globalCompositeOperation = 'destination-in'
-  const u = g.createLinearGradient(0, 0, 0, h); u.addColorStop(0, 'rgba(0,0,0,0)'); u.addColorStop(0.35, '#000'); u.addColorStop(1, '#000')
-  g.fillStyle = u; g.fillRect(0, 0, b, h)
+  v.addColorStop(0, '#000'); v.addColorStop(0.4, 'rgba(0,0,0,0.9)'); v.addColorStop(0.75, 'rgba(0,0,0,0.35)'); v.addColorStop(1, 'rgba(0,0,0,0)')
+  g.fillStyle = v; g.fillRect(-b / 2, -b, b, 2 * b)
   return c
 }
 
-/** volle Bedeutung von L.O.K.I. direkt unter dem Steinring, ihm folgend gebogen (im Steinband selbst war neben
- *  Schriftzug, Drachen und Metallplatten kein Platz) */
-const BEDEUTUNG = 'LOKALE · OHNEHIN · KLÜGERE · INTELLIGENZ', BEDEUTUNG_R = 348
-function bedeutungBild(r) {
-  const gr = Math.ceil((BEDEUTUNG_R + 40) * 2), c = leinwand(gr, gr), g = c.getContext('2d')
-  g.translate(gr / 2, gr / 2)
-  g.font = '600 15px Georgia, "Times New Roman", serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
-  const abstand = 1.6, breiten = [...BEDEUTUNG].map((z) => g.measureText(z).width + abstand)
-  const gesamt = breiten.reduce((a, b) => a + b, 0) / BEDEUTUNG_R
-  for (let d = 0; d < 2; d++) {
-    let w = Math.PI / 2 + gesamt / 2 // unten mittig, von links nach rechts lesbar (Buchstaben-Kopf zur Mitte)
-    g.fillStyle = d ? '#e6feff' : '#5ff6ff'; g.shadowColor = '#5ff6ff'; g.shadowBlur = d ? 4 : 10
-    for (const [i, z] of [...BEDEUTUNG].entries()) {
-      const halb = breiten[i] / 2 / BEDEUTUNG_R
-      w -= halb
-      g.save(); g.translate(Math.cos(w) * BEDEUTUNG_R, Math.sin(w) * BEDEUTUNG_R); g.rotate(w - Math.PI / 2); g.fillText(z, 0, 0); g.restore()
-      w -= halb
+/** Rauchtextur: viele weiche, verschieden große Bäusche (große blasse unten, kleine dichtere darüber), dazwischen
+ *  Lücken – wirkt wolkig statt flächig; waagerecht nahtlos wiederholbar; einmal beim Laden gezeichnet */
+function wolkeBild(b, h, zufall) {
+  const c = leinwand(b, h), g = c.getContext('2d')
+  const bausch = (x, y, r, a) => {
+    for (const dx of [-b, 0, b]) {
+      const v = g.createRadialGradient(x + dx, y, 0, x + dx, y, r)
+      v.addColorStop(0, `rgba(185,228,238,${a})`); v.addColorStop(0.5, `rgba(170,220,232,${a * 0.55})`); v.addColorStop(1, 'rgba(160,215,228,0)')
+      g.fillStyle = v; g.fillRect(x + dx - r, y - r, 2 * r, 2 * r)
     }
   }
-  void r
+  // Ballen: Gruppen von Bäuschen um gemeinsame Mittelpunkte → Wolkenform mit Rändern und Lücken
+  for (let k = 0; k < 26; k++) {
+    const mx = zufall() * b, my = h * (0.35 + zufall() * 0.35), gr = 40 + zufall() * 70
+    for (let i = 0; i < 16; i++) {
+      const w = zufall() * Math.PI * 2, d = zufall() * gr
+      bausch(mx + Math.cos(w) * d * 1.8, my + Math.sin(w) * d * 0.5, 18 + zufall() * 38, 0.09 + zufall() * 0.12)
+    }
+  }
   return c
 }
 
@@ -437,15 +451,12 @@ function mittelRing(g, s, winkel, alpha) {
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
 
-/** verkleinerter L.O.K.I.-Schriftzug mit Drachen (atmet leicht mit dem Kern) und die volle Bedeutung darunter */
+/** verkleinerter L.O.K.I.-Schriftzug mit Drachen, in den Stein graviert (dunkle Rille), leuchtet leicht im Takt des Kerns */
 function schrift(g, s, t, anteil) {
   if (anteil <= 0) return
   const hell = anteil * (0.9 + 0.1 * Math.sin((t * Math.PI * 2) / 2.8))
+  ebene(g, s, 'gravur', anteil * 0.75, 'source-over')
   ebene(g, s, 'schrift', hell)
-  const b = s.bedeutung, r = s.geo.reaktor
-  g.globalAlpha = hell * 0.95; g.globalCompositeOperation = 'lighter'
-  g.drawImage(b, r.x - b.width / 2, r.y - b.height / 2)
-  g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
 
 /**
@@ -462,14 +473,15 @@ export function zeichneSzene(g, s, t, opt = {}) {
   g.fillStyle = '#000'; g.fillRect(0, 0, B, H)
   g.globalAlpha = an.grund; g.drawImage(s.bilder.grund, 0, 0, B, H); g.globalAlpha = 1
 
-  aurora(g, s, t, an.aurora)
+  const mit = (n) => !(opt.aus ?? []).includes(n) // Prüfhilfe: einzelne Teile weglassen
+  if (mit('aurora')) aurora(g, s, t, an.aurora)
   // aufsteigender Rauch hinter dem Reaktor entfernt (Rückmeldung Auftraggeber 05.11.2026: Reaktor soll klar bleiben)
   ebene(g, s, 'reaktor', an.grund, 'source-over') // deckt den Rauch hinter dem Reaktor ab
-  wasser(g, s, t, an.reaktor)
-  wellen(g, t, an.reaktor)
-  rauch(g, s, t, an.nebel)
-  reaktor(g, s, t, opt, an.reaktor)
-  schrift(g, s, t, an.reaktor)
+  if (mit('wasser')) wasser(g, s, t, an.reaktor)
+  if (mit('wellen')) wellen(g, t, an.reaktor)
+  if (mit('rauch')) rauch(g, s, t, an.nebel)
+  if (mit('reaktor')) reaktor(g, s, t, opt, an.reaktor)
+  if (mit('schrift')) schrift(g, s, t, an.reaktor)
 
   const denkt = opt.loki === 'denkt' ? 1 : 0
   const hell = an.runen * (0.85 + 0.15 * Math.sin(t * 0.63))

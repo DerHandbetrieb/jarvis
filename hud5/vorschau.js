@@ -15,7 +15,7 @@ function schleife(ms) {
   requestAnimationFrame(schleife)
   const a = performance.now()
   const pegel = loki === 'spricht' ? 0.5 + 0.5 * Math.abs(Math.sin(ms / 130) * Math.sin(ms / 370)) : 0
-  zeichneSzene(g, s, ms / 1000, { loki, pegel, versatz: zoom ? 1920 : 0 })
+  zeichneSzene(g, s, ms / 1000, { loki, pegel, versatz: zoom ? 1920 : 0, aus: (new URLSearchParams(location.search).get('aus') ?? '').split(',') })
   const dauer = performance.now() - a
   zeiten.push(dauer); if (zeiten.length > 120) zeiten.shift()
   laengste = Math.max(laengste * 0.995, ms - vorher); vorher = ms

@@ -58,15 +58,36 @@ if quelle == 'magnific' and os.path.exists('grafik/magnific/reaktor_ohne_schrift
     maske = np.asarray(Image.open('grafik/magnific/reaktor_maske.png').convert('L').resize(neu.size)) > 127
     licht = np.clip((alt - np.asarray(neu).astype(np.int16)) * 1.5, 0, 255) * maske[..., None]  # etwas heller: kleiner wirkt sonst blass
     gross = gross.copy(); gross.paste(neu, box[:2])
-    # Licht um die eigene Mitte verkleinern (bleibt mittig im Steinband, darunter Platz für die Bedeutung)
-    ys, xs = np.nonzero(licht.max(axis=2) > 20)
-    mx, my = (xs.min() + xs.max()) / 2, (ys.min() + ys.max()) / 2
-    l = Image.fromarray(licht.astype(np.uint8)); kb = (round(l.width * SCHRIFT_FAKTOR), round(l.height * SCHRIFT_FAKTOR))
-    klein = l.resize(kb, Image.LANCZOS)
-    schrift = Image.new('RGB', l.size)
-    schrift.paste(klein, (round(mx - mx * SCHRIFT_FAKTOR), round(my - my * SCHRIFT_FAKTOR + 24)))  # etwas tiefer: weg von den Spulen
+    # Drei Teile (Drache links, Schrift, Drache rechts) an den Lücken zwischen ihnen trennen und je um die eigene Mitte
+    # verkleinern. Die Schrift bleibt mittig (etwas tiefer, weg von den Spulen); die Drachen rücken weiter nach außen
+    # (Rückmeldung Auftraggeber 05.11.2026), fast an ihre alte Stelle auf dem Stein.
+    hell = licht.max(axis=2) > 20
+    ys, xs = np.nonzero(hell)
+    # Drachen = die großen zusammenhängenden Leuchtflächen ganz links und ganz rechts (die Buchstaben sind klein)
+    teile = cv2.dilate((licht.max(axis=2) > 120).astype(np.uint8), np.ones((3, 3), np.uint8))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(teile)
+    gross_ = [i for i in range(1, n) if st[i][3] > 180]  # Drachen sind deutlich höher als die Buchstaben
+    li = min(gross_, key=lambda i: st[i][0]); re = max(gross_, key=lambda i: st[i][0] + st[i][2])
+    links, rechts = (st[li][0] + st[li][2], st[li][0] + st[li][2]), (st[re][0], st[re][0])
+    luecken = [links, rechts]
+    grenzen = [xs.min(), st[li][0] + st[li][2] + 2, st[re][0] - 2, xs.max() + 1]
+    gx = (xs.min() + xs.max()) / 2
+    l = Image.fromarray(licht.astype(np.uint8)); schrift = Image.new('RGB', l.size)
+    for teil, (x0, x1) in enumerate(zip(grenzen[:-1], grenzen[1:])):
+        ty, tx = np.nonzero(hell[:, x0:x1]); y0, y1 = ty.min(), ty.max() + 1
+        stueck = l.crop((x0, y0, x1, y1)); kb = (round(stueck.width * SCHRIFT_FAKTOR), round(stueck.height * SCHRIFT_FAKTOR))
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        if teil == 1: ziel = (cx, cy + 24)  # Schrift
+        else: ziel = (gx + (cx - gx) * 0.86, cy + 6)  # Drachen: weiter außen als bei reiner Verkleinerung
+        schrift.paste(stueck.resize(kb, Image.LANCZOS), (round(ziel[0] - kb[0] / 2), round(ziel[1] - kb[1] / 2)))
     gs = Image.new('RGB', gross.size); gs.paste(schrift, box[:2]); schrift = gs
-    print('Schrift im Reaktor: verkleinert auf', SCHRIFT_FAKTOR)
+    print('Schrift im Reaktor: verkleinert auf', SCHRIFT_FAKTOR, '– Lücken', luecken[:1], luecken[-1:])
+# Wasser: die starren Lichtringe unter dem Reaktor hat Magnific wegradiert (Rückmeldung Auftraggeber 05.11.2026 –
+# die Szene lässt eigene Ringe pulsieren, starre darunter sahen falsch aus)
+if quelle == 'magnific' and os.path.exists('grafik/magnific/wasser_ohne_ringe.png'):
+    box = json.load(open('grafik/magnific/wasser_ausschnitt.json'))['box']
+    gross = gross.copy(); gross.paste(Image.open('grafik/magnific/wasser_ohne_ringe.png').convert('RGB').resize((box[2] - box[0], box[3] - box[1])), box[:2])
+    print('Wasser: starre Ringe ersetzt')
 grund = np.asarray(gross.resize((B, H), Image.LANCZOS)).copy()
 print('Grundbild', quelle, gross.size)
 
@@ -145,6 +166,12 @@ if schrift is not None:  # additiv: Farbe = Licht, Deckkraft voll (die Szene leg
     a = np.asarray(schrift).astype(np.float32); al = a.max(axis=2)
     farbe = np.clip(a * 255 / np.maximum(al, 1)[..., None], 0, 255)
     s4 = Image.fromarray(np.dstack([farbe, al]).astype(np.uint8), 'RGBA'); ebene('schrift', s4)
+    # Gravur: dunkle Rille unter der Leuchtschrift (leicht versetzt, weich) – damit die Schrift im Stein sitzt statt
+    # darüber zu schweben (Rückmeldung Auftraggeber 05.11.2026)
+    rille = cv2.GaussianBlur((al > 40).astype(np.float32), (0, 0), 2.5)
+    rille = np.roll(np.roll(rille, 3, axis=0), 2, axis=1)
+    g4 = np.zeros((*rille.shape, 4), np.uint8); g4[..., 3] = np.clip(rille * 200, 0, 255).astype(np.uint8)
+    ebene('gravur', Image.fromarray(g4, 'RGBA'))
 # Reaktor-Kern scharf aus dem Grundbild, Form aus der Kern-Maske (für das Pulsieren)
 kern = monitore([None, A + 'MITTE_REAKTOR_RING_01_ORIGINAL_PIXELS_3840x2160.png', None]).resize((B, H), Image.LANCZOS)
 kernScharf = Image.fromarray(grund).convert('RGBA'); kernScharf.putalpha(kern.getchannel('A')); ebene('kern', kernScharf)

@@ -5,7 +5,7 @@ const { app, BrowserWindow } = require('electron')
 app.whenReady().then(async () => {
   const f = new BrowserWindow({ show: false, width: 5760, height: 1080, webPreferences: { offscreen: true, backgroundThrottling: false, contextIsolation: true, sandbox: true } })
   f.webContents.setFrameRate(60)
-  await f.loadURL('http://localhost:5179/vorschau.html')
+  await f.loadURL('http://localhost:5179/vorschau.html' + (process.argv[2] ? '?aus=' + process.argv[2] : ''))
   await new Promise((r) => setTimeout(r, 12000))
   const m = await f.webContents.executeJavaScript('window.messung')
   console.log('MESSUNG', JSON.stringify(m))
