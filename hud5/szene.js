@@ -18,57 +18,80 @@ function bildLaden(url) {
 function leinwand(b, h) { const c = document.createElement('canvas'); c.width = b; c.height = h; return c }
 function zufallsfolge(s) { return () => { s = (s * 16807) % 2147483647; return s / 2147483647 } }
 
+/** Farben fürs Leuchten: Cyan wie die Runen links/rechts, Gold wie Ecken und Außenlinie, Silber für helle Schrift */
+const LICHT = {
+  cyan: { kern: '#d8fdff', hof: CYAN },
+  gold: { kern: '#fff1cf', hof: '#f2a93b' },
+  silber: { kern: '#ffffff', hof: '#9fdcff' },
+}
+/** Stile des Rings um den Reaktor (Vorschläge 05.11.2026, Wahl Auftraggeber: D): Runen größer, wahlweise Gold; Wörter
+ *  heben sich ab; Anfangsbuchstaben L-O-K-I ohne Pulsieren, wahlweise hervorgehoben */
+export const RING_STILE = {
+  a: { name: 'Cyan, große Runen', rune: 'cyan', runeGross: 1.5, wort: 'cyan', anfang: null },
+  b: { name: 'Gold-Runen', rune: 'gold', runeGross: 1.45, wort: 'cyan', anfang: null },
+  c: { name: 'Gold-Runen, Silberschrift, goldene Anfangsbuchstaben', rune: 'gold', runeGross: 1.45, wort: 'silber', anfang: 'gold' },
+  d: { name: 'Gold-Runen mit Trennpunkten, Anfangsbuchstaben groß', rune: 'gold', runeGross: 1.3, wort: 'cyan', anfang: 'gross', punkte: true },
+}
+
 /**
  * Runenring vorzeichnen: volle Runde, Runen tangential, mit Lichthof (einmal beim Laden). Mit `woerter` stehen die
  * Wörter gleichmäßig verteilt im Ring und dazwischen jeweils Runen – ein geschlossener Kreis (Wunsch Auftraggeber
  * 05.11.2026: „LOKALE“, Runen, „OHNEHIN“, Runen, … rundherum). Jedes Wort steht aufrecht, wenn es oben vorbeikommt.
  */
-function ringBild(r, hoehe, anzahl, versatz = 0, woerter = []) {
-  const rand = hoehe * 2, gr = Math.ceil(2 * (r + rand))
+function ringBild(r, hoehe, anzahl, versatz = 0, woerter = [], stil = RING_STILE.a) {
+  const rand = hoehe * 3, gr = Math.ceil(2 * (r + rand))
   const c = leinwand(gr, gr), g = c.getContext('2d')
   g.translate(gr / 2, gr / 2)
   g.lineCap = 'round'; g.lineJoin = 'round'
-  g.font = `600 ${Math.round(hoehe * 0.8)}px Georgia, "Times New Roman", serif`; g.textAlign = 'center'; g.textBaseline = 'middle'
+  const schrift = (f) => `600 ${Math.round(hoehe * 0.8 * f)}px Georgia, "Times New Roman", serif`
+  g.font = schrift(1); g.textAlign = 'center'; g.textBaseline = 'middle'
   // weit gesperrt (Wunsch Auftraggeber 05.11.2026: mehr Raum zwischen den Buchstaben, die Wörter laufen weiter)
   const abstand = woerter.length ? hoehe * 0.55 : 0, runenSchritt = (Math.PI * 2) / anzahl
-  const a = leinwand(gr, gr), ga = a.getContext('2d') // eigene Lage für die Anfangsbuchstaben (pulsieren blau)
-  ga.translate(gr / 2, gr / 2); ga.font = g.font; ga.textAlign = 'center'; ga.textBaseline = 'middle'
-  // Wörter: Mitte bei gleichen Winkelabständen, Breite je Buchstabe als Winkel
+  const runeH = hoehe * (woerter.length ? stil.runeGross : 1), anfangF = stil.anfang === 'gross' ? 1.35 : 1
   const wortTeile = woerter.map((wort, k) => {
-    const breiten = [...wort].map((z) => (g.measureText(z).width + abstand) / r)
+    const breiten = [...wort].map((z, i) => { g.font = schrift(i === 0 ? anfangF : 1); return (g.measureText(z).width + abstand) / r })
     return { wort, breiten, mitte: (k / woerter.length) * Math.PI * 2, halb: breiten.reduce((a, b) => a + b, 0) / 2 }
   })
-  // Runenplätze: ohne Wörter gleichmäßig rundum; mit Wörtern je Lücke gleichmäßig verteilt (Abstand ≈ runenSchritt)
-  const plaetze = []
+  // Runenplätze: ohne Wörter gleichmäßig rundum; mit Wörtern je Lücke gleichmäßig verteilt
+  const plaetze = [], schritt = runenSchritt * (runeH / hoehe)
   if (!wortTeile.length) for (let i = 0; i < anzahl; i++) plaetze.push(i * runenSchritt)
   for (const [k, w] of wortTeile.entries()) {
-    const von = w.mitte + w.halb + runenSchritt * 0.55, n = wortTeile[(k + 1) % wortTeile.length]
-    const bis = n.mitte + (k + 1 === wortTeile.length ? Math.PI * 2 : 0) - n.halb - runenSchritt * 0.55
-    const zahl = Math.max(1, Math.round((bis - von) / runenSchritt) + 1)
+    const von = w.mitte + w.halb + schritt * 0.6, n = wortTeile[(k + 1) % wortTeile.length]
+    const bis = n.mitte + (k + 1 === wortTeile.length ? Math.PI * 2 : 0) - n.halb - schritt * 0.6
+    const zahl = Math.max(1, Math.round((bis - von) / schritt) + 1)
     for (let i = 0; i < zahl; i++) plaetze.push(von + ((bis - von) * i) / Math.max(1, zahl - 1))
   }
   for (let durchgang = 0; durchgang < 2; durchgang++) {
     // erst weiches Leuchten, dann der scharfe helle Kern
-    g.strokeStyle = g.fillStyle = durchgang ? '#d8fdff' : CYAN
-    g.lineWidth = durchgang ? Math.max(1.4, hoehe * 0.075) : hoehe * 0.12
-    g.shadowColor = CYAN; g.shadowBlur = durchgang ? hoehe * 0.35 : hoehe * 0.9
+    const lr = LICHT[woerter.length ? stil.rune : 'cyan']
+    g.strokeStyle = durchgang ? lr.kern : lr.hof; g.shadowColor = lr.hof
+    g.lineWidth = durchgang ? Math.max(1.4, runeH * 0.075) : runeH * 0.12
+    g.shadowBlur = durchgang ? runeH * 0.35 : runeH * 0.9
     for (const [i, w] of plaetze.entries()) {
       g.save(); g.rotate(w); g.translate(0, -r)
-      rune(g, FOLGE[(i + versatz) % FOLGE.length], hoehe)
+      rune(g, FOLGE[(i + versatz) % FOLGE.length], runeH)
       g.restore()
     }
-    ga.fillStyle = durchgang ? '#e8f8ff' : '#2fa8ff'; ga.shadowColor = '#2fa8ff'; ga.shadowBlur = durchgang ? hoehe * 0.5 : hoehe * 1.3
+    if (stil.punkte) { // kleine goldene Rauten als Trenner zwischen Wort und Runen
+      g.fillStyle = durchgang ? lr.kern : lr.hof
+      for (const t of wortTeile) for (const s of [-1, 1]) {
+        g.save(); g.rotate(t.mitte + s * (t.halb + schritt * 0.3)); g.translate(0, -r); g.rotate(Math.PI / 4)
+        g.fillRect(-hoehe * 0.09, -hoehe * 0.09, hoehe * 0.18, hoehe * 0.18); g.restore()
+      }
+    }
     for (const t of wortTeile) {
       let w = t.mitte - t.halb // von links nach rechts
       for (const [i, z] of [...t.wort].entries()) {
         w += t.breiten[i] / 2
-        const ziel = i === 0 ? ga : g // erster Buchstabe in die blaue Lage
-        ziel.save(); ziel.rotate(w); ziel.translate(0, -r); ziel.fillText(z, 0, 0); ziel.restore()
+        const lw = LICHT[i === 0 && stil.anfang === 'gold' ? 'gold' : stil.wort]
+        g.font = schrift(i === 0 ? anfangF : 1); g.fillStyle = durchgang ? lw.kern : lw.hof; g.shadowColor = lw.hof
+        g.shadowBlur = durchgang ? hoehe * 0.35 : hoehe * 0.9
+        g.save(); g.rotate(w); g.translate(0, -r); g.fillText(z, 0, 0); g.restore()
         w += t.breiten[i] / 2
       }
     }
   }
-  return { bild: c, anfang: a }
+  return c
 }
 
 /** Maske für den Ring um den Reaktor: oben voll, unten zum See hin weich ausgeblendet (keine harte Kante) */
@@ -155,15 +178,15 @@ function aufBahn(b, s) {
 }
 
 /** Szene laden. basis = Ordner mit grund.webp, aurora.webp … und geometrie.json (relativ zur Seite) */
-export async function ladeSzene(basis) {
+export async function ladeSzene(basis, einstellung = {}) {
   const geo = await (await fetch(basis + 'geometrie.json')).json()
   const namen = ['grund', ...Object.keys(geo.ebenen)]
   const bilder = Object.fromEntries(await Promise.all(namen.map(async (n) => [n, await bildLaden(basis + n + '.webp')])))
   const zufall = zufallsfolge(7)
-  const ringMitte = ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'])
+  const ringMitte = ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
   return {
     geo, bilder,
-    ringMitte: ringMitte.bild, ringAnfang: ringMitte.anfang, ringMitteMaske: ringMaske(ringMitte.bild.width), ringPuffer: leinwand(ringMitte.bild.width, ringMitte.bild.height),
+    ringMitte, ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
     runen: runenBilder(38),
     bahnLinks: bahnVorbereiten(geo.bahnLinks, true),
     bahnRechts: bahnVorbereiten(geo.bahnRechts, false),
@@ -480,12 +503,6 @@ function mittelRing(g, s, winkel, alpha) {
   pg.globalCompositeOperation = 'destination-in'; pg.drawImage(s.ringMitteMaske, 0, 0)
   g.globalAlpha = alpha; g.globalCompositeOperation = 'lighter'
   g.drawImage(p, k.x - gr / 2, k.y - gr / 2)
-  // Anfangsbuchstaben L, O, K, I pulsieren in kräftigem Blau – man sieht sofort: das ist L.O.K.I.
-  pg.globalCompositeOperation = 'source-over'; pg.clearRect(0, 0, gr, gr)
-  pg.save(); pg.translate(gr / 2, gr / 2); pg.rotate(winkel); pg.drawImage(s.ringAnfang, -gr / 2, -gr / 2); pg.restore()
-  pg.globalCompositeOperation = 'destination-in'; pg.drawImage(s.ringMitteMaske, 0, 0)
-  g.globalAlpha = alpha * (0.45 + 0.55 * (0.5 + 0.5 * Math.sin((s.zeit ?? 0) * 2.2)))
-  g.drawImage(p, k.x - gr / 2, k.y - gr / 2)
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
 
@@ -523,7 +540,6 @@ export function zeichneSzene(g, s, t, opt = {}) {
 
   const denkt = opt.loki === 'denkt' ? 1 : 0
   const hell = an.runen * (0.85 + 0.15 * Math.sin(t * 0.63))
-  s.zeit = t
   mittelRing(g, s, t * ((Math.PI * 2) / 240) * (1 + denkt * 3), hell)
   s.versatz = opt.versatz ?? 0
   seitenRunen(g, s, s.bahnLinks, t, -6, hell, 4) // links nach oben, rechts nach unten – gegenläufig wie die Mitte

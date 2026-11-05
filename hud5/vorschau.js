@@ -2,7 +2,7 @@
 import { B, H, ladeSzene, zeichneSzene } from './szene.js'
 
 const c = document.getElementById('flaeche'), g = c.getContext('2d', { alpha: false }), info = document.getElementById('info')
-const s = await ladeSzene('./ebenen/')
+const s = await ladeSzene('./ebenen/', { ring: new URLSearchParams(location.search).get('ring') ?? undefined })
 let loki = 'hoert', zoom = false, stopp = false
 addEventListener('keydown', (e) => {
   loki = { 1: 'hoert', 2: 'denkt', 3: 'spricht', 4: 'aus' }[e.key] ?? loki
@@ -35,5 +35,13 @@ window.blitzProbe = (phase) => {
   zeichneSzene(g, s, t + z, { loki })
   const k = document.createElement('canvas'); k.width = 900; k.height = 900
   k.getContext('2d').drawImage(c, 2880 - 450 - (zoom ? 1920 : 0), 494 - 450, 900, 900, 0, 0, 900, 900)
+  return k.toDataURL('image/png')
+}
+// Prüfhilfe: Standbild zu festem Zeitpunkt, Ausschnitt als PNG (für Vorschlags-Bilder)
+window.ausschnitt = (t, x, y, b, h) => {
+  stopp = true
+  zeichneSzene(g, s, t, { loki })
+  const k = document.createElement('canvas'); k.width = b; k.height = h
+  k.getContext('2d').drawImage(c, x, y, b, h, 0, 0, b, h)
   return k.toDataURL('image/png')
 }
