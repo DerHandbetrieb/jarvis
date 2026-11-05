@@ -1,0 +1,325 @@
+// Inhalte in den Fenstern der Szene „Mystic Aurora“ (05.11.2026, Belegung vom Auftraggeber bestätigt, siehe
+// recherche/grafik-v5-bestand-2026-11-05.md). Die Fenster sind schräg gestellte Vierecke (Perspektive): jeder Inhalt
+// wird flach in eine eigene Leinwand gezeichnet und dann in senkrechten Streifen in sein Viereck gelegt. Alles wird
+// live gezeichnet – gestochen scharf, egal wie die Grafik darunter aussieht. Ruhige Inhalte werden nur bei neuen Daten
+// neu gezeichnet, Tonwellen und Kameras jedes Bild.
+// Links Werkstatt: Verkäufe (groß), Umsatz, Tonwellen, Abarbeiten, letzte Bestellungen.
+// Rechts Haus (gespiegelte Fenster): CAM 01, CAM 02, Energie (FENECON), Wetter, Systemstatus.
+
+const B = 5760, H = 1080
+const CYAN = '#5ff6ff', GOLD = '#f2b04a', ROT = '#ff5a4a', HELL = '#e8fdff', BLASS = 'rgba(165,230,240,0.62)'
+const SCHRIFT = 'Bahnschrift, "Segoe UI", Arial, sans-serif'
+
+// Fenster links, vermessen an den Inhalts-Ebenen des Grafikpakets (Ecken: oben-links, oben-rechts, unten-rechts, unten-links)
+const LINKS = {
+  verkaeufe: [[350, 177], [924, 221], [942, 433], [350, 409]],
+  umsatz: [[984, 238], [1446, 288], [1480, 451], [986, 407]],
+  ton: [[354, 476], [1491, 499], [1503, 630], [354, 624]],
+  aufgaben: [[356, 680], [944, 682], [970, 934], [364, 944]],
+  bestellungen: [[1010, 678], [1533, 692], [1567, 928], [1014, 942]],
+}
+/** rechter Bildschirm = gespiegelter linker: Ecken spiegeln und Reihenfolge wieder auf oben-links… bringen */
+const spiegel = (q) => [[B - q[1][0], q[1][1]], [B - q[0][0], q[0][1]], [B - q[3][0], q[3][1]], [B - q[2][0], q[2][1]]]
+export const FENSTER = {
+  ...LINKS,
+  kamera1: spiegel(LINKS.umsatz), // oben innen
+  kamera2: spiegel(LINKS.verkaeufe), // oben außen
+  energie: spiegel(LINKS.ton),
+  wetter: spiegel(LINKS.bestellungen), // unten innen
+  system: spiegel(LINKS.aufgaben), // unten außen
+}
+const EINZUG = 9 // Abstand des Inhalts vom Rahmen
+
+function leinwand(b, h) { const c = document.createElement('canvas'); c.width = Math.round(b); c.height = Math.round(h); return c }
+const lerp = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]
+/** Viereck etwas nach innen ziehen */
+function einziehen(q, d) {
+  const m = q.reduce((s, p) => [s[0] + p[0] / 4, s[1] + p[1] / 4], [0, 0])
+  return q.map(([x, y]) => { const l = Math.hypot(x - m[0], y - m[1]); return [x + ((m[0] - x) / l) * d * 1.4, y + ((m[1] - y) / l) * d] })
+}
+/** flache Größe eines Fensters (Pixel) */
+function groesse(q) {
+  return [Math.max(Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]), Math.hypot(q[2][0] - q[3][0], q[2][1] - q[3][1])),
+    Math.max(Math.hypot(q[3][0] - q[0][0], q[3][1] - q[0][1]), Math.hypot(q[2][0] - q[1][0], q[2][1] - q[1][1]))]
+}
+/** flache Leinwand in das schräge Viereck legen (senkrechte Streifen, je Streifen oben/unten an den Kanten) */
+function verzerren(g, quelle, q, streifen = 36) {
+  const b = quelle.width, h = quelle.height
+  for (let i = 0; i < streifen; i++) {
+    const u0 = i / streifen, u1 = (i + 1) / streifen
+    const o0 = lerp(q[0], q[1], u0), o1 = lerp(q[0], q[1], u1), n0 = lerp(q[3], q[2], u0), n1 = lerp(q[3], q[2], u1)
+    const x = (o0[0] + n0[0]) / 2, xb = (o1[0] + n1[0]) / 2, y = (o0[1] + o1[1]) / 2, yb = (n0[1] + n1[1]) / 2
+    g.drawImage(quelle, u0 * b, 0, (u1 - u0) * b, h, x, y, xb - x + 0.6, yb - y)
+  }
+}
+/** dunkle Glasfläche im Fenster (deckt die gemalten Platzhalter ab) */
+function glas(g, q) {
+  g.save(); g.beginPath(); q.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath()
+  const v = g.createLinearGradient(q[0][0], q[0][1], q[3][0], q[3][1])
+  v.addColorStop(0, 'rgba(6,26,34,0.9)'); v.addColorStop(1, 'rgba(2,12,18,0.94)')
+  g.fillStyle = v; g.fill()
+  g.strokeStyle = 'rgba(95,246,255,0.18)'; g.lineWidth = 1; g.stroke(); g.restore()
+}
+
+// ---------- kleine Zeichenhelfer ----------
+function text(g, t, x, y, groesse, farbe = HELL, ausr = 'left', gewicht = 400) {
+  g.font = `${gewicht} ${groesse}px ${SCHRIFT}`; g.fillStyle = farbe; g.textAlign = ausr; g.textBaseline = 'alphabetic'; g.fillText(t, x, y)
+}
+function kopf(g, titel, rechts, b) {
+  text(g, titel, 14, 24, 14, CYAN, 'left', 600)
+  if (rechts) text(g, rechts, b - 14, 24, 14, GOLD, 'right', 600)
+  g.strokeStyle = 'rgba(95,246,255,0.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(14, 32.5); g.lineTo(b - 14, 32.5); g.stroke()
+}
+const euro = (v) => `${Math.round(v).toLocaleString('de-DE')} €`
+function kuerzen(g, t, breite) {
+  if (g.measureText(t).width <= breite) return t
+  while (t.length > 1 && g.measureText(t + '…').width > breite) t = t.slice(0, -1)
+  return t + '…'
+}
+function beispielMarke(g, b, h, wort = 'BEISPIEL') { text(g, wort, b - 14, h - 10, 12, 'rgba(242,176,74,0.9)', 'right', 600) }
+
+// ---------- Inhalte links (Werkstatt) ----------
+function verkaeufe(g, b, h, d) {
+  const tage = d.tage ?? [], summe7 = tage.slice(-7).reduce((s, t) => s + t.umsatz, 0)
+  kopf(g, 'VERKÄUFE · 14 TAGE', `7 TAGE ${euro(summe7)}`, b)
+  const x0 = 46, x1 = b - 18, y0 = 44, y1 = h - 30, n = Math.max(1, tage.length)
+  const maxU = Math.max(10, ...tage.map((t) => t.umsatz)), maxB = Math.max(1, ...tage.map((t) => t.bestellungen))
+  g.strokeStyle = 'rgba(95,246,255,0.1)'
+  for (let i = 0; i <= 4; i++) { const y = Math.round(y1 - ((y1 - y0) * i) / 4) + 0.5; g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke(); if (i) text(g, euro((maxU * i) / 4), x0 - 6, y + 4, 10, BLASS, 'right') }
+  const sb = (x1 - x0) / n
+  tage.forEach((t, i) => { // Balken = Umsatz je Tag
+    const hb = ((y1 - y0) * t.umsatz) / maxU, x = x0 + i * sb + sb * 0.18
+    const v = g.createLinearGradient(0, y1 - hb, 0, y1); v.addColorStop(0, 'rgba(95,246,255,0.95)'); v.addColorStop(1, 'rgba(30,120,150,0.35)')
+    g.fillStyle = v; g.fillRect(x, y1 - hb, sb * 0.64, hb)
+    if (i % 2 === n % 2) text(g, t.tag, x + sb * 0.32, h - 12, 10, BLASS, 'center')
+  })
+  // Linie = Bestellungen je Tag (Gold)
+  g.strokeStyle = GOLD; g.lineWidth = 1.6; g.beginPath()
+  tage.forEach((t, i) => { const x = x0 + (i + 0.5) * sb, y = y1 - ((y1 - y0) * 0.92 * t.bestellungen) / maxB; i ? g.lineTo(x, y) : g.moveTo(x, y) }); g.stroke()
+  g.fillStyle = GOLD; tage.forEach((t, i) => { const x = x0 + (i + 0.5) * sb, y = y1 - ((y1 - y0) * 0.92 * t.bestellungen) / maxB; g.beginPath(); g.arc(x, y, 2.4, 0, Math.PI * 2); g.fill() })
+  text(g, '▮ UMSATZ  ', x0, y0 - 2 + 12, 10, CYAN); text(g, '● BESTELLUNGEN', x0 + 64, y0 + 10, 10, GOLD)
+}
+function umsatz(g, b, h, d) {
+  kopf(g, 'UMSATZ', d.stand ? `STAND ${d.stand}` : '', b)
+  text(g, 'GESTERN', 16, 58, 12, BLASS)
+  text(g, euro(d.gestern?.umsatz ?? 0), 16, 92, 32, HELL, 'left', 600)
+  const nb = d.gestern?.bestellungen ?? 0
+  text(g, `${nb} ${nb === 1 ? 'BESTELLUNG' : 'BESTELLUNGEN'} · ${d.gestern?.stueck ?? 0} STÜCK`, 16, 114, 12, CYAN)
+  // Mini-Verlauf 14 Tage (Fläche)
+  const tage = d.tage ?? [], x0 = 16, x1 = b - 16, y0 = 124, y1 = h - 14, maxU = Math.max(10, ...tage.map((t) => t.umsatz))
+  if (tage.length > 1) {
+    const pkt = tage.map((t, i) => [x0 + ((x1 - x0) * i) / (tage.length - 1), y1 - ((y1 - y0) * t.umsatz) / maxU])
+    const v = g.createLinearGradient(0, y0, 0, y1); v.addColorStop(0, 'rgba(95,246,255,0.45)'); v.addColorStop(1, 'rgba(95,246,255,0)')
+    g.beginPath(); g.moveTo(x0, y1); pkt.forEach(([x, y]) => g.lineTo(x, y)); g.lineTo(x1, y1); g.closePath(); g.fillStyle = v; g.fill()
+    g.beginPath(); pkt.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.strokeStyle = CYAN; g.lineWidth = 1.4; g.stroke()
+  }
+}
+function abarbeiten(g, b, h, d) {
+  kopf(g, 'ABARBEITEN · DRINGEND ZUERST', `${d.offen ?? 0} OFFEN`, b)
+  const karten = d.karten ?? [], zeile = 36
+  if (!karten.length) text(g, 'Nichts Dringendes – erstaunlich.', 16, 64, 14, BLASS)
+  karten.slice(0, 5).forEach(([titel, , , faellig], i) => {
+    const y = 44 + i * zeile
+    g.strokeStyle = 'rgba(95,246,255,0.55)'; g.lineWidth = 1.2; g.strokeRect(16.5, y + 7.5, 13, 13)
+    g.font = `400 15px ${SCHRIFT}`
+    const farbe = faellig === 'ÜBERFÄLLIG' ? ROT : faellig === 'FÄLLIG HEUTE' ? GOLD : BLASS
+    const badgeB = faellig ? g.measureText(faellig).width * 0.8 + 18 : 0
+    text(g, kuerzen(g, String(titel), b - 60 - badgeB), 40, y + 20, 15, HELL)
+    if (faellig) {
+      text(g, faellig, b - 16, y + 19, 11, farbe, 'right', 600)
+    }
+    g.strokeStyle = 'rgba(95,246,255,0.08)'; g.beginPath(); g.moveTo(16, y + zeile - 3.5); g.lineTo(b - 16, y + zeile - 3.5); g.stroke()
+  })
+}
+function bestellungen(g, b, h, d) {
+  kopf(g, 'LETZTE BESTELLUNGEN', '', b)
+  const liste = d.bestellungen ?? [], zeile = 36
+  if (!liste.length) { text(g, 'Noch keine Bestellungen in den letzten 48 Stunden.', 16, 64, 13, BLASS); return }
+  liste.slice(0, 5).forEach((x, i) => {
+    const y = 44 + i * zeile, am = new Date(x.am)
+    const zeit = Number.isFinite(am.getTime()) ? am.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) : ''
+    text(g, zeit, 16, y + 20, 13, BLASS)
+    text(g, String(x.kanal).toUpperCase().slice(0, 10), 66, y + 20, 12, CYAN, 'left', 600)
+    g.font = `400 14px ${SCHRIFT}`
+    text(g, kuerzen(g, x.artikel || '–', b - 260), 150, y + 20, 14, HELL)
+    text(g, `${x.stueck}×`, b - 92, y + 20, 13, BLASS, 'right')
+    text(g, euro(x.cent / 100), b - 16, y + 20, 14, GOLD, 'right', 600)
+    g.strokeStyle = 'rgba(95,246,255,0.08)'; g.beginPath(); g.moveTo(16, y + zeile - 3.5); g.lineTo(b - 16, y + zeile - 3.5); g.stroke()
+  })
+}
+/** Tonwellen: was der PC abspielt (Wallpaper Engine liefert 64 Bänder je Kanal), gespiegelt als weiche Welle; spricht
+ *  L.O.K.I., kommt seine Welle in Gold dazu */
+function tonwellen(g, b, h, ton, t, loki) {
+  kopf(g, 'AUDIO', loki?.zustand === 'spricht' ? 'L.O.K.I. SPRICHT' : ton ? 'PC-TON' : 'STILLE', b)
+  const mitte = 34 + (h - 34) / 2, x0 = 16, x1 = b - 16, hoehe = (h - 50) / 2
+  const baender = 64, werte = []
+  for (let i = 0; i < baender; i++) {
+    const l = ton ? Math.min(1, ton[i] ?? 0) : 0, r = ton ? Math.min(1, ton[64 + i] ?? 0) : 0
+    werte.push(Math.max(0.015 + 0.012 * Math.sin(t * 2 + i * 0.4), (l + r) / 2))
+  }
+  const welle = (w, farbe, breite, phase) => {
+    for (const s of [-1, 1]) {
+      g.beginPath()
+      for (let x = x0; x <= x1; x += 3) {
+        const f = (x - x0) / (x1 - x0), k = Math.min(baender - 1, Math.floor(Math.abs(f - 0.5) * 2 * baender)) // Mitte = Bass
+        const huelle = Math.sin(f * Math.PI)
+        const y = mitte + s * hoehe * w[k] * huelle * (0.75 + 0.25 * Math.sin(x * 0.11 + t * 9 + phase))
+        x === x0 ? g.moveTo(x, y) : g.lineTo(x, y)
+      }
+      g.strokeStyle = farbe; g.lineWidth = breite; g.stroke()
+    }
+  }
+  g.save(); g.shadowColor = CYAN; g.shadowBlur = 8
+  welle(werte, 'rgba(95,246,255,0.35)', 4, 0); welle(werte, CYAN, 1.4, 0)
+  if (loki?.zustand === 'spricht') { // Lokis eigene Stimme (Pegel nicht bekannt → lebhafte Kunstwelle)
+    const v = werte.map((_, i) => 0.35 + 0.45 * Math.abs(Math.sin(t * 7 + i * 0.5) * Math.sin(t * 3.1 + i * 0.13)))
+    g.shadowColor = GOLD; welle(v, 'rgba(242,176,74,0.9)', 1.6, 1.7)
+  }
+  g.restore()
+  g.strokeStyle = 'rgba(95,246,255,0.18)'; g.beginPath(); g.moveTo(x0, mitte + 0.5); g.lineTo(x1, mitte + 0.5); g.stroke()
+}
+
+// ---------- Inhalte rechts (Haus) ----------
+function kamera(g, b, h, bild, name, alarm, t) {
+  g.fillStyle = '#020a0e'; g.fillRect(0, 0, b, h)
+  if (bild) { // Bild füllt das Fenster (mittig beschnitten)
+    const f = Math.max(b / bild.width, h / bild.height), bw = bild.width * f, bh = bild.height * f
+    g.drawImage(bild, (b - bw) / 2, (h - bh) / 2, bw, bh)
+  } else {
+    text(g, 'KEIN SIGNAL', b / 2, h / 2 + 6, 18, BLASS, 'center', 600)
+  }
+  g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(0, 0, b, 30)
+  text(g, name, 12, 20, 13, HELL, 'left', 600)
+  if (bild) { g.fillStyle = ROT; g.beginPath(); g.arc(b - 50, 15, 4, 0, Math.PI * 2); g.fill(); text(g, 'LIVE', b - 14, 20, 12, HELL, 'right', 600) }
+  if (alarm) {
+    const p = 0.5 + 0.5 * Math.sin(t * 6)
+    g.strokeStyle = `rgba(255,90,74,${0.5 + 0.5 * p})`; g.lineWidth = 4; g.strokeRect(2, 2, b - 4, h - 4)
+    g.fillStyle = 'rgba(120,10,0,0.55)'; g.fillRect(0, h - 30, b, 30); text(g, 'PERSON ERKANNT', b / 2, h - 10, 14, HELL, 'center', 600)
+  }
+}
+function energie(g, b, h) {
+  kopf(g, 'ENERGIE · PV-ANLAGE', 'NICHT VERBUNDEN', b)
+  const knoten = [['PV', 0.12], ['HAUS', 0.38], ['AKKU', 0.64], ['NETZ', 0.9]], y = 34 + (h - 34) / 2
+  g.strokeStyle = 'rgba(95,246,255,0.25)'; g.setLineDash([4, 6]); g.beginPath(); g.moveTo(b * 0.12, y); g.lineTo(b * 0.9, y); g.stroke(); g.setLineDash([])
+  for (const [n, f] of knoten) {
+    g.strokeStyle = 'rgba(95,246,255,0.55)'; g.lineWidth = 1.2; g.beginPath(); g.arc(b * f, y, 24, 0, Math.PI * 2); g.stroke()
+    text(g, n, b * f, y + 5, 12, CYAN, 'center', 600); text(g, '– W', b * f, y + 44, 12, BLASS, 'center')
+  }
+}
+function wetter(g, b, h, w) {
+  kopf(g, 'WETTER · ' + (w?.ort ?? 'ÖHRINGEN').toUpperCase(), '', b)
+  if (!w || !Number.isFinite(w.grad)) { text(g, 'Keine Wetterdaten', 16, 70, 14, BLASS); return }
+  text(g, `${Math.round(w.grad)}°`, 18, 112, 56, HELL, 'left', 300)
+  text(g, w.text ?? '', 130, 78, 16, CYAN, 'left', 600)
+  text(g, w.wolken != null ? `Bewölkung ${Math.round(w.wolken)} %` : '', 130, 100, 13, BLASS)
+  text(g, 'Wetterstation: noch nicht verbunden · Quelle Open-Meteo', 16, h - 14, 11, BLASS)
+}
+function system(g, b, h, d) {
+  kopf(g, 'SYSTEM · L.O.K.I.', d.uhr ?? '', b)
+  const z = d.loki?.zustand ?? 'aus'
+  const zeilen = [
+    ['L.O.K.I.', { bereit: 'HÖRT ZU', spricht: 'SPRICHT', denkt: 'DENKT NACH', laedt: 'LÄDT', aus: 'AUS', fehler: 'STÖRUNG' }[z] ?? z.toUpperCase(), z === 'fehler' ? ROT : CYAN],
+    ['MIKROFON', d.loki?.mikrofon ? 'AN' : 'AUS', d.loki?.mikrofon ? CYAN : GOLD],
+    ['WERKSTATT', d.verbunden ? `VERBUNDEN · ${d.stand ?? ''}` : 'NICHT VERBUNDEN', d.verbunden ? CYAN : GOLD],
+    ['KAMERA', d.kamera ? 'BEREIT' : 'NICHT EINGERICHTET', d.kamera ? CYAN : BLASS],
+    ['SELBSTTEST', d.selbsttest ?? '–', d.selbsttestRot ? ROT : CYAN],
+  ]
+  zeilen.forEach(([n, wert, farbe], i) => {
+    const y = 60 + i * 36
+    text(g, n, 16, y, 13, BLASS); text(g, wert, b - 16, y, 14, farbe, 'right', 600)
+    g.strokeStyle = 'rgba(95,246,255,0.08)'; g.beginPath(); g.moveTo(16, y + 12.5); g.lineTo(b - 16, y + 12.5); g.stroke()
+  })
+}
+
+// ---------- Ablauf ----------
+export function erstelleInhalte() {
+  const fl = {}
+  for (const [id, q] of Object.entries(FENSTER)) {
+    const innen = einziehen(q, EINZUG), [b, h] = groesse(innen)
+    fl[id] = { q, innen, c: leinwand(b, h) }
+  }
+  return { fl, ruhig: leinwand(B, H), kennung: '' }
+}
+
+/**
+ * Inhalte zeichnen (nach zeichneSzene). daten = {
+ *   werkstatt: Ausgabe von sequenzDaten() bzw. Beispiel, beispiel: bool, wetter: {ort, grad, text, wolken},
+ *   kamera: {name, alarm} | null, kamBilder: [Bild|null, Bild|null], ton: 128 Werte | null, loki: {zustand, mikrofon},
+ *   uhr: 'HH:MM' }
+ */
+export function zeichneInhalte(g, st, daten, t, versatz = 0) {
+  const w = daten.werkstatt ?? {}
+  // ruhige Inhalte nur bei neuen Daten neu (in eine Lage über alle drei Bildschirme)
+  const kennung = JSON.stringify([w, daten.wetter, daten.kamera?.name ?? null, daten.loki, daten.uhr, daten.beispiel, daten.veraltet])
+  if (kennung !== st.kennung) {
+    st.kennung = kennung
+    const rg = st.ruhig.getContext('2d'); rg.clearRect(0, 0, B, H)
+    const ruhig = {
+      verkaeufe: (c) => verkaeufe(c.getContext('2d'), c.width, c.height, w),
+      umsatz: (c) => umsatz(c.getContext('2d'), c.width, c.height, w),
+      aufgaben: (c) => abarbeiten(c.getContext('2d'), c.width, c.height, w),
+      bestellungen: (c) => bestellungen(c.getContext('2d'), c.width, c.height, w),
+      energie: (c) => energie(c.getContext('2d'), c.width, c.height),
+      wetter: (c) => wetter(c.getContext('2d'), c.width, c.height, daten.wetter),
+      system: (c) => system(c.getContext('2d'), c.width, c.height, { ...w, loki: daten.loki, verbunden: !daten.beispiel && !daten.veraltet, kamera: daten.kamera, uhr: daten.uhr }),
+    }
+    for (const [id, f] of Object.entries(ruhig)) {
+      const p = st.fl[id], cg = p.c.getContext('2d')
+      cg.clearRect(0, 0, p.c.width, p.c.height); f(p.c)
+      if ((daten.beispiel || daten.veraltet) && ['verkaeufe', 'umsatz', 'aufgaben', 'bestellungen'].includes(id)) beispielMarke(cg, p.c.width, p.c.height, daten.veraltet ? 'KEINE AKTUELLEN DATEN' : 'BEISPIEL')
+      glas(rg, p.q); verzerren(rg, p.c, p.innen)
+    }
+    for (const id of ['ton', 'kamera1', 'kamera2']) glas(rg, st.fl[id].q)
+  }
+  g.save(); g.setTransform(1, 0, 0, 1, -versatz, 0)
+  g.drawImage(st.ruhig, 0, 0)
+  // bewegte Inhalte jedes Bild
+  const ton = st.fl.ton, tg = ton.c.getContext('2d'); tg.clearRect(0, 0, ton.c.width, ton.c.height)
+  tonwellen(tg, ton.c.width, ton.c.height, daten.ton, t, daten.loki); verzerren(g, ton.c, ton.innen)
+  const alarm = !!daten.kamera?.alarm
+  for (const [k, id, name] of [[0, 'kamera1', 'CAM 01 · LINKS'], [1, 'kamera2', 'CAM 02 · RECHTS']]) {
+    const p = st.fl[id], cg = p.c.getContext('2d')
+    kamera(cg, p.c.width, p.c.height, daten.kamBilder?.[k] ?? null, name, alarm && k === 0, t); verzerren(g, p.c, p.innen)
+  }
+  g.restore()
+}
+
+/** Antwort der Gegenstelle (/hud) in die Anzeige-Daten umrechnen; ohne Werkstatt-Daten → Beispiel (klar markiert) */
+export function ausHud(antwort, jetzt, sequenzDaten, wetterText) {
+  const roh = antwort?.werkstatt ?? null
+  const lage = roh ?? BEISPIEL_LAGE(jetzt)
+  const d = sequenzDaten({ ...lage, geholt: roh ? lage.geholt : jetzt.getTime() }, jetzt)
+  // echte, aber veraltete/unvollständige Daten: keine Zahlen zeigen, die wie aktuelle aussehen (Prüf-Agent)
+  if (roh && !d) return { beispiel: false, veraltet: true, werkstatt: {}, wetter: null, kamera: antwort?.kamera ?? null, loki: antwort?.loki ?? null, uhr: jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) }
+  const tage = (lage.verkauf?.tage ?? []).map((t) => ({ tag: `${String(t.tag).slice(8, 10)}.${String(t.tag).slice(5, 7)}`, umsatz: (Number(t.umsatzCent) || 0) / 100, bestellungen: Number(t.bestellungen) || 0 }))
+  const w = antwort?.wetter
+  return {
+    beispiel: !roh,
+    werkstatt: { ...d, stand: roh ? d.stand : null, tage, bestellungen: lage.bestellungen ?? [] }, // Beispiel: ohne „Stand“
+    wetter: w && Number.isFinite(w.grad) ? { ort: w.ort ?? 'Öhringen', grad: w.grad, wolken: w.wolken, text: wetterText?.(w) ?? '' } : null,
+    kamera: antwort?.kamera ?? null,
+    loki: antwort?.loki ?? null,
+    uhr: jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }),
+  }
+}
+
+/** Beispieldaten (nur wenn L.O.K.I. keine Werkstatt-Daten liefert – überall als „BEISPIEL“ markiert) */
+function BEISPIEL_LAGE(jetzt) {
+  const tag = (minus) => new Date(jetzt.getTime() - minus * 86_400_000).toISOString().slice(0, 10)
+  const tage = Array.from({ length: 14 }, (_, i) => ({ tag: tag(13 - i), bestellungen: [3, 5, 2, 6, 4, 7, 5, 3, 8, 6, 4, 9, 7, 5][i], umsatzCent: [9200, 15400, 6100, 18800, 12100, 21900, 14800, 9900, 24800, 17600, 12500, 27900, 20300, 15600][i] }))
+  return {
+    aufgaben: { offen: 7, neu: 2, amazonAnzahl: 0, wichtigste: [
+      { titel: 'Kerzenständer Eiche – 12 Stück fertigen', faellig: tag(1) },
+      { titel: 'Etsy-Anzeige Garderobe überarbeiten', faellig: tag(0) },
+      { titel: 'Lieferung Buche einlagern', faellig: tag(-2) },
+      { titel: 'Fotos Wandregal neu aufnehmen', faellig: null },
+      { titel: 'Steuerunterlagen an Büro', faellig: tag(-5) }] },
+    verkauf: { gestern: { bestellungen: 5, stueck: 7, umsatzCent: 15600 }, tage, kanaele14: [] },
+    freigaben: 2, selbsttest: { am: jetzt.toISOString(), rot: 0 },
+    bestellungen: [
+      { am: new Date(jetzt.getTime() - 40 * 60_000).toISOString(), kanal: 'Etsy', stueck: 2, cent: 5980, artikel: 'Kerzenständer Eiche, 3-armig' },
+      { am: new Date(jetzt.getTime() - 3 * 3_600_000).toISOString(), kanal: 'Amazon', stueck: 1, cent: 3490, artikel: 'Schlüsselbrett Nussbaum' },
+      { am: new Date(jetzt.getTime() - 7 * 3_600_000).toISOString(), kanal: 'Shop', stueck: 1, cent: 8900, artikel: 'Wandregal Buche 80 cm' },
+    ],
+  }
+}

@@ -49,6 +49,10 @@ function hudAuswahl(l) {
     },
     freigaben: zahl(l.freigaben),
     selbsttest: l.selbsttest ? { am: l.selbsttest.am, rot: zahl(l.selbsttest.rot) } : null,
+    // neues Dauer-HUD (05.11.2026): die letzten Bestellungen – nur Zeit, Kanal, Stück, Betrag, erster Artikeltitel
+    // (keine Kundendaten; die Serverfunktion liefert ohnehin keine)
+    bestellungen: (l.ereignisse?.bestellungen ?? []).slice().sort((a, b) => String(b.am).localeCompare(String(a.am))).slice(0, 5)
+      .map((b) => ({ am: String(b.am ?? ''), kanal: String(b.kanal ?? ''), stueck: zahl(b.stueck), cent: zahl(b.cent), artikel: String((b.artikel ?? [])[0] ?? '').slice(0, 60) })),
   }
 }
 
