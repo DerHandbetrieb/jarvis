@@ -69,7 +69,6 @@ def glatt(a, b, x):
 
 VARIANTEN = {
     'c': {'textur': 'stein-textur-2', 'skala': 0.55, 'leiste': 'stein-rand-1', 'moos': 1.0},
-    'd': {'textur': 'stein-textur-1', 'skala': 0.5, 'leiste': 'stein-rand-2', 'moos': 1.6},
 }
 ABSTAND, LEISTE_B = 34, 64
 geo = {}
@@ -80,13 +79,14 @@ for seite in ('links', 'rechts'):
     ox = B - BR if rechts else 0
     # Abstand jedes Pixels zur Goldlinie und Bogenlänge am nächsten Kurvenpunkt (in Blöcken gerechnet)
     seg = np.diff(kurve, axis=0); laenge = np.r_[0, np.cumsum(np.hypot(seg[:, 0], seg[:, 1]))]
-    yy, xx = np.mgrid[0:H, 0:BR].astype(np.float64); px = (xx + ox).ravel(); py = yy.ravel()
+    SS = 2  # doppelt gerechnet, dann geglättet verkleinert (Rückmeldung 05.11.2026: Rand wirkte grisselig)
+    yy, xx = (np.mgrid[0:H * SS, 0:BR * SS].astype(np.float64) + 0.5) / SS; px = (xx + ox).ravel(); py = yy.ravel()
     d = np.empty(px.size); s = np.empty(px.size)
     for i in range(0, px.size, 20000):
         dx = px[i:i + 20000, None] - kurve[None, :, 0]; dy = py[i:i + 20000, None] - kurve[None, :, 1]
         dd = dx * dx + dy * dy; j = dd.argmin(axis=1)
         d[i:i + 20000] = np.sqrt(dd[np.arange(j.size), j]); s[i:i + 20000] = laenge[j]
-    d = d.reshape(H, BR); s = s.reshape(H, BR)
+    d = d.reshape(H * SS, BR * SS); s = s.reshape(H * SS, BR * SS)
     # nur außen (zur Bildschirmkante hin) zählt
     x_kurve = np.interp(yy, kurve[:, 1], kurve[:, 0])
     aussen = (xx + ox > x_kurve) if rechts else (xx + ox < x_kurve)
@@ -94,7 +94,7 @@ for seite in ('links', 'rechts'):
     r0 = ABSTAND
     print(seite, 'Goldlinie verfolgt, Ersatzkreis', round(cx), round(cy), round(r))
     for v, cfg in VARIANTEN.items():
-        stein = kachel(cfg['textur'], cfg['skala'])
+        stein = np.asarray(Image.fromarray(kachel(cfg['textur'], cfg['skala']).astype(np.uint8)).resize((BR * SS, H * SS), Image.LANCZOS)).astype(np.float32)
         if rechts: stein = stein[:, ::-1]
         gruen = np.clip(stein[..., 1] - (stein[..., 0] + stein[..., 2]) / 2, 0, None)
         stein[..., 1] += gruen * (cfg['moos'] - 1) * 1.5
@@ -102,7 +102,9 @@ for seite in ('links', 'rechts'):
         fase = glatt(r0, r0 + 2, d) * (1 - glatt(r0 + 3, r0 + 7, d))
         schatten = 1 - 0.55 * (1 - glatt(r0 + 4, r0 + 40, d))
         stein = stein * schatten[..., None] + fase[..., None] * np.array([70, 80, 78])
-        l = leiste(cfg['leiste']); lh, lw = l.shape[:2]
+        l = leiste(cfg['leiste']); lh0, lw0 = l.shape[:2]
+        l = np.asarray(Image.fromarray(l.astype(np.uint8)).resize((LEISTE_B * SS, round(lh0 * LEISTE_B * SS / lw0)), Image.LANCZOS)).astype(np.float32)  # vorher glatt verkleinern
+        lh, lw = l.shape[:2]
         innen = r0 + 14
         spalte_f = (d - innen) / LEISTE_B
         in_leiste = (spalte_f >= 0) & (spalte_f < 1)
@@ -114,7 +116,7 @@ for seite in ('links', 'rechts'):
         fuge = 1 - 0.6 * (glatt(-0.12, 0, spalte_f) * (1 - glatt(0, 0.02, spalte_f)) + glatt(0.98, 1, spalte_f) * (1 - glatt(1.0, 1.12, spalte_f)))
         stein = np.where(in_leiste[..., None], stein * (1 - kante[..., None]) + farbe * kante[..., None], stein * fuge[..., None])
         alpha = glatt(r0 - 1, r0 + 1, d) * 255
-        Image.fromarray(np.dstack([np.clip(stein, 0, 255), alpha]).astype(np.uint8), 'RGBA').save(f'hud5/ebenen/rand-{v}-{seite}.webp', quality=90)
+        Image.fromarray(np.dstack([np.clip(stein, 0, 255), alpha]).astype(np.uint8), 'RGBA').resize((BR, H), Image.LANCZOS).save(f'hud5/ebenen/rand-{v}-{seite}.webp', quality=90)
 json.dump({'breite': BR, 'abstand': ABSTAND, **geo}, open('hud5/ebenen/rand.json', 'w'), indent=1)
 print('fertig')
 
