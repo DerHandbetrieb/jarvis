@@ -671,7 +671,7 @@ function sternschnuppen(g, s, t) {
   v.addColorStop(0, 'rgba(200,245,255,0)'); v.addColorStop(1, `rgba(235,252,255,${0.9 * hell})`)
   g.save()
   // hinter Reaktor und Runenringen: deren Kreisfläche aussparen (Wunsch Auftraggeber 05.11.2026)
-  const rk = s.geo.ringMitte; g.beginPath(); g.rect(0, 0, B, HIMMEL); g.arc(rk.x, rk.y, rk.r1 + 40, 0, Math.PI * 2, true); g.clip()
+  const rk = s.geo.ringMitte; g.beginPath(); g.rect(0, 0, B, HIMMEL); g.arc(rk.x, rk.y, 300, 0, Math.PI * 2, true) /* nur hinter dem Reaktor selbst ausblenden (Rückmeldung 05.11.2026) */; g.clip()
   g.globalCompositeOperation = 'lighter'; g.strokeStyle = v; g.lineWidth = 1.6; g.lineCap = 'round'
   g.beginPath(); g.moveTo(kx - sc.dx * l, ky - sc.dy * l); g.lineTo(kx, ky); g.stroke()
   const gl = g.createRadialGradient(kx, ky, 0, kx, ky, 6); gl.addColorStop(0, `rgba(255,255,255,${hell})`); gl.addColorStop(1, 'rgba(160,240,255,0)')
