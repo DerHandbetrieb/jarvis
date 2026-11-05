@@ -142,7 +142,7 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
   }
   // Knotenband (zweisträngiges Flechtband) zwischen zwei Winkeln: schwarze Stränge, Kanten mit blauem Schimmer, über/unter
   const knotenband = (g, rr, von, bis, h) => {
-    const a = h * 0.42, breite = h * 0.3, n = Math.max(1, Math.round(((bis - von) * rr) / (h * 2.4))), schritte = n * 16
+    const a = h * 0.24, breite = h * 0.22, n = Math.max(1, Math.round(((bis - von) * rr) / (h * 2.2))), schritte = n * 16 // flacher (Wunsch Auftraggeber 05.11.2026)
     const punkt = (strang, i) => { const f = i / schritte, w = von + (bis - von) * f, ph = f * n * Math.PI * 2 + strang * Math.PI, rad = rr + Math.sin(ph) * a; return [Math.sin(w) * rad, -Math.cos(w) * rad] }
     const stueck = (strang, i0, i1) => {
       const pfad = () => { g.beginPath(); for (let i = i0; i <= i1; i++) { const [x, y] = punkt(strang, i); i === i0 ? g.moveTo(x, y) : g.lineTo(x, y) } }
@@ -166,7 +166,7 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
   }
   // Bedeutung von L.O.K.I. – feste Inschrift (gravur | ringspur | imring | see)
   const inschrift = (g, art, rr, h, text) => {
-    if (art === 'imring') return
+    if (art === 'imring' || String(art).startsWith('kupfer')) return
     const unten = (radius, hh, farbe) => { // Text unten am Kreis, aufrecht, von links nach rechts
       const ges = textBreite(text, hh) / radius
       for (let d = 0; d < 2; d++) {
@@ -281,6 +281,44 @@ function unterschrift(g, kasten, h) {
     g.strokeStyle = LICHT.cyan.kern; g.shadowColor = LICHT.cyan.hof; g.shadowBlur = h * 0.5; g.lineWidth = Math.max(1.2, h * 0.08)
     for (const [sx, z] of [[x0 + pad * 0.5, 'ᚠ'], [x0 + b - pad * 0.5, 'ᚱ']]) { g.save(); g.translate(sx, y); rune(g, z, h * 0.9); g.restore() }
   }
+}
+
+/**
+ * Kupferband unter dem Reaktor mit der Bedeutung von L.O.K.I. (Wunsch Auftraggeber 05.11.2026): realistisches Kupfer mit
+ * schwarzen Eisenbeschlägen und Ketten (Magnific, im Stil des Reaktors), entlang eines Kreises um die Reaktormitte gebogen –
+ * die Ketten zeigen zur Mitte und verschwinden hinter dem Reaktor. Inschrift in klarer Schrift, eingeschlagen, folgt der
+ * Rundung. Liegt hinter Rauch und Wolken. Einmal beim Laden in doppelter Auflösung vorgezeichnet.
+ */
+function kupferBild(bild, m, k) {
+  const R = 380, B2 = bild.width, H2 = bild.height // Bild ist doppelt aufgelöst
+  const gr = Math.ceil(2 * (R + H2 / 2 + 20)), c = leinwand(gr * FEIN, gr * FEIN), g = c.getContext('2d')
+  g.scale(FEIN, FEIN); g.translate(gr / 2, gr / 2); g.imageSmoothingQuality = 'high'
+  const mitte = (x) => m.parabel[0] * x * x + m.parabel[1] * x + m.parabel[2] // Mittellinie der Kupferfläche (Bild-Pixel)
+  const winkel = (x) => Math.PI / 2 - (x - B2 / 2) / 2 / R // Bildspalte → Winkel unten am Kreis (links größer)
+  for (let x = 0; x < B2; x += 1) {
+    const w = winkel(x + 0.5), yc = mitte(Math.min(m.x1, Math.max(m.x0, x)))
+    g.save(); g.rotate(w - Math.PI / 2); g.translate(0, R)
+    g.drawImage(bild, x, 0, 1, H2, -0.35, -yc / 2, 0.85, H2 / 2)
+    g.restore()
+  }
+  // Inschrift: klare Schrift, gesperrt, eingeschlagen (dunkle Rille, helle Unterkante)
+  // Schriftgröße so, dass die Inschrift 80 % der Kupferfläche (ohne Beschläge) einnimmt
+  const text = 'LOKALE · OHNEHIN · KLÜGERE · INTELLIGENZ', platz = ((m.x1 - m.x0) / 2) * 0.8
+  g.font = '600 20px Georgia, "Times New Roman", serif'
+  const roh = [...text].reduce((a, z) => a + g.measureText(z).width + 20 * 0.22, 0), h = Math.min(16, (20 * platz) / roh)
+  g.font = `600 ${h}px Georgia, "Times New Roman", serif`; g.textAlign = 'center'; g.textBaseline = 'middle'
+  const sperr = h * 0.22, breiten = [...text].map((z) => g.measureText(z).width + sperr), ges = breiten.reduce((a, b) => a + b, 0) / R
+  for (const [farbe, dy] of [['rgba(255,190,140,0.35)', 0.9], ['rgba(38,14,4,0.88)', 0]]) {
+    g.fillStyle = farbe; let w = Math.PI / 2 + ges / 2
+    for (const [i, z] of [...text].entries()) { const zw = breiten[i] / R; g.save(); g.rotate(w - zw / 2 - Math.PI / 2); g.translate(0, R + dy + 7); g.fillText(z, 0, 0); g.restore(); w -= zw }
+  }
+  return { bild: c, gr }
+}
+function kupferband(g, s, anteil) {
+  if (!s.kupfer || anteil <= 0) return
+  const k = s.geo.ringMitte, gr = s.kupfer.gr
+  g.globalAlpha = anteil; g.imageSmoothingQuality = 'high'
+  g.drawImage(s.kupfer.bild, k.x - gr / 2, k.y - gr / 2, gr, gr); g.globalAlpha = 1
 }
 
 /** Ring-Angaben bei neuer Minute oder neuem Wetter neu beschriften (nur bei den Info-Varianten) */
@@ -410,11 +448,14 @@ export async function ladeSzene(basis, einstellung = {}) {
   const bilder = Object.fromEntries(await Promise.all(namen.map(async (n) => [n, await bildLaden(basis + n + '.webp')])))
   bilder.grund = knotenUmfaerben(bilder.grund, einstellung.knoten ?? 'anthrazit') // Wahl Auftraggeber 05.11.2026
   const zufall = zufallsfolge(7)
+  let kupfer = null
+  const kupferNr = /^kupfer(\d)$/.exec(einstellung.name ?? '')?.[1]
+  if (kupferNr) { const masse = await (await fetch(basis + 'kupfer.json')).json(); kupfer = kupferBild(await bildLaden(basis + `kupfer-${kupferNr}.webp`), masse[kupferNr]) }
   const infoVariante = String(einstellung.ring ?? '').startsWith('info') ? einstellung.ring : null
   const ringMitte = infoVariante ? infoRing(geo.ringMitte.r, 30, infoVariante, { ...zeitAngaben(), wetter: null }).dreh : ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
   return {
     geo, bilder,
-    ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
+    kupfer, ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
     runen: runenBilder(38),
     bahnLinks: bahnVorbereiten(geo.bahnLinks, true),
     bahnRechts: bahnVorbereiten(geo.bahnRechts, false),
@@ -561,7 +602,7 @@ function sternschnuppen(g, s, t) {
 // Unter dem Reaktor (Rückmeldung Auftraggeber 05.11.2026): die starren Lichtringe sind aus dem Grundbild entfernt
 // (Magnific), stattdessen pulsieren Wellenringe von innen nach außen – schnell los, dann langsam ausklingend (wie eine
 // Tempo-Rampe im Video) –, darüber liegen Rauchwolken nur zwischen Reaktor und Wasser.
-const RING_MITTE = { x: 2880, y: 890 }, RING_RX = 640, RING_RY = 48
+const RING_MITTE = { x: 2880, y: 890 }, RING_RX = 640, RING_RY = 48, RAUCH_VOR = 85
 
 /**
  * Wellenringe (Rückmeldung Auftraggeber 05.11.2026: lebendiger, pulsierender – am Anfang dicht, dann schnell ausblenden):
@@ -610,7 +651,8 @@ function rauch(g, s, t, anteil) {
     for (let px = start; px < st.width; px += bw) sg.drawImage(w, px, dy + Math.sin(t * 0.2 + skala) * 8, bw, bh)
   }
   sg.globalAlpha = 1; sg.globalCompositeOperation = 'destination-in'; sg.drawImage(s.rauchMaske, 0, 0)
-  const x = RING_MITTE.x - st.width / 2, y = RING_MITTE.y - st.height * 0.55
+  // weiter nach vorn bis zum unteren Bildrand, direkt unter dem Reaktor lichter (Wunsch Auftraggeber 05.11.2026)
+  const x = RING_MITTE.x - st.width / 2, y = RING_MITTE.y - st.height * 0.55 + RAUCH_VOR
   g.globalAlpha = anteil * 0.85; g.drawImage(st, x, y) // deckend: Rauch hat Körper und verdeckt das Wasser
   g.globalCompositeOperation = 'screen'; g.globalAlpha = anteil * 0.45; g.drawImage(st, x, y) // vom Ringlicht angeleuchtet
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
@@ -855,6 +897,7 @@ export function zeichneSzene(g, s, t, opt = {}) {
   const w = wetterArt(opt.wetter)
   if (mit('wetter')) zeichneWetterHinten(g, s.wetter, w, t)
   // pulsierende Wellenringe auf Wunsch des Auftraggebers wieder entfernt (05.11.2026: „gefallen mir gar nicht“)
+  if (mit('kupfer')) kupferband(g, s, an.grund) // hinter Rauch und Reaktor
   if (mit('rauch')) rauch(g, s, t, an.nebel)
   ebene(g, s, 'reaktor', an.grund, 'source-over', s.rot) // Reaktor steht vorn: Rauch und Wolken liegen dahinter/darunter
   if (mit('reaktor')) reaktor(g, s, t, opt, an.reaktor)
