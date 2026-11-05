@@ -40,7 +40,7 @@ function hudAuswahl(l) {
     geholt: l.geholt,
     aufgaben: { offen: zahl(l.aufgaben?.offen), neu: zahl(l.aufgaben?.neu), amazonAnzahl: (l.aufgaben?.amazonProbleme ?? []).length,
       // ohne die Freigabe-Sammelkarte (wie istFreigabeSammelkarte in src/jarvis/neuigkeiten.ts)
-      wichtigste: (l.aufgaben?.wichtigste ?? []).filter((w) => !/^\s*(abarbeiten|marketing)\s*:\s*vorschläge freigeben/i.test(String(w.titel ?? ''))).slice(0, 5).map((w) => ({ titel: String(w.titel ?? '').slice(0, 120), faellig: w.faellig ?? null })) },
+      wichtigste: (l.aufgaben?.wichtigste ?? []).filter((w) => !/^\s*(abarbeiten|marketing)\s*:\s*vorschläge freigeben/i.test(String(w.titel ?? ''))).slice(0, 10).map((w) => ({ titel: String(w.titel ?? '').slice(0, 120), faellig: w.faellig ?? null })) },
     lagerKnapp: (l.lagerKnapp ?? []).slice(0, 4).map((k) => ({ name: String(k.name ?? ''), variante: k.variante ?? null, bestand: zahl(k.bestand), meldebestand: zahl(k.meldebestand) })),
     verkauf: {
       gestern: { bestellungen: zahl(l.verkauf?.gestern?.bestellungen), stueck: zahl(l.verkauf?.gestern?.stueck), umsatzCent: zahl(l.verkauf?.gestern?.umsatzCent) },
@@ -49,10 +49,10 @@ function hudAuswahl(l) {
     },
     freigaben: zahl(l.freigaben),
     selbsttest: l.selbsttest ? { am: l.selbsttest.am, rot: zahl(l.selbsttest.rot) } : null,
-    // neues Dauer-HUD (05.11.2026): die letzten Bestellungen – nur Zeit, Kanal, Stück, Betrag, erster Artikeltitel
-    // (keine Kundendaten; die Serverfunktion liefert ohnehin keine)
-    bestellungen: (l.ereignisse?.bestellungen ?? []).slice().sort((a, b) => String(b.am).localeCompare(String(a.am))).slice(0, 5)
-      .map((b) => ({ am: String(b.am ?? ''), kanal: String(b.kanal ?? ''), stueck: zahl(b.stueck), cent: zahl(b.cent), artikel: String((b.artikel ?? [])[0] ?? '').slice(0, 60) })),
+    // Dauer-HUD (05.11.2026, Wunsch Auftraggeber): aktuelle, noch nicht versendete Bestellungen aus Billbee – nur Zeit,
+    // Kanal, Status, Stück, Betrag, erster Artikeltitel (keine Kundendaten; die Serverfunktion liefert ohnehin keine)
+    offeneBestellungen: l.offeneBestellungen ? { anzahl: zahl(l.offeneBestellungen.anzahl), liste: (l.offeneBestellungen.liste ?? []).slice(0, 12)
+      .map((b) => ({ am: String(b.am ?? ''), kanal: String(b.kanal ?? ''), status: String(b.status ?? ''), stueck: zahl(b.stueck), cent: zahl(b.cent), artikel: String((b.artikel ?? [])[0] ?? '').slice(0, 60) })) } : null,
   }
 }
 

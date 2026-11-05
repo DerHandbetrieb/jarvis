@@ -6,10 +6,11 @@ import { RAHMEN_STILE } from './rahmen.js'
 import { ZEICHNER } from './inhalte.js'
 
 const STIL = RAHMEN_STILE[1]
-const TAFEL = { links: 330, oben: 165, breite: 1240, hoehe: 760, neigung: 24, tiefe: 1900 }
+const TAFEL = { links: 450, oben: 165, breite: 1240, hoehe: 760, neigung: 24, tiefe: 1900 } // links 450: Abstand zum Runenbogen (Wunsch 05.11.2026)
 // Felder auf der flachen Tafel (x, y, Breite, Höhe) – links Werkstatt, rechts Haus (gleiche Anordnung, gespiegelt)
 const LINKS = [['verkaeufe', 0, 0, 610, 260], ['umsatz', 630, 0, 610, 260], ['ton', 0, 280, 1240, 160], ['aufgaben', 0, 460, 610, 300], ['bestellungen', 630, 460, 610, 300]]
-const RECHTS = [['kamera1', 0, 0, 610, 260], ['kamera2', 630, 0, 610, 260], ['energie', 0, 280, 1240, 160], ['wetter', 0, 460, 610, 300], ['system', 630, 460, 610, 300]]
+// rechts gespiegelt: Feld bei x 630 landet innen (links) – CAM 01 links, CAM 02 rechts (Rückmeldung 05.11.2026)
+const RECHTS = [['kamera2', 0, 0, 610, 260], ['kamera1', 630, 0, 610, 260], ['energie', 0, 280, 1240, 160], ['wetter', 0, 460, 610, 300], ['system', 630, 460, 610, 300]]
 const BEWEGT = new Set(['ton', 'kamera1', 'kamera2'])
 
 /** Tafeln anlegen. huelle = Element über der Szenen-Leinwand (gleiche Größe); faktor = Bildschirm-Pixel je Szenen-Pixel */
@@ -42,8 +43,12 @@ function feldZeichnen(f, id, daten, t) {
   const { g, b, h } = f
   g.clearRect(0, 0, b, h)
   const innen = STIL.zeichne(g, b, h)
-  g.save(); g.beginPath(); g.rect(innen.x, innen.y, innen.b, innen.h); g.clip(); g.translate(innen.x, innen.y)
+  const bild = id.startsWith('kamera') // Kamerabild bündig in der Fensterform, Rand und Goldkanten darüber (Rückmeldung 05.11.2026)
+  g.save(); g.beginPath()
+  if (bild && STIL.form) STIL.form(g, b, h, 3); else g.rect(innen.x, innen.y, innen.b, innen.h)
+  g.clip(); g.translate(innen.x, innen.y)
   ZEICHNER[id](g, innen.b, innen.h, daten, t)
+  if (bild && STIL.rand) { g.restore(); g.save(); STIL.rand(g, b, h) }
   if ((daten.beispiel || daten.veraltet) && ['verkaeufe', 'umsatz', 'aufgaben', 'bestellungen'].includes(id)) {
     g.font = '600 12px Bahnschrift, "Segoe UI", sans-serif'; g.fillStyle = 'rgba(242,176,74,0.9)'; g.textAlign = 'right'
     g.fillText(daten.veraltet ? 'KEINE AKTUELLEN DATEN' : 'BEISPIEL', innen.b - 14, innen.h - 10)

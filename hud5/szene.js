@@ -6,6 +6,7 @@
 // dem See, Wasser kräuselt sich und spiegelt den Reaktor, Runenringe drehen und laufen weich aus bzw. aus dem Bild.
 // Teuer ist nur das Vorzeichnen beim Laden; je Bild wird nur gedreht, verschoben und überblendet.
 import { FOLGE, rune } from './runen.js'
+import { bergnebel, erstelleWetter, wetterArt, zeichneFrost, zeichneWetterHinten } from './wetter.js'
 
 export const B = 5760, H = 1080
 const CYAN = '#5ff6ff'
@@ -259,32 +260,39 @@ function rotFassung(bild) {
 }
 
 /**
- * Wasser (Rückmeldung Auftraggeber 05.11.2026: realistischere Wellen): das ganze Seestück unter dem Horizont – Spiegelung
- * der Aurora, Glanzlichter und das Spiegelbild des Reaktors – wird zeilenweise mit mehreren überlagerten Wellen versetzt.
- * Perspektive: am Horizont kurze, kaum sichtbare Wellen, nach vorn längere und kräftigere; Wellenkämme blitzen leicht
- * auf. Nach außen (Ecken-Ornamente, Runenbänder) wird die Bewegung weich ausgeblendet.
+ * Wasser (Rückmeldung Auftraggeber 05.11.2026: Wellen müssen von den Bergen auf den Betrachter zurollen, nicht seitlich
+ * schwappen). Das Seestück unter dem Horizont – Spiegelung der Aurora, Glanzlichter, Spiegelbild des Reaktors – wird
+ * zeilenweise SENKRECHT verschoben abgetastet: Wellenkämme (gestauchte, hellere Zeilen) wandern nach unten, also nach
+ * vorn. Perspektive: am Horizont dicht und flach, vorn breiter und kräftiger, dort auch etwas schneller. Seitlich nur ein
+ * Hauch Bewegung. Nach außen (Ecken-Ornamente, Runenbänder) wird alles weich ausgeblendet.
  */
 function wasser(g, s, t, anteil) {
   const p = s.seePuffer, pg = p.getContext('2d'), hoehe = p.height, zeile = 2
   const glanz = s.bilder.wasser, ge = s.geo.ebenen.wasser, sp = s.spiegel, re = s.geo.ebenen.reaktor
   pg.globalCompositeOperation = 'source-over'; pg.globalAlpha = 1; pg.clearRect(0, 0, B, hoehe)
   for (let y = 0; y < hoehe; y += zeile) {
-    const d = y / hoehe, yy = HORIZONT + y
-    const k = 1 / (d * 1.6 + 0.12) // Perspektive: Wellen am Horizont dicht, vorn weit
-    const welle = Math.sin(y * 0.09 * k - t * 1.25) + 0.55 * Math.sin(y * 0.047 * k + t * 0.83 + 1.7) + 0.3 * Math.sin(y * 0.21 * k - t * 2.1 + 0.4)
-    const dx = welle * (0.4 + 7 * d)
+    const d = y / hoehe
+    // Wellenphase: Abstand „in die Tiefe“ wächst zum Horizont stark (perspektivisch) – minus Zeit = Lauf nach vorn
+    const tiefe = 1 / (d + 0.08)
+    const ph1 = -tiefe * 6.0 + t * 1.1, ph2 = -tiefe * 10.5 + t * 1.6 + 1.3, ph3 = -tiefe * 3.4 + t * 0.7 + 0.6
+    const welle = Math.sin(ph1) + 0.5 * Math.sin(ph2) + 0.35 * Math.sin(ph3)
+    const dy = welle * (0.3 + 3.2 * d) // senkrechtes Abtasten: Kämme stauchen, Täler dehnen
+    const kamm = Math.max(0, Math.sin(ph1) * 0.7 + Math.sin(ph2) * 0.3) // vorderer Hang der Welle fängt Licht
+    const dx = Math.sin(ph3 * 0.7 + y * 0.01) * 0.6 * d // kaum seitlich
+    const quelle = Math.min(hoehe - zeile, Math.max(0, y + dy))
     pg.globalCompositeOperation = 'source-over'; pg.globalAlpha = 1
-    pg.drawImage(s.bilder.grund, 0, yy, B, zeile, dx, y, B, zeile)
+    pg.drawImage(s.bilder.grund, 0, HORIZONT + quelle, B, zeile, dx, y, B, zeile)
     pg.globalCompositeOperation = 'lighter'
-    if (glanz && ge && yy >= ge.y && yy < ge.y + ge.h) {
+    const qq = HORIZONT + quelle
+    if (glanz && ge && qq >= ge.y && qq < ge.y + ge.h) {
       const fy = glanz.height / ge.h
-      pg.globalAlpha = anteil * Math.max(0, 0.25 + 0.35 * Math.sin(y * 0.13 * k - t * 1.6)) // Kämme blitzen auf
-      pg.drawImage(glanz, 0, (yy - ge.y) * fy, glanz.width, zeile * fy, ge.x + dx * 1.2, y, ge.b, zeile)
+      pg.globalAlpha = anteil * (0.18 + 0.55 * kamm) // Glanz auf den Wellenkämmen, läuft mit nach vorn
+      pg.drawImage(glanz, 0, (qq - ge.y) * fy, glanz.width, zeile * fy, ge.x + dx, y, ge.b, zeile)
     }
-    if (sp && re && y < sp.height) {
-      pg.globalAlpha = anteil * 0.32 * (1 - d * 0.6)
+    if (sp && re && quelle < sp.height) {
+      pg.globalAlpha = anteil * 0.32 * (1 - d * 0.6) * (0.75 + 0.25 * kamm)
       pg.globalCompositeOperation = 'screen'
-      pg.drawImage(sp, 0, y, sp.width, zeile, re.x + dx * 1.4, y, sp.width, zeile)
+      pg.drawImage(sp, 0, quelle, sp.width, zeile, re.x + dx * 2, y, sp.width, zeile)
     }
   }
   pg.globalAlpha = 1; pg.globalCompositeOperation = 'destination-in'; pg.drawImage(s.seeMaske, 0, 0)
@@ -296,18 +304,25 @@ function wasser(g, s, t, anteil) {
 function sternschnuppen(g, s, t) {
   if (!s.naechsteSchnuppe) s.naechsteSchnuppe = t + 6 + Math.random() * 10
   if (t >= s.naechsteSchnuppe) {
-    const links = Math.random() < 0.5, w = (15 + Math.random() * 25) * (Math.PI / 180)
-    s.schnuppe = { von: t, dauer: 0.7 + Math.random() * 0.5, x: 300 + Math.random() * (B - 600), y: 30 + Math.random() * 230, dx: Math.cos(w) * (links ? -1 : 1), dy: Math.sin(w), weg: 260 + Math.random() * 220 }
+    // Abwechslung (Wunsch Auftraggeber 05.11.2026): kurze, mittlere und lange – bis über zwei Bildschirme, flacher Winkel
+    const links = Math.random() < 0.5, art = Math.random(), lang = art > 0.7, mittel = art > 0.35 && !lang
+    const w = (lang ? 4 + Math.random() * 8 : mittel ? 8 + Math.random() * 14 : 15 + Math.random() * 25) * (Math.PI / 180)
+    const weg = lang ? 1800 + Math.random() * 2200 : mittel ? 700 + Math.random() * 700 : 260 + Math.random() * 220
+    const x = links ? weg * Math.cos(w) + 100 + Math.random() * (B - weg * Math.cos(w) - 200) : 100 + Math.random() * (B - weg * Math.cos(w) - 200)
+    s.schnuppe = { von: t, dauer: lang ? 1.8 + Math.random() * 0.8 : mittel ? 1.1 + Math.random() * 0.5 : 0.7 + Math.random() * 0.5, x, y: 25 + Math.random() * (lang ? 160 : 230), dx: Math.cos(w) * (links ? -1 : 1), dy: Math.sin(w), weg, schweif: lang ? 220 : mittel ? 140 : 90 }
     s.naechsteSchnuppe = t + 15 + Math.random() * 30
   }
   const sc = s.schnuppe
   if (!sc) return
   const f = (t - sc.von) / sc.dauer
   if (f > 1 || f < 0) { s.schnuppe = null; return }
-  const kx = sc.x + sc.dx * sc.weg * f, ky = sc.y + sc.dy * sc.weg * f, l = 90 * Math.min(1, f * 4), hell = Math.sin(f * Math.PI)
+  const kx = sc.x + sc.dx * sc.weg * f, ky = sc.y + sc.dy * sc.weg * f, l = sc.schweif * Math.min(1, f * 4), hell = Math.sin(f * Math.PI)
   const v = g.createLinearGradient(kx - sc.dx * l, ky - sc.dy * l, kx, ky)
   v.addColorStop(0, 'rgba(200,245,255,0)'); v.addColorStop(1, `rgba(235,252,255,${0.9 * hell})`)
-  g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = v; g.lineWidth = 1.6; g.lineCap = 'round'
+  g.save()
+  // hinter Reaktor und Runenringen: deren Kreisfläche aussparen (Wunsch Auftraggeber 05.11.2026)
+  const rk = s.geo.ringMitte; g.beginPath(); g.rect(0, 0, B, H); g.arc(rk.x, rk.y, rk.r1 + 40, 0, Math.PI * 2, true); g.clip()
+  g.globalCompositeOperation = 'lighter'; g.strokeStyle = v; g.lineWidth = 1.6; g.lineCap = 'round'
   g.beginPath(); g.moveTo(kx - sc.dx * l, ky - sc.dy * l); g.lineTo(kx, ky); g.stroke()
   const gl = g.createRadialGradient(kx, ky, 0, kx, ky, 6); gl.addColorStop(0, `rgba(255,255,255,${hell})`); gl.addColorStop(1, 'rgba(160,240,255,0)')
   g.fillStyle = gl; g.fillRect(kx - 6, ky - 6, 12, 12); g.restore()
@@ -600,8 +615,13 @@ export function zeichneSzene(g, s, t, opt = {}) {
   s.rot += Math.sign(rotZiel - s.rot) * Math.min(Math.abs(rotZiel - s.rot), dt / 0.6)
   if (mit('aurora')) aurora(g, s, t, an.aurora)
   sternschnuppen(g, s, t)
+  bergnebel(g, s.nebel2, t) // Nebelschwaden in Bergen und Wäldern ziehen langsam (Wunsch Auftraggeber 05.11.2026)
   // aufsteigender Rauch hinter dem Reaktor entfernt (Rückmeldung Auftraggeber 05.11.2026: Reaktor soll klar bleiben)
   if (mit('wasser')) wasser(g, s, t, an.reaktor)
+  // Wetter hinter Reaktor und Fenstern: Regen, Schnee, Nebel nach dem echten Wetter (opt.wetter = { code, grad })
+  s.wetter = s.wetter ?? erstelleWetter()
+  const w = wetterArt(opt.wetter)
+  if (mit('wetter')) zeichneWetterHinten(g, s.wetter, w, t)
   // pulsierende Wellenringe auf Wunsch des Auftraggebers wieder entfernt (05.11.2026: „gefallen mir gar nicht“)
   if (mit('rauch')) rauch(g, s, t, an.nebel)
   ebene(g, s, 'reaktor', an.grund, 'source-over', s.rot) // Reaktor steht vorn: Rauch und Wolken liegen dahinter/darunter
@@ -614,5 +634,6 @@ export function zeichneSzene(g, s, t, opt = {}) {
   s.versatz = opt.versatz ?? 0
   seitenRunen(g, s, s.bahnLinks, t, -6, hell, 4) // links nach oben, rechts nach unten – gegenläufig wie die Mitte
   seitenRunen(g, s, s.bahnRechts, t, 6, hell, 12)
+  if (mit('wetter')) zeichneFrost(g, s.wetter) // Frost: Eiskristalle an den Bildschirmrändern
   g.restore()
 }

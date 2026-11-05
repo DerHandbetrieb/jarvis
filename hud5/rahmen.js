@@ -27,9 +27,15 @@ export const RAHMEN_STILE = {
   /** 1 Glas & Goldkante – nah am Grafikpaket: dunkles Glas, feiner Cyan-Rand, goldener Lichtstreifen oben und unten */
   1: { name: 'Glas & Goldkante', zeichne(g, b, h) {
     abgeschraegt(g, 1, 1, b - 2, h - 2, 18); glas(g, b, h)
-    g.strokeStyle = 'rgba(95,246,255,0.55)'; g.lineWidth = 1.2; g.stroke()
-    lichtkante(g, b * 0.15, b * 0.75, 1.5); lichtkante(g, b * 0.35, b * 0.95, h - 1.5, GOLD, 1.5)
+    this.rand(g, b, h)
     return { x: 0, y: 0, b, h }
+  },
+  /** Form des Fensters (für Bilder, die bündig im Rahmen sitzen sollen) */
+  form(g, b, h, einzug = 0) { abgeschraegt(g, 1 + einzug, 1 + einzug, b - 2 - 2 * einzug, h - 2 - 2 * einzug, 18 - einzug * 0.6) },
+  /** nur Rand und Lichtkanten – über ein Kamerabild gelegt */
+  rand(g, b, h) {
+    abgeschraegt(g, 1, 1, b - 2, h - 2, 18); g.strokeStyle = 'rgba(95,246,255,0.55)'; g.lineWidth = 1.2; g.stroke()
+    lichtkante(g, b * 0.15, b * 0.75, 1.5); lichtkante(g, b * 0.35, b * 0.95, h - 1.5, GOLD, 1.5)
   } },
   /** 2 Doppelrahmen mit Reiter – Außen- und Innenlinie, Titel-Reiter oben links, Eckwinkel */
   2: { name: 'Doppelrahmen mit Reiter', zeichne(g, b, h) {

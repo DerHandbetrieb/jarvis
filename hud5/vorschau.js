@@ -7,6 +7,8 @@ import { sequenzDaten } from '../startsequenz/lageDaten.js'
 const c = document.getElementById('flaeche'), g = c.getContext('2d', { alpha: false }), info = document.getElementById('info')
 const s = await ladeSzene('./ebenen/', { ring: new URLSearchParams(location.search).get('ring') ?? undefined })
 let loki = new URLSearchParams(location.search).get('loki') ?? 'hoert', zoom = false, stopp = false
+// Prüfhilfe ?wetter=regen|schnee|nebel|frost
+const probeWetter = { regen: { code: 63, grad: 8 }, schnee: { code: 73, grad: -2 }, nebel: { code: 45, grad: 3 }, frost: { code: 0, grad: -4 } }[new URLSearchParams(location.search).get('wetter')] ?? { code: 2, grad: 9 }
 const tafeln = erstelleTafeln(document.getElementById('tafeln'))
 const beispiel = ausHud({ wetter: { ort: 'Öhringen', grad: 9.4, wolken: 70 } }, new Date(), sequenzDaten, () => 'BEWÖLKT')
 addEventListener('keydown', (e) => {
@@ -20,7 +22,7 @@ function schleife(ms) {
   requestAnimationFrame(schleife)
   const a = performance.now()
   const pegel = loki === 'spricht' ? 0.5 + 0.5 * Math.abs(Math.sin(ms / 130) * Math.sin(ms / 370)) : 0
-  zeichneSzene(g, s, ms / 1000, { loki, pegel, versatz: zoom ? 1920 : 0, aus: (new URLSearchParams(location.search).get('aus') ?? '').split(',') })
+  zeichneSzene(g, s, ms / 1000, { loki, pegel, wetter: probeWetter, versatz: zoom ? 1920 : 0, aus: (new URLSearchParams(location.search).get('aus') ?? '').split(',') })
   // Inhalte mit Beispieldaten (in der Vorschau gibt es keine Gegenstelle); Ton: Kunstwerte
   const ton = Array.from({ length: 128 }, (_, i) => Math.max(0, Math.sin(ms / 300 + i * 0.3) * Math.exp(-((i % 64) / 20)) * 0.8))
   zeichneTafeln(tafeln, { ...beispiel, ton, loki: { zustand: { hoert: 'bereit', denkt: 'denkt', spricht: 'spricht', aus: 'aus' }[loki], mikrofon: loki !== 'aus' } }, ms / 1000)

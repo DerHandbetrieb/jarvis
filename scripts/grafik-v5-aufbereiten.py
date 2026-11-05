@@ -135,6 +135,16 @@ SPIEGEL_AB, SPIEGEL_VOLL = 250, 380
 spiegel = grund[:, 0:1920][:, ::-1].astype(np.float32)
 anteil = np.clip((np.arange(1920) - SPIEGEL_AB) / (SPIEGEL_VOLL - SPIEGEL_AB), 0, 1)[None, :, None]
 grund[:, 3840:] = (grund[:, 3840:].astype(np.float32) * (1 - anteil) + spiegel * anteil).astype(np.uint8)
+# Senkrechte Leuchtlinien an den Bildschirmgrenzen (aus dem Grafikpaket, Wunsch Auftraggeber 05.11.2026: raus) – Spalten
+# finden, die über fast die ganze Höhe hell-cyan sind, und mit den Nachbarspalten auffüllen
+for grenze in (1920, 3840):
+    for x in range(grenze - 8, grenze + 9):
+        if (grund[:, x, 2] > 150).sum() > 0.08 * H:
+            links, rechts = x - 1, x + 1
+            while links > grenze - 14 and (grund[:, links, 2] > 150).sum() > 0.08 * H: links -= 1
+            while rechts < grenze + 14 and (grund[:, rechts, 2] > 150).sum() > 0.08 * H: rechts += 1
+            f = (x - links) / (rechts - links)
+            grund[:, x] = (grund[:, links].astype(np.float32) * (1 - f) + grund[:, rechts].astype(np.float32) * f).astype(np.uint8)
 Image.fromarray(grund).save(ZIEL + 'grund.webp', quality=93, method=6)
 Image.fromarray(masken * 255).save('grafik/runen-maske-pruefen.png')  # zum Nachsehen, nicht im Programm
 print('Runen entfernt:', int(masken.sum()), 'Pixel')

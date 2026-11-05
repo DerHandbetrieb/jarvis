@@ -116,35 +116,41 @@ function umsatz(g, b, h, d) {
 }
 function abarbeiten(g, b, h, d) {
   kopf(g, 'ABARBEITEN · DRINGEND ZUERST', `${d.offen ?? 0} OFFEN`, b)
-  const karten = d.karten ?? [], zeile = 36
+  // bis zu 10 Karten (Wunsch Auftraggeber 05.11.2026); Zeilenhöhe passt sich an, Schrift bleibt ≥ 13 px
+  const karten = (d.karten ?? []).slice(0, 10), zeile = Math.min(36, Math.max(24, (h - 46) / Math.max(1, karten.length)))
+  const gross = Math.round(Math.min(15, Math.max(13, zeile * 0.52)))
   if (!karten.length) text(g, 'Nichts Dringendes – erstaunlich.', 16, 64, 14, BLASS)
-  karten.slice(0, 5).forEach(([titel, , , faellig], i) => {
-    const y = 44 + i * zeile
-    g.strokeStyle = 'rgba(95,246,255,0.55)'; g.lineWidth = 1.2; g.strokeRect(16.5, y + 7.5, 13, 13)
-    g.font = `400 15px ${SCHRIFT}`
+  karten.forEach(([titel, , , faellig], i) => {
+    const y = 40 + i * zeile, mitte = y + zeile / 2, kb = Math.round(gross * 0.8)
+    g.strokeStyle = 'rgba(95,246,255,0.55)'; g.lineWidth = 1.2; g.strokeRect(16.5, Math.round(mitte - kb / 2) + 0.5, kb, kb)
+    g.font = `600 11px ${SCHRIFT}`
     const farbe = faellig === 'ÜBERFÄLLIG' ? ROT : faellig === 'FÄLLIG HEUTE' ? GOLD : BLASS
-    const badgeB = faellig ? g.measureText(faellig).width * 0.8 + 18 : 0
-    text(g, kuerzen(g, String(titel), b - 60 - badgeB), 40, y + 20, 15, HELL)
-    if (faellig) {
-      text(g, faellig, b - 16, y + 19, 11, farbe, 'right', 600)
-    }
-    g.strokeStyle = 'rgba(95,246,255,0.08)'; g.beginPath(); g.moveTo(16, y + zeile - 3.5); g.lineTo(b - 16, y + zeile - 3.5); g.stroke()
+    const badgeB = faellig ? g.measureText(faellig).width + 18 : 0
+    g.font = `400 ${gross}px ${SCHRIFT}`
+    text(g, kuerzen(g, String(titel), b - 52 - badgeB), 36, mitte + gross * 0.36, gross, HELL)
+    if (faellig) text(g, faellig, b - 16, mitte + 4, 11, farbe, 'right', 600)
+    g.strokeStyle = 'rgba(95,246,255,0.08)'; g.beginPath(); g.moveTo(16, y + zeile - 0.5); g.lineTo(b - 16, y + zeile - 0.5); g.stroke()
   })
 }
+/** aktuelle Bestellungen: alles, was in Billbee noch nicht versendet ist (Wunsch Auftraggeber 05.11.2026), älteste zuerst */
 function bestellungen(g, b, h, d) {
-  kopf(g, 'LETZTE BESTELLUNGEN', '', b)
-  const liste = d.bestellungen ?? [], zeile = 36
-  if (!liste.length) { text(g, 'Noch keine Bestellungen in den letzten 48 Stunden.', 16, 64, 13, BLASS); return }
-  liste.slice(0, 5).forEach((x, i) => {
-    const y = 44 + i * zeile, am = new Date(x.am)
-    const zeit = Number.isFinite(am.getTime()) ? am.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) : ''
-    text(g, zeit, 16, y + 20, 13, BLASS)
-    text(g, String(x.kanal).toUpperCase().slice(0, 10), 66, y + 20, 12, CYAN, 'left', 600)
-    g.font = `400 14px ${SCHRIFT}`
-    text(g, kuerzen(g, x.artikel || '–', b - 260), 150, y + 20, 14, HELL)
-    text(g, `${x.stueck}×`, b - 92, y + 20, 13, BLASS, 'right')
-    text(g, euro(x.cent / 100), b - 16, y + 20, 14, GOLD, 'right', 600)
-    g.strokeStyle = 'rgba(95,246,255,0.08)'; g.beginPath(); g.moveTo(16, y + zeile - 3.5); g.lineTo(b - 16, y + zeile - 3.5); g.stroke()
+  const o = d.offeneBestellungen
+  kopf(g, 'AKTUELLE BESTELLUNGEN', o ? `${o.anzahl} OFFEN` : '', b)
+  const liste = (o?.liste ?? []).slice(0, 10)
+  if (!o) { text(g, 'Noch keine Daten aus Billbee.', 16, 64, 13, BLASS); return }
+  if (!liste.length) { text(g, 'Alles versendet – die Werkstatt hat Pause. Theoretisch.', 16, 64, 13, BLASS); return }
+  const zeile = Math.min(36, Math.max(24, (h - 46) / liste.length)), gross = Math.round(Math.min(14, Math.max(13, zeile * 0.5)))
+  liste.forEach((x, i) => {
+    const y = 40 + i * zeile, grund = y + zeile / 2 + gross * 0.36, am = new Date(x.am)
+    const tag = Number.isFinite(am.getTime()) ? am.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }) : ''
+    const st = String(x.status)
+    text(g, tag, 16, grund, 12, BLASS)
+    text(g, String(x.kanal).toUpperCase().slice(0, 8), 62, grund, 11, CYAN, 'left', 600)
+    text(g, st.slice(0, 11), 134, grund, 10, st === 'GEPACKT' ? CYAN : st.includes('MAHNUNG') || st.includes('ERINNERUNG') ? ROT : GOLD, 'left', 600)
+    g.font = `400 ${gross}px ${SCHRIFT}`
+    text(g, kuerzen(g, x.artikel || '–', b - 330), 232, grund, gross, HELL)
+    text(g, euro(x.cent / 100), b - 16, grund, gross, GOLD, 'right', 600)
+    g.strokeStyle = 'rgba(95,246,255,0.08)'; g.beginPath(); g.moveTo(16, y + zeile - 0.5); g.lineTo(b - 16, y + zeile - 0.5); g.stroke()
   })
 }
 /** Tonwellen: was der PC abspielt (Wallpaper Engine liefert 64 Bänder je Kanal), gespiegelt als weiche Welle; spricht
@@ -295,7 +301,7 @@ export function ausHud(antwort, jetzt, sequenzDaten, wetterText) {
   const w = antwort?.wetter
   return {
     beispiel: !roh,
-    werkstatt: { ...d, stand: roh ? d.stand : null, tage, bestellungen: lage.bestellungen ?? [] }, // Beispiel: ohne „Stand“
+    werkstatt: { ...d, stand: roh ? d.stand : null, tage, offeneBestellungen: lage.offeneBestellungen ?? null }, // Beispiel: ohne „Stand“
     wetter: w && Number.isFinite(w.grad) ? { ort: w.ort ?? 'Öhringen', grad: w.grad, wolken: w.wolken, text: wetterText?.(w) ?? '' } : null,
     kamera: antwort?.kamera ?? null,
     loki: antwort?.loki ?? null,
@@ -316,11 +322,11 @@ function BEISPIEL_LAGE(jetzt) {
       { titel: 'Steuerunterlagen an Büro', faellig: tag(-5) }] },
     verkauf: { gestern: { bestellungen: 5, stueck: 7, umsatzCent: 15600 }, tage, kanaele14: [] },
     freigaben: 2, selbsttest: { am: jetzt.toISOString(), rot: 0 },
-    bestellungen: [
-      { am: new Date(jetzt.getTime() - 40 * 60_000).toISOString(), kanal: 'Etsy', stueck: 2, cent: 5980, artikel: 'Kerzenständer Eiche, 3-armig' },
-      { am: new Date(jetzt.getTime() - 3 * 3_600_000).toISOString(), kanal: 'Amazon', stueck: 1, cent: 3490, artikel: 'Schlüsselbrett Nussbaum' },
-      { am: new Date(jetzt.getTime() - 7 * 3_600_000).toISOString(), kanal: 'Shop', stueck: 1, cent: 8900, artikel: 'Wandregal Buche 80 cm' },
-    ],
+    offeneBestellungen: { anzahl: 3, liste: [
+      { am: new Date(jetzt.getTime() - 26 * 3_600_000).toISOString(), kanal: 'Shop', status: 'GEPACKT', stueck: 1, cent: 8900, artikel: '1× Wandregal Buche 80 cm' },
+      { am: new Date(jetzt.getTime() - 5 * 3_600_000).toISOString(), kanal: 'Amazon', status: 'BEZAHLT', stueck: 1, cent: 3490, artikel: '1× Schlüsselbrett Nussbaum' },
+      { am: new Date(jetzt.getTime() - 40 * 60_000).toISOString(), kanal: 'Etsy', status: 'BESTELLT', stueck: 2, cent: 5980, artikel: '2× Kerzenständer Eiche, 3-armig' },
+    ] },
   }
 }
 

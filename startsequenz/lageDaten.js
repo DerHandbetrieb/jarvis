@@ -57,7 +57,7 @@ export function sequenzDaten(lage, jetzt) {
     tage9: tage.slice(-9).map((t) => ({ tag: /^\d{4}-\d{2}-\d{2}/.test(String(t.tag)) ? `${t.tag.slice(8, 10)}.${t.tag.slice(5, 7)}` : '', bestellungen: zahl(t.bestellungen) })),
     umsatzMax: Math.max(10, Math.ceil(Math.max(0, ...umsatz14) / 50) * 50),
     // To-do-Karten: [Titel, Zusatzzeile, Fortschritt (null = keiner), Fälligkeit]
-    karten: (lage.aufgaben.wichtigste ?? []).filter((w) => !istFreigabeSammelkarte(w.titel)).slice(0, 5).map((w) => [w.titel, 'AUFGABE', null, faelligText(w.faellig, heute)]),
+    karten: (lage.aufgaben.wichtigste ?? []).filter((w) => !istFreigabeSammelkarte(w.titel)).slice(0, 10).map((w) => [w.titel, 'AUFGABE', null, faelligText(w.faellig, heute)]),
     lager: (lage.lagerKnapp ?? []).slice(0, 4).map((k) => [k.variante ? `${k.name} ${k.variante}` : k.name, zahl(k.bestand), zahl(k.meldebestand)]),
   }
 }
