@@ -51,11 +51,11 @@ def goldlinie(rechts):
     print('  Linie verfolgt von y', int(ys_bild[0]), 'bis', int(ys_bild[-1]))
     return p, (float(cx), float(cy), math.sqrt(c + cx * cx + cy * cy))
 
-def kachel(name, skala):
+def kachel(name, skala, ss=1):
     t = Image.open(f'grafik/magnific/{name}.png').convert('RGB')
     t = t.resize((round(t.width * skala), round(t.height * skala)), Image.LANCZOS)
     a = np.asarray(t).astype(np.float32)
-    return np.tile(a, (math.ceil(H / a.shape[0]) + 1, math.ceil(BR / a.shape[1]) + 1, 1))[:H, :BR]
+    return np.tile(a, (math.ceil(H * ss / a.shape[0]) + 1, math.ceil(BR * ss / a.shape[1]) + 1, 1))[:H * ss, :BR * ss]
 
 def leiste(name):
     b = np.asarray(Image.open(f'grafik/magnific/{name}.png').convert('RGB')).astype(np.float32)
@@ -68,7 +68,8 @@ def glatt(a, b, x):
     t = np.clip((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t)
 
 VARIANTEN = {
-    'c': {'textur': 'stein-textur-2', 'skala': 0.55, 'leiste': 'stein-rand-1', 'moos': 1.0},
+    'c': {'textur': 'stein-textur-2-hoch', 'skala': 0.275, 'leiste': 'stein-rand-1-hoch',  # Magnific hochgerechnet (2x)
+          'moos': 1.0},
 }
 ABSTAND, LEISTE_B = 34, 64
 geo = {}
@@ -94,7 +95,7 @@ for seite in ('links', 'rechts'):
     r0 = ABSTAND
     print(seite, 'Goldlinie verfolgt, Ersatzkreis', round(cx), round(cy), round(r))
     for v, cfg in VARIANTEN.items():
-        stein = np.asarray(Image.fromarray(kachel(cfg['textur'], cfg['skala']).astype(np.uint8)).resize((BR * SS, H * SS), Image.LANCZOS)).astype(np.float32)
+        stein = kachel(cfg['textur'], cfg['skala'] * SS, SS)  # direkt in doppelter Auflösung, nichts hochgezogen
         if rechts: stein = stein[:, ::-1]
         gruen = np.clip(stein[..., 1] - (stein[..., 0] + stein[..., 2]) / 2, 0, None)
         stein[..., 1] += gruen * (cfg['moos'] - 1) * 1.5
