@@ -87,19 +87,69 @@ def ebene(name, bild):
     k.crop(box).save(ZIEL + name + '.webp', quality=90, method=6, lossless=False)
     ebenen[name] = {'x': box[0], 'y': box[1], 'b': box[2] - box[0], 'h': box[3] - box[1]}
 def ausGrund(name, maske):
-    """Leucht-Ebene aus dem (hochskalierten) Grundbild selbst – passt so immer genau, auch nach Magnific"""
-    a = cv2.GaussianBlur(np.clip(maske, 0, 1).astype(np.float32), (0, 0), 2)
+    """Ebene aus dem (hochskalierten) Grundbild selbst – passt so immer genau, auch nach Magnific"""
+    a = cv2.GaussianBlur(np.clip(maske, 0, 1).astype(np.float32), (0, 0), 1)
     bild = Image.fromarray(grund).convert('RGBA'); bild.putalpha(Image.fromarray((a * 255).astype(np.uint8))); ebene(name, bild)
 gf = grund.astype(np.float32)
 gruen = gf[..., 1] - np.maximum(gf[..., 0], gf[..., 2] * 0.85)  # Aurora: deutlich grüner als rot/blau
 ausGrund('aurora', (gruen - 12) / 50)
 yy = np.mgrid[0:H, 0:B][0]
 hell = (gf.max(axis=2) - 90) / 90  # Wasser: helle Glanzpunkte im See (unterhalb des Horizonts, mittlerer Bildschirm)
-ausGrund('wasser', hell * (yy > 835) * (np.abs(np.mgrid[0:H, 0:B][1] - 2880) < 1000))
+ausGrund('wasser', hell * (yy > 845))
+# Reaktor (Wunsch Auftraggeber 05.11.2026: lebendiger, Rauch dahinter, Spiegelung im See) – Kreise vermessen am
+# Grundbild: Steinring außen r ≈ 330, Spulenring r ≈ 120–215, Kernscheibe mit Lichtpunkten r < 98
+xx = np.mgrid[0:H, 0:B][1]
+rr = np.hypot(xx - GEO['reaktor']['x'], yy - GEO['reaktor']['y'])
+def kreis(r0, r1, rand):
+    return np.clip((rr - r0) / rand + 1, 0, 1) * np.clip((r1 - rr) / rand + 1, 0, 1)
+# Umriss des Reaktors aus der freigestellten Vorlage (1254 px im 4K-Bildschirm, Mitte bei 1922/989) – genauer als ein
+# Kreis, sonst bliebe ein Streifen Himmel ohne Rauch rund um den Stein sichtbar
+vorlage = Image.open(Q + '03_CENTER/REACTOR/REACTOR_ORIGINAL_TRANSPARENT_1254x1254.png').convert('RGBA')
+umriss = Image.new('L', (B, H)); s2 = 1254 / 2
+umriss.paste(vorlage.getchannel('A').resize((round(s2), round(s2)), Image.LANCZOS), (round(GEO['reaktor']['x'] - s2 / 2), round(GEO['reaktor']['y'] - s2 / 2)))
+ausGrund('reaktor', cv2.erode(np.asarray(umriss, np.float32) / 255, np.ones((3, 3), np.uint8)))
+ausGrund('kernscheibe', kreis(-10, 98, 6))
+blau = (gf[..., 2] - gf[..., 0] - 60) / 80  # leuchtende blaue Zellen zwischen den Spulen
+ausGrund('zellen', np.clip(blau, 0, 1) * kreis(118, 215, 6))
 ebene('halo', monitore([None, FX + 'REACTOR_CORE_HALO_PULSE_RGBA_3840x2160.png', None]))
 # Reaktor-Kern scharf aus dem Grundbild, Form aus der Kern-Maske (für das Pulsieren)
 kern = monitore([None, A + 'MITTE_REAKTOR_RING_01_ORIGINAL_PIXELS_3840x2160.png', None]).resize((B, H), Image.LANCZOS)
 kernScharf = Image.fromarray(grund).convert('RGBA'); kernScharf.putalpha(kern.getchannel('A')); ebene('kern', kernScharf)
+
+# 4. Bahn der Runen links/rechts (Rückmeldung Auftraggeber 05.11.2026: das Band ist kein genauer Kreis – in der Mitte
+# hatten die Runen Abstand zur Linie, oben/unten liefen sie darüber). Darum Zeile für Zeile die Mitte zwischen der
+# goldenen Außenlinie und der inneren Cyan-Linie messen; oben/unten, wo Ecken die Linien verdecken, mit einem Kreis
+# durch die Messpunkte fortsetzen. Die Szene lässt die Runen entlang dieser Bahn laufen.
+gi = grund.astype(int)
+gold = (gi[..., 0] > 150) & (gi[..., 1] > 90) & (gi[..., 2] < 110) & (gi[..., 0] > gi[..., 2] + 60)
+cyan = (gi[..., 2] > 120) & (gi[..., 1] > 110) & (gi[..., 0] < 110)
+def bahn(links):
+    punkte = []
+    for y in range(200, 820, 4):  # Ecken-Ornamente oben/unten stören die Messung
+        xs = range(0, 560) if links else range(B - 1, B - 560, -1)
+        xg = next((x for x in xs if gold[y, x]), None)
+        if xg is None: continue
+        xs2 = range(xg + 12, xg + 260) if links else range(xg - 12, xg - 260, -1)
+        xc = next((x for x in xs2 if cyan[y, x]), None)
+        if xc is not None: punkte.append(((xg + xc) / 2, y))
+    p = np.array(punkte, float)
+    # Ausreißer (Ecken, Lichtpunkte) weg: gleitender Median
+    p[:, 0] = np.array([np.median(p[max(0, i - 4):i + 5, 0]) for i in range(len(p))])
+    A = np.c_[2 * p[:, 0], 2 * p[:, 1], np.ones(len(p))]; cx, cy, c = np.linalg.lstsq(A, (p ** 2).sum(1), rcond=None)[0]
+    r = np.sqrt(c + cx * cx + cy * cy)
+    rest = np.abs(np.hypot(p[:, 0] - cx, p[:, 1] - cy) - r)
+    print('Runenbahn', 'links' if links else 'rechts', len(p), 'Punkte, Kreis', round(cx), round(cy), round(r), 'Abweichung max', round(rest.max(), 1))
+    aussen = lambda y: cx + (-1 if links else 1) * np.sqrt(max(r * r - (y - cy) ** 2, 0))
+    y0, y1 = p[0, 1], p[-1, 1]
+    weg = []
+    for y in range(-120, H + 121, 6):
+        if y0 <= y <= y1: x = float(np.interp(y, p[:, 1], p[:, 0]))
+        else:  # weich vom letzten Messpunkt in den Kreis übergehen
+            rand = p[0] if y < y0 else p[-1]
+            x = aussen(y) + (rand[0] - aussen(rand[1]))
+        weg.append([round(x, 1), y])
+    return weg
+GEO['bahnLinks'] = bahn(True); GEO['bahnRechts'] = bahn(False)
 
 json.dump({'quelle': quelle, 'breite': B, 'hoehe': H, 'ebenen': ebenen, **GEO}, open(ZIEL + 'geometrie.json', 'w'), indent=1)
 print('fertig', list(ebenen))
