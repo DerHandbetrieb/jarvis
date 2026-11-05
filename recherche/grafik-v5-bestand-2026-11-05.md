@@ -62,3 +62,21 @@ Quelle: `Downloads\LOKI_Mystic_Aurora_3x4K_Animationsassets_V5.zip` (Kopie in `H
 - Uhrzeit/Datum klein und edel unter dem Reaktor (ohne den L.O.K.I.-Schriftzug zu verdecken).
 - Intro: Bild ist dunkel, Aurora blendet auf, Runen entzünden sich nacheinander, Reaktor fährt hoch (Halo),
   Fenster klappen aus der Schräge auf, Daten laufen ein – Ton = bisheriges Gerüst 9, Einschlag auf Reaktorstart.
+
+## Entscheidungen Auftraggeber (Interview 05.11.2026)
+- Runen im Paket bleiben unverändert (privat).
+- Links wie vorgeschlagen: Verkäufe-Kombi, Umsatz heute/Woche, Tonwellen, Abarbeiten-Karten, letzte Bestellungen.
+- Rechts wie vorgeschlagen: CAM 01/02 live, FENECON im Analyse-Fenster, Wetterstation im Weltkugel-Fenster,
+  Lokis Systemstatus im Wikingerschiff-Fenster.
+- Person erkannt → Kamerabild wächst über den rechten Bildschirm (Schräge bleibt), nach 30 s ohne Person zurück.
+- Intro-Ablauf wie vorgeschlagen (dunkel → Aurora → Runen → Reaktor-Einschlag → Fenster klappen auf → Gruß →
+  steht exakt wie das Wallpaper), Ton Gerüst 9.
+
+## Bauplan (wartet auf Freigabe)
+1. Szene: Ebenen auf Bildschirmgröße bringen, ruhige Bewegung (Aurora, Reaktor-Halo, Zielrunenring, Runen,
+   Wasser, Nebel), Bildrate messen (Ziel 60 B/s über 3 Bildschirme, im Wallpaper ≤ 30).
+2. Inhalte live in die schrägen Fenster: Werkstatt-Daten, Tonwellen, Kameras (Masken), Systemstatus;
+   PV/Wetter zunächst als „noch nicht verbunden“.
+3. Als neues Wallpaper in Wallpaper Engine einrichten (altes bleibt als Sicherung).
+4. Intro auf derselben Szene, endet bildgleich mit dem Wallpaper.
+5. FENECON + Ecowitt nach Angabe von Modell/Adressen.
