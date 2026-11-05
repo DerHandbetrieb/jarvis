@@ -75,6 +75,13 @@ g = GEO['ringMitte']; m = runenMaske(grund, g['x'], g['y'], g['r0'], g['r1']); m
 g = GEO['ringLinks']; masken |= runenMaske(grund, g['x'], g['y'], g['r'] - 55, g['r'] + 50, 130, -130)
 g = GEO['ringRechts']; masken |= runenMaske(grund, g['x'], g['y'], g['r'] - 55, g['r'] + 55, -50, 50)
 grund = cv2.inpaint(grund, masken, 12, cv2.INPAINT_TELEA)
+# Rechter Bildschirm = gespiegelter linker (Vorschlag Auftraggeber 05.11.2026): Runenband und Fensterrahmen rechts waren
+# im Paket verzogen, links sauber. Gespiegelt wird der äußere Teil; zum mittleren Bildschirm hin (lokal x < 380) bleibt
+# der eigene Hintergrund, dazwischen weicher Übergang, damit Aurora und Berge an der Bildschirmgrenze anschließen.
+SPIEGEL_AB, SPIEGEL_VOLL = 250, 380
+spiegel = grund[:, 0:1920][:, ::-1].astype(np.float32)
+anteil = np.clip((np.arange(1920) - SPIEGEL_AB) / (SPIEGEL_VOLL - SPIEGEL_AB), 0, 1)[None, :, None]
+grund[:, 3840:] = (grund[:, 3840:].astype(np.float32) * (1 - anteil) + spiegel * anteil).astype(np.uint8)
 Image.fromarray(grund).save(ZIEL + 'grund.webp', quality=93, method=6)
 Image.fromarray(masken * 255).save('grafik/runen-maske-pruefen.png')  # zum Nachsehen, nicht im Programm
 print('Runen entfernt:', int(masken.sum()), 'Pixel')
@@ -140,16 +147,22 @@ def bahn(links):
     rest = np.abs(np.hypot(p[:, 0] - cx, p[:, 1] - cy) - r)
     print('Runenbahn', 'links' if links else 'rechts', len(p), 'Punkte, Kreis', round(cx), round(cy), round(r), 'Abweichung max', round(rest.max(), 1))
     aussen = lambda y: cx + (-1 if links else 1) * np.sqrt(max(r * r - (y - cy) ** 2, 0))
+    glatt = np.polyfit(p[:, 1], p[:, 0], 4)  # Messpunkte zittern um 1–2 px; ein glatter Verlauf hält die Runen ruhig
+    for _ in range(4):  # Ausreißer (Lichtpunkte auf den Linien) schrittweise weglassen
+        gut = np.abs(np.polyval(glatt, p[:, 1]) - p[:, 0]) < 4
+        glatt = np.polyfit(p[gut, 1], p[gut, 0], 4)
+    print('  Glaettung: Punkte', int(gut.sum()), 'von', len(p), 'max', round(float(np.abs(np.polyval(glatt, p[gut, 1]) - p[gut, 0]).max()), 1), 'px')
     y0, y1 = p[0, 1], p[-1, 1]
     weg = []
     for y in range(-120, H + 121, 6):
-        if y0 <= y <= y1: x = float(np.interp(y, p[:, 1], p[:, 0]))
+        if y0 <= y <= y1: x = float(np.polyval(glatt, y))  # geglättet – sonst kippeln die Runen
         else:  # weich vom letzten Messpunkt in den Kreis übergehen
             rand = p[0] if y < y0 else p[-1]
-            x = aussen(y) + (rand[0] - aussen(rand[1]))
+            x = aussen(y) + (np.polyval(glatt, rand[1]) - aussen(rand[1]))
         weg.append([round(x, 1), y])
     return weg
-GEO['bahnLinks'] = bahn(True); GEO['bahnRechts'] = bahn(False)
+GEO['bahnLinks'] = bahn(True)
+GEO['bahnRechts'] = [[round(B - x, 1), y] for x, y in GEO['bahnLinks']]  # rechts = gespiegelt (siehe oben)
 
 json.dump({'quelle': quelle, 'breite': B, 'hoehe': H, 'ebenen': ebenen, **GEO}, open(ZIEL + 'geometrie.json', 'w'), indent=1)
 print('fertig', list(ebenen))

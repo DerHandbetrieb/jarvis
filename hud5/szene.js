@@ -10,7 +10,7 @@ import { FOLGE, rune } from './runen.js'
 export const B = 5760, H = 1080
 const CYAN = '#5ff6ff'
 const HORIZONT = 842 // Wasserlinie des Sees (Grundbild)
-const SPULEN_R = 172 // Radius der leuchtenden Zellen zwischen den Spulen
+
 
 function bildLaden(url) {
   return new Promise((ok, fehler) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => fehler(new Error('Bild fehlt: ' + url)); i.src = url })
@@ -64,18 +64,6 @@ function nebelBild(b, h, zufall, anzahl = 80) {
   return c
 }
 
-/** eine Rauchwolke: weicher, unregelmäßiger Fleck aus mehreren Kreisen */
-function rauchBild(gr, zufall) {
-  const c = leinwand(gr, gr), g = c.getContext('2d')
-  for (let i = 0; i < 14; i++) {
-    const x = gr / 2 + (zufall() - 0.5) * gr * 0.45, y = gr / 2 + (zufall() - 0.5) * gr * 0.45, r = gr * (0.15 + zufall() * 0.25)
-    const v = g.createRadialGradient(x, y, 0, x, y, r)
-    v.addColorStop(0, 'rgba(150,205,215,0.22)'); v.addColorStop(1, 'rgba(150,205,215,0)')
-    g.fillStyle = v; g.fillRect(x - r, y - r, 2 * r, 2 * r)
-  }
-  return c
-}
-
 /** Deckkraft-Maske: in der Mitte voll, links/rechts über `rand` Pixel weich auslaufend */
 function randMaske(b, h, rand, unten = 0) {
   const c = leinwand(b, h), g = c.getContext('2d'), v = g.createLinearGradient(0, 0, b, 0)
@@ -86,6 +74,18 @@ function randMaske(b, h, rand, unten = 0) {
     const u = g.createLinearGradient(0, 0, 0, h); u.addColorStop(0, '#000'); u.addColorStop(1, 'rgba(0,0,0,0)')
     g.fillStyle = u; g.fillRect(0, 0, b, h)
   }
+  return c
+}
+
+/** Maske für den Nebel auf dem See: unter dem Reaktor am dichtesten, zu den Seiten dünner, oben (Wasserlinie) weich */
+function nebelMaske(b, h) {
+  const c = leinwand(b, h), g = c.getContext('2d'), v = g.createLinearGradient(0, 0, b, 0)
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(0.15, 'rgba(0,0,0,0.45)'); v.addColorStop(0.5, '#000')
+  v.addColorStop(0.85, 'rgba(0,0,0,0.45)'); v.addColorStop(1, 'rgba(0,0,0,0)')
+  g.fillStyle = v; g.fillRect(0, 0, b, h)
+  g.globalCompositeOperation = 'destination-in'
+  const u = g.createLinearGradient(0, 0, 0, h); u.addColorStop(0, 'rgba(0,0,0,0)'); u.addColorStop(0.12, '#000'); u.addColorStop(0.75, '#000'); u.addColorStop(1, 'rgba(0,0,0,0.5)')
+  g.fillStyle = u; g.fillRect(0, 0, b, h)
   return c
 }
 
@@ -126,9 +126,11 @@ function aufBahn(b, s) {
   let i = 1
   while (i < b.laenge.length - 1 && b.laenge[i] < s) i++
   const [x0, y0] = b.punkte[i - 1], [x1, y1] = b.punkte[i], f = (s - b.laenge[i - 1]) / (b.laenge[i] - b.laenge[i - 1] || 1)
-  const dx = x1 - x0, dy = y1 - y0, n = Math.hypot(dx, dy) || 1
+  // Richtung über ein paar Punkte gemittelt – ruhige Ausrichtung ohne Kippeln
+  const a = b.punkte[Math.max(0, i - 3)], z = b.punkte[Math.min(b.punkte.length - 1, i + 2)]
+  const dx = z[0] - a[0], dy = z[1] - a[1], n = Math.hypot(dx, dy) || 1
   const nx = (b.links ? -dy : dy) / n, ny = (b.links ? dx : -dx) / n // nach außen
-  return { x: x0 + dx * f, y: y0 + dy * f, w: Math.atan2(nx, -ny) }
+  return { x: x0 + (x1 - x0) * f, y: y0 + (y1 - y0) * f, w: Math.atan2(nx, -ny) }
 }
 
 /** Szene laden. basis = Ordner mit grund.webp, aurora.webp … und geometrie.json (relativ zur Seite) */
@@ -147,9 +149,7 @@ export async function ladeSzene(basis) {
     bahnRechts: bahnVorbereiten(geo.bahnRechts, false),
     nebel: nebelBild(2400, 300, zufall),
     nebel2: nebelBild(2400, 300, zufall, 60),
-    nebelStreifen: leinwand(nebelB, 420), nebelMaske: randMaske(nebelB, 420, 450),
-    rauch: [rauchBild(320, zufall), rauchBild(320, zufall), rauchBild(320, zufall)],
-    rauchTeile: Array.from({ length: 26 }, () => ({ x: zufall(), leben: 22 + zufall() * 14, versatz: zufall(), art: Math.floor(zufall() * 3), schwanken: zufall() * 6 })),
+    nebelStreifen: leinwand(nebelB, H - HORIZONT + 12), nebelMaske: nebelMaske(nebelB, H - HORIZONT + 12),
     spiegel: geo.ebenen.reaktor ? spiegelBild(bilder.reaktor, geo.ebenen.reaktor) : null,
     blitze: [], naechsterBlitz: 0,
   }
@@ -181,21 +181,6 @@ function aurora(g, s, t, anteil) {
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
 
-/** Rauch steigt hinter dem Reaktor auf (wird danach vom Reaktor verdeckt) */
-function rauch(g, s, t, anteil) {
-  const r = s.geo.reaktor
-  g.globalCompositeOperation = 'screen'
-  for (const [i, p] of s.rauchTeile.entries()) {
-    const phase = (t / p.leben + p.versatz) % 1
-    const x = r.x + (p.x - 0.5) * 900 + Math.sin(t * 0.12 + p.schwanken) * 45 + phase * (p.x - 0.5) * 160
-    const y = HORIZONT - 30 - phase * 560
-    const gr = 220 + phase * 380
-    g.globalAlpha = anteil * Math.sin(phase * Math.PI) * 0.55
-    g.drawImage(s.rauch[(p.art + i) % 3], x - gr / 2, y - gr / 2, gr, gr * 0.75)
-  }
-  g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
-}
-
 /** Wasser: Glanzlichter kräuseln sich (zeilenweise seitlich versetzt), der Reaktor spiegelt sich im See */
 function wasser(g, s, t, anteil) {
   const e = s.geo.ebenen.wasser, bild = s.bilder.wasser
@@ -223,11 +208,12 @@ function wasser(g, s, t, anteil) {
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
 
-/** Nebelschwaden über dem See, zwei Lagen in verschiedenem Tempo, an den Seiten weich ausgeblendet */
+/** Nebelschwaden auf dem Wasser (Rückmeldung Auftraggeber 05.11.2026: nur auf dem See, unterhalb des Reaktors recht
+ *  dicht; der Reaktor bleibt klar) – drei Lagen in verschiedenem Tempo, oben und an den Seiten weich ausgeblendet */
 function nebel(g, s, t, anteil) {
-  const st = s.nebelStreifen, sg = st.getContext('2d'), x0 = 2880 - st.width / 2, y = HORIZONT - 230
+  const st = s.nebelStreifen, sg = st.getContext('2d'), x0 = 2880 - st.width / 2, y = HORIZONT - 12
   sg.globalCompositeOperation = 'source-over'; sg.clearRect(0, 0, st.width, st.height)
-  for (const [bild, tempo, dy, hoch, deck] of [[s.nebel, 11, 40, 1, 0.9], [s.nebel2, -6, 150, 0.9, 0.7], [s.nebel, 4, 230, 0.7, 0.5]]) {
+  for (const [bild, tempo, dy, hoch, deck] of [[s.nebel, 11, -70, 0.8, 1], [s.nebel2, -6, -20, 0.8, 0.85], [s.nebel, 4, 40, 0.7, 0.7]]) {
     sg.globalAlpha = deck
     const start = -(((t * tempo) % bild.width) + bild.width) % bild.width
     for (let px = start; px < st.width; px += bild.width) sg.drawImage(bild, px, dy, bild.width, bild.height * hoch)
@@ -238,27 +224,50 @@ function nebel(g, s, t, anteil) {
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
 
-/** Elektrizität: kurze, zuckende Bögen über den Spulen, selten und vorsichtig; öfter, wenn Loki denkt oder spricht */
+/**
+ * Elektrizität (Rückmeldung Auftraggeber 05.11.2026: größer um den Reaktor, deutlich seltener, aufbauend): Eine Entladung
+ * entsteht an einer Stelle knapp außerhalb des Steinrings, baut sich auf und läuft dann ein Stück um den Reaktor herum
+ * (Kopf vorn, Schweif folgt), knistert dabei und verlischt. Alle 8–18 s, öfter wenn Loki denkt oder spricht.
+ */
+const BLITZ_R = 352
 function blitze(g, s, t, rate, anteil) {
   const r = s.geo.reaktor
+  if (!s.naechsterBlitz) s.naechsterBlitz = t + 3
   if (t >= s.naechsterBlitz) {
-    const start = Math.random() * Math.PI * 2, laenge = (0.25 + Math.random() * 0.55) * (Math.random() < 0.5 ? -1 : 1)
-    s.blitze.push({ start, laenge, bis: t + 0.08 + Math.random() * 0.22, rad: SPULEN_R + (Math.random() - 0.5) * 30, stark: 0.6 + Math.random() * 0.4 })
-    s.naechsterBlitz = t + (0.25 + Math.random() * 1.6) / rate
+    const richtung = Math.random() < 0.5 ? -1 : 1
+    s.blitze.push({ von: t, dauer: 1.8 + Math.random() * 1.2, start: Math.random() * Math.PI * 2, weg: richtung * (1.6 + Math.random() * 1.8), rad: BLITZ_R + (Math.random() - 0.5) * 24 })
+    s.naechsterBlitz = t + (8 + Math.random() * 10) / rate
   }
-  s.blitze = s.blitze.filter((b) => b.bis > t && b.bis - t < 1)
+  s.blitze = s.blitze.filter((b) => t - b.von < b.dauer && t >= b.von)
   if (!s.blitze.length || anteil <= 0) return
   g.save(); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round'; g.lineJoin = 'round'
   for (const b of s.blitze) {
-    const teile = 14, punkte = []
+    const f = (t - b.von) / b.dauer
+    // Kopf läuft mit nachlassendem Tempo voraus, Schweif folgt verzögert; Helligkeit baut sich auf und verlischt
+    const kopf = b.start + b.weg * (1 - Math.pow(1 - Math.min(1, f * 1.25), 2))
+    const schweif = b.start + b.weg * Math.max(0, (f - 0.35) / 0.65) ** 1.5
+    const hell = Math.min(1, f / 0.25) * Math.min(1, (1 - f) / 0.3) * (0.75 + 0.25 * Math.random())
+    const spanne = kopf - schweif, teile = Math.max(4, Math.ceil(Math.abs(spanne) * 28)), punkte = []
     for (let i = 0; i <= teile; i++) {
-      const w = b.start + (b.laenge * i) / teile, zack = i === 0 || i === teile ? 0 : (Math.random() - 0.5) * 16
+      const w = schweif + (spanne * i) / teile, zack = (Math.random() - 0.5) * 18
       punkte.push([r.x + Math.cos(w) * (b.rad + zack), r.y + Math.sin(w) * (b.rad + zack)])
     }
-    for (const [breite, farbe, deck] of [[7, CYAN, 0.12], [3, CYAN, 0.35], [1.2, '#f2ffff', 0.9]]) {
-      g.beginPath(); punkte.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)))
-      g.lineWidth = breite; g.strokeStyle = farbe; g.globalAlpha = deck * b.stark * anteil; g.stroke()
+    const linie = (pkt, breite, farbe, deck) => {
+      g.beginPath(); pkt.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)))
+      g.lineWidth = breite; g.strokeStyle = farbe; g.globalAlpha = deck * hell * anteil; g.stroke()
     }
+    for (const [breite, farbe, deck] of [[10, CYAN, 0.1], [4, CYAN, 0.32], [1.4, '#f2ffff', 0.95]]) linie(punkte, breite, farbe, deck)
+    // ab und zu ein Ast nach innen zum Stein bzw. nach außen
+    if (Math.random() < 0.35) {
+      const [ax, ay] = punkte[Math.floor(Math.random() * punkte.length)], w = Math.atan2(ay - r.y, ax - r.x), aus = Math.random() < 0.5 ? 1 : -1
+      const ast = [[ax, ay]]
+      for (let i = 1; i <= 4; i++) ast.push([ax + Math.cos(w) * aus * i * 9 + (Math.random() - 0.5) * 10, ay + Math.sin(w) * aus * i * 9 + (Math.random() - 0.5) * 10])
+      linie(ast, 3, CYAN, 0.3); linie(ast, 1, '#f2ffff', 0.8)
+    }
+    // Lichtpunkt am Kopf
+    const kx = r.x + Math.cos(kopf) * b.rad, ky = r.y + Math.sin(kopf) * b.rad, gl = g.createRadialGradient(kx, ky, 0, kx, ky, 26)
+    gl.addColorStop(0, 'rgba(220,255,255,0.9)'); gl.addColorStop(1, 'rgba(95,246,255,0)')
+    g.globalAlpha = hell * anteil; g.fillStyle = gl; g.fillRect(kx - 26, ky - 26, 52, 52)
   }
   g.restore()
 }
@@ -340,7 +349,7 @@ export function zeichneSzene(g, s, t, opt = {}) {
   g.globalAlpha = an.grund; g.drawImage(s.bilder.grund, 0, 0, B, H); g.globalAlpha = 1
 
   aurora(g, s, t, an.aurora)
-  rauch(g, s, t, an.nebel)
+  // aufsteigender Rauch hinter dem Reaktor entfernt (Rückmeldung Auftraggeber 05.11.2026: Reaktor soll klar bleiben)
   ebene(g, s, 'reaktor', an.grund, 'source-over') // deckt den Rauch hinter dem Reaktor ab
   wasser(g, s, t, an.reaktor)
   nebel(g, s, t, an.nebel)
