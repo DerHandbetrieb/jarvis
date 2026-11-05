@@ -7,7 +7,7 @@
 // Teuer ist nur das Vorzeichnen beim Laden; je Bild wird nur gedreht, verschoben und überblendet.
 import { FOLGE, rune } from './runen.js'
 import { textBreite, zeichen, wetterSymbol, wetterArt as wetterWort, zeitAngaben, SCHRIFT, sperrung, istNacht } from './ringschrift.js'
-import { bergnebel, erstelleWetter, wetterArt, zeichneFrost, zeichneWetterHinten } from './wetter.js'
+import { bergnebel, erstelleWetter, wetterArt, zeichneWetterHinten } from './wetter.js'
 
 export const B = 5760, H = 1080
 const CYAN = '#5ff6ff'
@@ -1259,6 +1259,6 @@ export function zeichneSzene(g, s, t, opt = {}) {
   s.versatz = opt.versatz ?? 0
   seitenRunen(g, s, s.bahnLinks, t, -6, hell * an.seiten, 4) // links nach oben, rechts nach unten – gegenläufig wie die Mitte
   seitenRunen(g, s, s.bahnRechts, t, 6, hell * an.seiten, 12)
-  if (mit('wetter')) zeichneFrost(g, s.wetter) // Frost: Eiskristalle an den Bildschirmrändern
+  /* Frost: eigene Ebene über allem (hud5/frost.js), Stärke aus s.wetter.sichtbar.frost */
   g.restore()
 }

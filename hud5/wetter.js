@@ -25,51 +25,11 @@ export function wetterArt(w) {
 function leinwand(b, h) { const c = document.createElement('canvas'); c.width = b; c.height = h; return c }
 function zufallsfolge(s) { return () => { s = (s * 16807) % 2147483647; return s / 2147483647 } }
 
-/** Frost-Rand: verästelte Eiskristalle, die von den Rändern nach innen wachsen (einmal vorgezeichnet) */
-function frostBild() {
-  const c = leinwand(B, H), g = c.getContext('2d'), z = zufallsfolge(11)
-  const ast = (x, y, w, l, dicke, tiefe) => {
-    const x2 = x + Math.cos(w) * l, y2 = y + Math.sin(w) * l
-    g.lineWidth = dicke; g.beginPath(); g.moveTo(x, y); g.lineTo(x2, y2); g.stroke()
-    if (tiefe <= 0 || l < 4) return
-    for (let i = 1; i <= 3; i++) { // seitliche Zweige im 60°-Winkel wie bei Eiskristallen
-      const f = i / 4, sx = x + (x2 - x) * f, sy = y + (y2 - y) * f
-      for (const s of [-1, 1]) if (z() < 0.75) ast(sx, sy, w + s * Math.PI / 3, l * (0.45 - f * 0.25), dicke * 0.6, tiefe - 1)
-    }
-    ast(x2, y2, w + (z() - 0.5) * 0.5, l * 0.55, dicke * 0.75, tiefe - 1)
-  }
-  g.strokeStyle = 'rgba(215,245,255,0.38)'; g.shadowColor = 'rgba(180,235,255,0.8)'; g.shadowBlur = 4; g.lineCap = 'round'
-  // Ränder: links/rechts Bildschirm rundum, Mitte nur oben und unten (Wunsch Auftraggeber)
-  const kanten = [
-    [0, 1920, 'oben'], [0, 1920, 'unten'], [3840, 5760, 'oben'], [3840, 5760, 'unten'], [1920, 3840, 'oben'], [1920, 3840, 'unten'],
-    [0, 0, 'links'], [5760, 5760, 'rechts'], [1920, 1920, 'innenL'], [3840, 3840, 'innenR'],
-  ]
-  for (const [x0, x1, art] of kanten) {
-    const senkrecht = !['oben', 'unten'].includes(art), anzahl = senkrecht ? 26 : 34
-    for (let i = 0; i < anzahl; i++) {
-      const f = (i + z()) / anzahl, l = 18 + z() * 40
-      if (art === 'oben') ast(x0 + (x1 - x0) * f, 0, Math.PI / 2 + (z() - 0.5) * 0.9, l, 1.4, 3)
-      if (art === 'unten') ast(x0 + (x1 - x0) * f, H, -Math.PI / 2 + (z() - 0.5) * 0.9, l, 1.4, 3)
-      if (art === 'links' || art === 'innenR') ast(x0, H * f, (z() - 0.5) * 0.9, l, 1.4, 3) // innenR: linke Kante des rechten Bildschirms
-      if (art === 'rechts' || art === 'innenL') ast(x0, H * f, Math.PI + (z() - 0.5) * 0.9, l, 1.4, 3) // innenL: rechte Kante des linken
-    }
-  }
-  // zarter Reif-Schleier entlang der Kanten
-  g.shadowBlur = 0
-  for (const [x, y, b, h, v] of [[0, 0, B, 60, 'oben'], [0, H - 60, B, 60, 'unten']]) {
-    const gr = g.createLinearGradient(0, y, 0, y + h); const a = 'rgba(200,235,250,0.22)', n = 'rgba(200,235,250,0)'
-    gr.addColorStop(0, v === 'oben' ? a : n); gr.addColorStop(1, v === 'oben' ? n : a); g.fillStyle = gr; g.fillRect(x, y, b, h)
-  }
-  // in der Mitte keine Seitenränder: dort den Schleier wieder weg (nur Kristalle an oben/unten bleiben)
-  return c
-}
-
 export function erstelleWetter() {
   const z = zufallsfolge(23)
   return {
     tropfen: Array.from({ length: 900 }, () => ({ x: z() * B, y: z() * H, v: 0.7 + z() * 0.6, l: 0.6 + z() * 0.8 })),
     flocken: Array.from({ length: 700 }, () => ({ x: z() * B, y: z() * H, v: 0.5 + z() * 0.8, r: 1.2 + z() * 2.4, p: z() * 6.28 })),
-    frost: null, // erst bei Bedarf zeichnen (spart Zeit beim Laden)
     sichtbar: { regen: 0, schnee: 0, nebel: 0, frost: 0 }, letzt: null,
   }
 }
@@ -110,13 +70,6 @@ export function zeichneWetterHinten(g, st, w, t) {
   }
 }
 
-/** Frost an den Bildschirmrändern – ganz vorn, aber nur am Rand */
-export function zeichneFrost(g, st) {
-  const f = st.sichtbar.frost
-  if (f <= 0.01) return
-  st.frost = st.frost ?? frostBild()
-  g.save(); g.globalAlpha = f; g.drawImage(st.frost, 0, 0); g.restore()
-}
 
 /** Nebelschwaden in Bergen und Wäldern (immer, sehr langsam) – nebelTextur: waagerecht wiederholbare Wolkenschicht */
 export function bergnebel(g, nebelTextur, t, faktor = 1) {

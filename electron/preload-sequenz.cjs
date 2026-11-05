@@ -9,4 +9,6 @@ contextBridge.exposeInMainWorld('jarvisSequenz', {
   melde: (art) => ipcRenderer.send('sequenz-meldung', String(art)),
   /** Werkstatt-Lage für die Anzeigen (nur Zahlen und Titel, keine Anmeldedaten) – null ohne Verbindung */
   lage: () => ipcRenderer.invoke('sequenz-lage'),
+  /** dieselben Anzeige-Daten wie das Wallpaper (Werkstatt-Auswahl, Wetter, Station, PV, Kamera-Name, Lokis Zustand) */
+  hud: () => ipcRenderer.invoke('sequenz-hud'),
 })

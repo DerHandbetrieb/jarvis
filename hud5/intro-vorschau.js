@@ -13,6 +13,7 @@ const c = document.getElementById('flaeche'), g = c.getContext('2d', { alpha: fa
 const s = await ladeSzene('./ebenen/')
 await reaktorTeile(s)
 const clips = erstelleClips()
+await clips.laden()
 const tafeln = erstelleTafeln(document.getElementById('tafeln'), 0)
 const daten = ausHud({ wetter: { ort: 'Obersontheim', grad: 9.4, wolken: 70 }, pv: { akku: 64, akkuW: -1200, netzW: -850, pvW: 4300, hausW: 2250, zustand: 0, inselbetrieb: false, zeit: Date.now() } }, new Date(), sequenzDaten, () => 'BEWÖLKT')
 let variante = Number(frage.get('v')) || 1, ton = null, tonBereit = false, festT = null, t0Bild = performance.now()

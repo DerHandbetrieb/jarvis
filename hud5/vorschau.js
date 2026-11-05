@@ -2,6 +2,7 @@
 import { B, H, ladeSzene, zeichneSzene } from './szene.js'
 import { ausHud } from './inhalte.js'
 import { erstelleTafeln, zeichneTafeln, SPIEGEL } from './tafeln.js'
+import { erstelleFrost, frostStellen } from './frost.js'
 import { KANTE } from './rahmen.js'
 import { sequenzDaten } from '../startsequenz/lageDaten.js'
 
@@ -34,6 +35,7 @@ function schleife(ms) {
   zeichneSzene(g, s, ms / 1000, { loki, pegel, wetter: probeWetter, versatz: zoom ? 1920 : 0, ton: beatTon, aus: (new URLSearchParams(location.search).get('aus') ?? '').split(',') })
   // Inhalte mit Beispieldaten (in der Vorschau gibt es keine Gegenstelle); Ton: Kunstwerte
   const ton = Array.from({ length: 128 }, (_, i) => Math.max(0, Math.sin(ms / 300 + i * 0.3) * Math.exp(-((i % 64) / 20)) * 0.8))
+  const fv = s.wetter?.sichtbar?.frost ?? 0; if (fv > 0 && !window.frostE) { const d = document.createElement('div'); c.parentElement.appendChild(d); window.frostE = erstelleFrost(d, zoom ? 1920 : 0) } if (window.frostE) frostStellen(window.frostE, fv)
   zeichneTafeln(tafeln, { ...beispiel, ton, loki: { zustand: { hoert: 'bereit', denkt: 'denkt', spricht: 'spricht', aus: 'aus' }[loki], mikrofon: loki !== 'aus' } }, ms / 1000)
   const dauer = performance.now() - a
   zeiten.push(dauer); if (zeiten.length > 120) zeiten.shift()

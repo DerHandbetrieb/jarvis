@@ -48,6 +48,18 @@
         "--strictPort"
       ],
       "port": 5179
+    },
+    {
+      "name": "jarvis-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--port",
+        "5180",
+        "--strictPort"
+      ],
+      "port": 5180
     }
   ]
 }

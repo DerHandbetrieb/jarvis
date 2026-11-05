@@ -1,84 +1,124 @@
-// Start-Sequenz im Jarvis-Programm (03.11.2026, vom Auftraggeber abgenommen: „passt, gefällt mir, lief sauber durch“).
-// Szene und Ton kommen aus der Vorschau (vorschau/start-sequenz/bewegt/szene.js, ton/tongerueste.js – Gerüst 9).
-// Unterschied zur Vorschau: Lokis Spruch ist keine fertige Datei, sondern kommt live aus seiner Stimme (das Hauptfenster
-// erzeugt ihn und schickt ihn über window.jarvisSequenz). Bis er da ist, läuft die Sequenz nach dem Einschlag weiter
-// (offenes Ende); spätestens nach MAX_WARTEN Sekunden blendet sie ohne Gruß aus. Jede Taste und jeder Klick bricht ab.
-// Meldungen an das Programm: 'gruss' (Loki hat hier gesprochen), 'ohne-gruss', 'abgebrochen', 'ende' (Fenster zu).
-// Seit Etappe L3: echte Werkstatt-Zahlen (über das Hauptprogramm), echtes Datum und Wetter – ohne Verbindung die
-// Beispielwerte mit Hinweis „Beispiel“.
-import { aufbauen, zeichne, verbinde, setzeDaten, tonDaten, TON } from '../vorschau/start-sequenz/bewegt/szene.js'
-import { ZEIT as Z, vorbereiten, starten, jetzt, verzoegerung, setzeTonOrdner, pufferAus } from '../vorschau/start-sequenz/ton/tongerueste.js'
-import { datumText, sequenzDaten, wetterText } from './lageDaten.js'
-import { ORTE, holeWetter, wetterAusCode, wetterOrt } from '../src/jarvis/wetter.ts'
+// Start-Intro im Jarvis-Programm (neu 05.11.2026, Wahl Auftraggeber: Variante 1 „Runenkette“ aus hud5/intro2.js).
+// Dieselbe Szene „Mystic Aurora“ wie das Wallpaper (hud5/szene.js): Blitze, Runen von außen, Rauch von den Seiten, der
+// Reaktor setzt sich aus seinen echten Teilen zusammen, Ringe drehen ein, Einschlag, Fenster flackern einzeln an.
+// Lokis Gruß kommt live aus seiner Stimme (Hauptfenster → window.jarvisSequenz). Danach: Fenster blendet weich aus
+// („ausblenden“ an das Hauptprogramm) – dahinter steht bildgleich das Wallpaper.
+// Meldungen: 'gruss' (Loki hat hier gesprochen), 'ohne-gruss', 'abgebrochen', 'ausblenden', 'ende'.
+// Jede Taste und jeder Klick bricht ab. Ohne drei Full-HD-Bildschirme nebeneinander: nur der Mittelteil.
+import { B, H, ladeSzene, zeichneSzene } from '../hud5/szene.js'
+import { ausHud } from '../hud5/inhalte.js'
+import { erstelleTafeln, zeichneTafeln, tafelnStellen } from '../hud5/tafeln.js'
+import { erstelleFrost, frostStellen } from '../hud5/frost.js'
+import { zeichneIntroLicht } from '../hud5/intro.js'
+import { introZustand, reaktorTeile, zeichneReaktorTeile, zeichneReaktorMaske, erstelleClips, rauchHinten, rauchVorn, licht2, tonFuer, VARIANTEN } from '../hud5/intro2.js'
+import { vorbereiten, starten, jetzt, verzoegerung, setzeTonOrdner, pufferAus } from '../vorschau/start-sequenz/ton/tongerueste.js'
+import { sequenzDaten } from './lageDaten.js'
+import { wetterAusCode } from '../src/jarvis/wetter.ts'
 
+const VARIANTE = 1
+const E = VARIANTEN[VARIANTE].E
 const MAX_WARTEN = 50 // Sekunden ab Start; Lokis Stimme braucht nach dem Hochfahren 10–33 s zum Laden
 const bruecke = window.jarvisSequenz ?? null
 const par = new URLSearchParams(location.search)
 const lautstaerke = Math.max(0, Math.min(1, Number(par.get('lautstaerke') ?? 0.8)))
-// beim Entwickeln liefert Vite die Töne direkt aus der Vorschau, im fertigen Programm liegen sie in dist/toene
-setzeTonOrdner(new URL(import.meta.env.DEV ? '/vorschau/start-sequenz/3d/toene/' : './toene/', location.href).href)
+const VERSATZ = par.get('ausschnitt') === 'mitte' ? 1920 : 0
+// beim Entwickeln liefert Vite die Dateien direkt aus den Quellordnern, im fertigen Programm liegen sie in dist/
+const DEV = import.meta.env.DEV
+const ORDNER = { ebenen: DEV ? '/hud5/ebenen/' : './ebenen/', rauch: DEV ? '/hud5/rauch/' : './rauch/', toene: DEV ? '/vorschau/start-sequenz/3d/toene/' : './toene/' }
+setzeTonOrdner(new URL(ORDNER.toene, location.href).href)
 
-const c = document.getElementById('flaeche')
-verbinde(c, { versatzX: par.get('ausschnitt') === 'mitte' ? 1920 : 0 })
-// höchstens so lange auf Werkstatt-Lage und Wetter warten, dann ohne sie weiter (die Anzeigen werden einmal vorgezeichnet)
-const WARTEN_DATEN = 2500
-const mitZeitgrenze = (p) => Promise.race([p, new Promise((w) => setTimeout(() => w(null), WARTEN_DATEN))]).catch(() => null)
-async function datenHolen() {
-  const ort = wetterOrt()
-  const [lage, wetter] = await Promise.all([mitZeitgrenze(bruecke?.lage?.() ?? Promise.resolve(null)), mitZeitgrenze(holeWetter(ort))])
-  const w = wetter?.current
-  setzeDaten({
-    echt: sequenzDaten(lage, new Date()),
-    datum: datumText(new Date()),
-    wetter: wetterText(ORTE[ort].name, w?.temperature_2m, w?.weather_code != null ? wetterAusCode(w.weather_code, w.cloud_cover ?? 0) : null),
-  })
-}
+const c = document.getElementById('flaeche'), g = c.getContext('2d', { alpha: false })
+c.width = VERSATZ ? 1920 : B; c.height = H
 
-let ton = null, grussDaten = null, grussGeplant = false, keinGruss = false, ausBei = null, ausDauer = 2, abbruch = false
+const WETTER = { klar: 'KLAR', wolkig: 'BEWÖLKT', regen: 'REGEN', gewitter: 'GEWITTER' }
+const wetterText = (w) => (w?.code != null ? WETTER[wetterAusCode(w.code, w.wolken ?? 0)] ?? '' : '')
+const mitZeitgrenze = (p, ms) => Promise.race([p, new Promise((w) => setTimeout(() => w(null), ms))]).catch(() => null)
+
+let ton = null, grussDaten = null, grussGeplant = false, keinGruss = false, ausBei = null, abbruch = false, frueherAbbruch = false
+let frost = null, s = null, tafeln = null, clips = null, daten = null, wetter = null
 const gemeldet = new Set()
 function melde(art) { if (gemeldet.has(art)) return; gemeldet.add(art); bruecke?.melde(art) }
 bruecke?.beiGruss((samples, sampleRate) => { grussDaten = { samples, sampleRate } })
 bruecke?.beiKeinGruss(() => { keinGruss = true })
 
-const zeit = () => Math.max(0, jetzt() - ton.t0 - verzoegerung())
-let frueherAbbruch = false
+const zeit = () => (ton ? Math.max(0, jetzt() - ton.t0 - verzoegerung()) : 0)
 function abbrechen() {
   if (abbruch) return
-  if (!ton) { frueherAbbruch = true; return } // Töne laden noch → gleich nach dem Laden beenden
+  if (!ton) { frueherAbbruch = true; return }
   abbruch = true
-  const t = zeit(); ausBei = t; ausDauer = 0.5; ton.ausblenden(t, 0.5)
+  const t = zeit(); ton.ausblenden(t, 0.4)
   if (grussGeplant) melde('gruss') // Loki hat schon angefangen → im Hauptfenster nicht nochmal begrüßen
-  melde('abgebrochen')
+  melde('abgebrochen'); melde('ausblenden')
+  setTimeout(() => { ton?.stopp(); melde('ende') }, 1800)
 }
 addEventListener('keydown', abbrechen)
 addEventListener('mousedown', abbrechen)
 
+// Ton der Anzeige „Audio“: was das Intro gerade spielt (Frequenzen aus dem Mess-Punkt des Tongerüsts)
+const fft = new Uint8Array(512)
+function tonWerte() {
+  if (!ton?.gesamt) return null
+  ton.gesamt.getByteFrequencyData(fft)
+  return Array.from({ length: 128 }, (_, i) => fft[Math.floor(((i % 64) / 64) * 200) + 2] / 255)
+}
+
+function bild(t) {
+  const z = introZustand(VARIANTE, t, s), k = s.geo.reaktor
+  const hell = t >= E.einschlag ? 1 : 0.4 + 0.6 * z.s
+  zeichneSzene(g, s, t, {
+    loki: 'hoert', an: z.an, versatz: VERSATZ, wetter,
+    reaktorZeichnen: z.reaktorTeile ? (gg) => zeichneReaktorTeile(gg, s, z.reaktorTeile, hell) : null,
+    reaktorMaske: z.reaktorTeile ? (gg) => zeichneReaktorMaske(gg, s) : null,
+    hinten: (gg) => rauchHinten(gg, s, t, z, clips),
+  })
+  g.save(); g.setTransform(1, 0, 0, 1, -VERSATZ, 0); rauchVorn(g, s, t, z, clips); licht2(g, s, t, z); g.restore()
+  zeichneIntroLicht(g, s, t, z, VERSATZ)
+  tafelnStellen(tafeln, z.tafeln.art, z.tafeln)
+  const fv = (s.wetter?.sichtbar?.frost ?? 0) * (z.an.grund ?? 1); if (fv > 0 && !frost) { const d = document.createElement('div'); document.body.appendChild(d); frost = erstelleFrost(d, VERSATZ) } if (frost) frostStellen(frost, fv)
+  if (z.tafeln.links > 0 || z.tafeln.rechts > 0) zeichneTafeln(tafeln, { ...daten, ton: tonWerte() }, t)
+}
+
 function schleife() {
+  if (gemeldet.has('ende')) return
   const t = zeit()
   if (!abbruch && ausBei == null) {
-    if (!grussGeplant && grussDaten && t >= Z.GRUSS - 0.6) {
+    if (!grussGeplant && grussDaten && t >= E.gruss - 0.6) {
       // Gruß frühestens zur geplanten Stelle, sonst sobald er da ist; Musik wird dafür abgesenkt (in ton.gruss)
       grussGeplant = true
-      const ende = ton.gruss(pufferAus(grussDaten.samples, grussDaten.sampleRate), Math.max(Z.GRUSS, t + 0.4))
-      ausBei = ende + 1.8; ton.ausblenden(ausBei, 2)
+      const ende = ton.gruss(pufferAus(grussDaten.samples, grussDaten.sampleRate), Math.max(E.gruss, t + 0.4))
+      ausBei = ende + 1.2
       setTimeout(() => melde('gruss'), Math.max(0, ende - t) * 1000)
-    } else if (!grussGeplant && ((keinGruss && t >= Z.AUS) || t >= MAX_WARTEN)) {
-      ausBei = t; ton.ausblenden(t, 2); melde('ohne-gruss')
-    }
+    } else if (!grussGeplant && ((keinGruss && t >= 15) || t >= MAX_WARTEN)) { ausBei = t; melde('ohne-gruss') }
   }
-  zeichne(t, ausBei ?? 999, ausDauer)
-  if (ausBei != null && t > ausBei + ausDauer + 0.2) { ton.stopp(); melde('ende'); return }
+  if (ausBei != null && t >= ausBei && !abbruch) {
+    abbruch = true; ton.ausblenden(t, 1.4); melde('ausblenden')
+    setTimeout(() => { ton.stopp(); melde('ende') }, 1800)
+  }
+  try { bild(t) } catch (f) { // nie einfrieren: bei einem Zeichenfehler sauber ausblenden (Prüf-Agent 05.11.2026)
+    console.error('Start-Intro:', f); if (!abbruch) { abbruch = true; ton?.ausblenden(t, 0.6); melde('ohne-gruss'); melde('ausblenden'); setTimeout(() => { ton?.stopp(); melde('ende') }, 1800) }
+  }
   requestAnimationFrame(schleife)
 }
 
 async function los() {
-  // Töne laden (fehlende werden übersprungen) und gleichzeitig die echten Werte holen, dann einmal vorzeichnen
-  await Promise.all([vorbereiten(null), datenHolen().catch(() => setzeDaten({ datum: datumText(new Date()) }))])
-  if (frueherAbbruch) { melde('abgebrochen'); melde('ende'); return } // schon abgebrochen → gar nicht erst vorzeichnen
-  aufbauen()
+  // Szene, Reaktor-Teile, Töne und die aktuellen Anzeige-Daten parallel laden
+  const [szene, , , antwort] = await Promise.all([
+    ladeSzene(ORDNER.ebenen),
+    null,
+    vorbereiten(null),
+    mitZeitgrenze(bruecke?.hud?.() ?? Promise.resolve(null), 2500),
+  ])
+  s = szene
+  await reaktorTeile(s, ORDNER.ebenen)
   if (frueherAbbruch) { melde('abgebrochen'); melde('ende'); return }
-  ton = starten(TON, { offen: true, lautstaerke })
-  tonDaten.gesamt = ton.gesamt; tonDaten.stimme = ton.stimme
+  const neu = antwort ? { ...antwort } : null
+  if (neu?.station && neu.wetter && Number.isFinite(neu.station.grad)) neu.wetter = { ...neu.wetter, grad: neu.station.grad, station: neu.station }
+  daten = ausHud(neu, new Date(), sequenzDaten, wetterText)
+  wetter = neu?.wetter ? { code: neu.wetter.code, grad: neu.wetter.grad, station: neu.wetter.station } : null
+  tafeln = erstelleTafeln(document.getElementById('tafeln'), VERSATZ)
+  clips = erstelleClips(ORDNER.rauch)
+  await clips.laden()
+  ton = starten(tonFuer(VARIANTE, s), { offen: true, lautstaerke })
   requestAnimationFrame(schleife)
 }
-los().catch((f) => { console.error('Start-Sequenz:', f); melde('ohne-gruss'); melde('ende') })
+los().catch((f) => { console.error('Start-Intro:', f); melde('ohne-gruss'); melde('ende') })

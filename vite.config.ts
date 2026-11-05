@@ -48,9 +48,28 @@ function startSequenzToene(): Plugin {
   }
 }
 
+/**
+ * Start-Intro (05.11.2026, Szene „Mystic Aurora“ wie das Wallpaper): Bild-Ebenen nach dist/ebenen und Rauch-Videos nach
+ * dist/rauch kopieren (ohne die verworfenen Entwürfe kupfer-* und rand-d-*).
+ */
+function introDateien(): Plugin {
+  return {
+    name: 'intro-dateien',
+    apply: 'build',
+    closeBundle() {
+      for (const [von, nach, weglassen] of [['hud5/ebenen', 'dist/ebenen', /^(kupfer-|rand-d-)/], ['hud5/rauch', 'dist/rauch', null]] as const) {
+        const quelle = path.resolve(von), ziel = path.resolve(nach)
+        if (!fs.existsSync(quelle)) { console.warn(`Hinweis: ${von} fehlt – das Start-Intro kann so nicht laufen.`); continue }
+        fs.mkdirSync(ziel, { recursive: true })
+        for (const f of fs.readdirSync(quelle)) if (!(weglassen && weglassen.test(f)) && fs.statSync(path.join(quelle, f)).isFile()) fs.copyFileSync(path.join(quelle, f), path.join(ziel, f))
+      }
+    },
+  }
+}
+
 // Port 5174, weil die Werkstatt-App 5173 nutzt. Zwei Seiten: die Oberfläche (index.html) und die Start-Sequenz.
 export default defineConfig({
-  plugins: [react(), tailwindcss(), sicherheitsRegel(), startSequenzToene()],
+  plugins: [react(), tailwindcss(), sicherheitsRegel(), startSequenzToene(), introDateien()],
   server: { port: 5174, strictPort: true },
   build: { rollupOptions: { input: { main: path.resolve('index.html'), startsequenz: path.resolve('start-sequenz.html'), kameralive: path.resolve('kamera-live.html') } } },
 })

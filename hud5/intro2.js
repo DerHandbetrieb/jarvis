@@ -76,11 +76,13 @@ const CLIPS = { seite: 'seite.mp4', mitte: 'mitte.mp4', welle: 'welle.mp4' }
 let fest = false
 /** je Verwendung ein eigenes Video-Element (gleiches Video kann mehrfach gleichzeitig mit anderer Startzeit laufen) */
 export function erstelleClips(basis = './rauch/') {
-  const liste = {}
+  const liste = {}, blobs = {}
   return {
+    /** Videos vorab als Blob laden – so lässt sich im fertigen Programm (app://) beliebig springen (Prüf-Agent 05.11.2026) */
+    async laden() { await Promise.all(Object.entries(CLIPS).map(async ([n, d]) => { try { blobs[n] = URL.createObjectURL(await (await fetch(basis + d)).blob()) } catch { /* ohne dieses Video */ } })) },
     holen(name, kennung) {
       const id = name + ':' + kennung
-      if (!liste[id]) { const v = document.createElement('video'); v.src = basis + CLIPS[name]; v.muted = true; v.preload = 'auto'; v.playsInline = true; liste[id] = v }
+      if (!liste[id]) { const v = document.createElement('video'); v.src = blobs[name] ?? basis + CLIPS[name]; v.muted = true; v.preload = 'auto'; v.playsInline = true; liste[id] = v }
       return liste[id]
     },
     stoppen() { for (const v of Object.values(liste)) v.pause() },

@@ -7,6 +7,7 @@
 import { B, H, ladeSzene, zeichneSzene } from '../hud5/szene.js'
 import { ausHud } from '../hud5/inhalte.js'
 import { erstelleTafeln, zeichneTafeln } from '../hud5/tafeln.js'
+import { erstelleFrost, frostStellen } from '../hud5/frost.js'
 import { sequenzDaten } from '../startsequenz/lageDaten.js'
 import { wetterAusCode } from '../src/jarvis/wetter.ts'
 
@@ -98,6 +99,8 @@ window.wallpaperPropertyListener = { setPaused: (p) => { const war = pausiert; p
 
 const szene = await ladeSzene('./ebenen/')
 const tafeln = erstelleTafeln(document.getElementById('tafeln'), VERSATZ) // Fenster mit echter Perspektive über der Szene
+let frost = null // vereister Rand über allem – erst anlegen, wenn es friert (05.11.2026)
+const frostEbene = () => { const d = document.createElement('div'); document.body.appendChild(d); return erstelleFrost(d, VERSATZ) }
 /** Zustand von L.O.K.I. für den Reaktor: hört zu / denkt / spricht / aus */
 const reaktorZustand = (l) => (!l || !l.mikrofon || ['aus', 'fehler'].includes(l.zustand) ? 'aus' : l.zustand === 'denkt' ? 'denkt' : l.zustand === 'spricht' ? 'spricht' : 'hoert')
 
@@ -107,6 +110,7 @@ function schleife(ms, meine = lauf) {
   const t = ms / 1000, loki = antwort?.loki ?? null
   const tonJetzt = performance.now() - letzterTon < 2000 ? ton : null
   zeichneSzene(g, szene, t, { wetter: antwort?.wetter ?? null, versatz: VERSATZ, loki: reaktorZustand(loki), pegel: 0.6 + 0.4 * Math.abs(Math.sin(t * 7)), ton: tonJetzt }) // Reaktor pulsiert im Beat
+  const fv = szene.wetter?.sichtbar?.frost ?? 0; if (fv > 0 && !frost) frost = frostEbene(); if (frost) frostStellen(frost, fv)
   zeichneTafeln(tafeln, { ...daten, tonStatus: tonStatus(), ton: performance.now() - letzterTon < 2000 ? ton : null, kamBilder: [liveBild(0), liveBild(1)] }, t)
 }
 

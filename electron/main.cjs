@@ -136,7 +136,7 @@ function fensterErstellen() {
 // Ein randloses Fenster über alle drei Bildschirme (5760×1080), ganz oben – auch über der Taskleiste. So im Test über
 // drei Bildschirme gemessen: 60 Bilder/s. Hat der PC nicht genau drei Full-HD-Bildschirme nebeneinander, zeigt das Fenster
 // nur den mittleren Teil (Runen-Schild) auf dem Hauptbildschirm. Sicherheits-Ende: nach SEQUENZ_MAX ms wird es geschlossen.
-const SEQUENZ_MAX = 70_000
+const SEQUENZ_MAX = 90_000 // Intro: Laden + bis 50 s auf Lokis Stimme warten + Gruß + Ausblenden
 let sequenzFenster = null
 let sequenzWartend = null // Nachrichten an die Sequenz, solange ihre Seite noch lädt (sonst gingen sie verloren)
 function anSequenz(kanal, daten) { const f = sequenzFenster; if (!f || f.isDestroyed()) return; if (sequenzWartend) sequenzWartend.push([kanal, daten]); else f.webContents.send(kanal, daten) }
@@ -453,15 +453,18 @@ if (!app.requestSingleInstanceLock()) {
       try { hud.schluessel = hudSchluessel(fs, hudDatei); kameraLog('HUD-Schlüssel geladen'); return true } catch (f) { kameraLog('HUD-Schlüssel nicht lesbar:', f?.code ?? '', f?.message ?? f); return false }
     }
     if (!schluesselLaden()) { const t = setInterval(() => { if (schluesselLaden()) clearInterval(t) }, 5000) }
+    // dieselben Daten wie das Wallpaper – auch fürs Start-Intro (Fenster über dem Wallpaper, endet bildgleich, 05.11.2026)
+    const hudDatenJetzt = () => {
+      const l = werkstatt.lage()
+      const k = kamera.status()
+      return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null } : null, loki: { ...trayZustand } }
+    }
+    ipcMain.handle('sequenz-hud', (e) => (sequenzFenster && !sequenzFenster.isDestroyed() && e.sender === sequenzFenster.webContents ? hudDatenJetzt() : null))
     const hudServer = erstelleHudServer({
       port: HUD_PORT, schluessel: () => hud.schluessel,
       liveBild: async (kanal, nach) => (kamera.status().eingerichtet ? kameraLive.bildNach(kanal, nach) : null),
       ton: async () => tonWerte(),
-      daten: async () => {
-        const l = werkstatt.lage()
-        const k = kamera.status()
-        return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null } : null, loki: { ...trayZustand } }
-      },
+      daten: async () => hudDatenJetzt(),
       // roter Knopf im Wallpaper: wie „Mikrofon aus/an“ im Infobereich, beim Stummschalten verstummt Loki auch sofort
       stumm: async () => {
         if (hauptfenster.isDestroyed()) return { ...trayZustand }
@@ -517,6 +520,11 @@ if (!app.requestSingleInstanceLock()) {
       console.log(`Start-Sequenz: ${a}`)
       if (['gruss', 'ohne-gruss', 'abgebrochen'].includes(a)) hauptfenster.webContents.send('sequenz-meldung', a)
       if (a === 'ende' && !f.isDestroyed()) f.close() // „ende“ meldet dann das closed-Ereignis
+      // Intro auf der Szene des Wallpapers (05.11.2026): Fenster weich ausblenden – dahinter steht bildgleich das Wallpaper
+      if (a === 'ausblenden' && !f.isDestroyed()) {
+        const start = Date.now(), DAUER = 1400
+        const schritt = setInterval(() => { if (f.isDestroyed()) return clearInterval(schritt); const p = Math.min(1, (Date.now() - start) / DAUER); f.setOpacity(1 - p * p * (3 - 2 * p)); if (p >= 1) { clearInterval(schritt); f.close() } }, 16)
+      }
     })
     ipcMain.handle('autostart-lesen', (e) => (vonFenster(e) ? { verfuegbar: autostart.verfuegbar(), an: autostart.lesen() } : null))
     ipcMain.handle('autostart-setzen', (e, an) => {
