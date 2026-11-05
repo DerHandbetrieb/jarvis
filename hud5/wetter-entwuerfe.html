@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="de"><head><meta charset="UTF-8" /><title>L.O.K.I. – Wetterfeld-Entwürfe</title>
+<style>html,body{margin:0;background:#06121a;font:600 18px Bahnschrift,sans-serif;color:#9ef} .feld{display:inline-block;margin:8px;vertical-align:top} canvas{display:block}</style></head>
+<body><div id="wurzel"></div>
+<script type="module">
+import { WETTER_ENTWURF, BEISPIEL_WETTER } from './wetter-entwuerfe.js'
+import { RAHMEN_STILE } from './rahmen.js'
+const namen = { a: 'A · Kacheln', b: 'B · Temperatur groß + Reihe', c: 'C · Windrose', d: 'D · Liste' }
+for (const k of ['a', 'b', 'c', 'd']) {
+  const d = document.createElement('div'); d.className = 'feld'; d.textContent = namen[k]
+  const c = document.createElement('canvas'); c.width = 420; c.height = 396; const g = c.getContext('2d')
+  RAHMEN_STILE[1].zeichne(g, 420, 396); WETTER_ENTWURF[k](g, 420, 396, BEISPIEL_WETTER)
+  d.appendChild(c); document.getElementById('wurzel').appendChild(d)
+}
+</script></body></html>

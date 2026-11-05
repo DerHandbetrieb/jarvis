@@ -221,20 +221,19 @@ function kamera(g, b, h, bild, name, alarm, t) {
  * Vorzeichen laut FENECON: Akku + = entladen, − = laden; Netz + = Bezug, − = Einspeisung.
  */
 const kw = (w) => (w == null ? '–' : Math.abs(w) >= 1000 ? `${(Math.abs(w) / 1000).toFixed(1).replace('.', ',')} kW` : `${Math.round(Math.abs(w))} W`)
-/** PV-Anlage (Wahl Auftraggeber 05.11.2026: Entwurf 7 „Drei Spalten“) – links Erzeugung, in der breiten Mitte groß das
- *  Haus (kaum Leuchten), rechts Speicher/Verkauf/Auto. Lichtpunkte laufen in Flussrichtung, Farbe nach Herkunft: Sonnenstrom
- *  grün, Akku türkis, Netzbezug rot; der Strommast selbst bleibt grau. Auto: Wallbox kommt später (Werte dann aus FENECON). */
+/** PV-Anlage (Entwurf 7 „Drei Spalten“, Umbau 05.11.2026 nach Rückmeldung Auftraggeber): links Erzeugung, rechts
+ *  Speicher/Verkauf – beide Seiten breiter, Symbole und Werte größer; in der Mitte Haus und Auto nebeneinander (Verbrauch
+ *  je Abnehmer), kleiner als vorher. Lichtpunkte in Flussrichtung, Farbe nach Herkunft: Sonnenstrom grün, Akku türkis,
+ *  Netzbezug rot; der Strommast bleibt grau. Auto: Wallbox kommt später (Werte dann aus FENECON). */
 function energie(g, b, h, pv, t) {
   const stoerung = pv && pv.zustand >= 3, warnung = pv && pv.zustand === 2
   kopf(g, 'ENERGIE · PV-ANLAGE', !pv ? 'NICHT VERBUNDEN' : stoerung ? 'STÖRUNG' : warnung ? 'WARNUNG' : pv.inselbetrieb ? 'INSELBETRIEB' : 'LIVE', b)
   const GR = '#5dff8a', NETZROT = '#ff4a3a', MASTF = 'rgba(205,225,232,0.85)', AUS = 'rgba(165,230,240,0.35)'
-  const s1 = b * 0.24, s2 = b * 0.76, xl = s1 / 2, xm = b / 2, xr = (s2 + b) / 2, o = 34, hh = h - o, zeile = (f) => o + hh * f
-  for (const [x, n] of [[xl, 'ERZEUGUNG'], [xm, 'HAUS'], [xr, 'SPEICHER & ABGABE']]) text(g, n, x, o + 18, 10, BLASS, 'center', 600)
+  const s1 = b * 0.31, s2 = b * 0.69, xl = s1 / 2, xm = b / 2, xr = (s2 + b) / 2, o = 34, hh = h - o, zeile = (f) => o + hh * f
+  for (const [x, n] of [[xl, 'ERZEUGUNG'], [xm, 'VERBRAUCH'], [xr, 'SPEICHER & ABGABE']]) text(g, n, x, o + 20, 12, BLASS, 'center', 600)
   g.strokeStyle = 'rgba(95,246,255,0.1)'; g.lineWidth = 1
   for (const x of [s1, s2]) { g.beginPath(); g.moveTo(Math.round(x) + 0.5, o + 8); g.lineTo(Math.round(x) + 0.5, h - 8); g.stroke() }
   const zahl = (w) => (pv ? kw(w) : '–'), pvW = Math.max(0, pv?.pvW ?? 0), akkuW = pv?.akkuW ?? 0, netzW = pv?.netzW ?? 0, soc = pv?.akku
-  const yH = zeile(0.46), hausGr = Math.min(s2 - s1 - 70, hh * 0.56), rand = hausGr * 0.42
-  // Fluss: Linie + Lichtpunkte; w > 0 läuft von a nach z, w < 0 zurück
   const fluss = ([x1, y1], [x2, y2], w, farbe) => {
     const an = Math.abs(w) >= 20
     g.strokeStyle = an ? farbe + '55' : 'rgba(95,246,255,0.12)'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke()
@@ -246,31 +245,34 @@ function energie(g, b, h, pv, t) {
       v.addColorStop(0, farbe); v.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = v; g.fillRect(x - 6, y - 6, 12, 12)
     }
   }
-  const eintrag = (art, x, y, gr, farbe, name, w, wertFarbe, zusatz = '') => {
-    if (art === 'auto') auto(g, x, y, gr, farbe, 0.12); else symbol(g, art, x, y, gr, farbe, soc ?? 0, 0.18)
-    text(g, name, x, y + gr * 0.62 + 12, 10, BLASS, 'center', 600)
-    text(g, zahl(w), x, y + gr * 0.62 + 31, 17, wertFarbe, 'center', 600)
-    if (zusatz) text(g, zusatz, x, y + gr * 0.62 + 44, 9, wertFarbe, 'center', 600)
+  // Seiten: Symbol links in der Spalte, Name und Wert daneben – groß und gut lesbar
+  const seite = (art, x0, y, gr, farbe, name, w, wertFarbe, zusatz = '') => {
+    const sx = x0 + gr * 0.62
+    symbol(g, art, sx, y, gr, farbe, soc ?? 0, 0.18)
+    const tx = sx + gr * 0.72
+    text(g, name, tx, y - 10, 13, BLASS, 'left', 600)
+    text(g, zahl(w), tx, y + 16, 26, wertFarbe, 'left', 600)
+    if (zusatz) text(g, zusatz, tx, y + 33, 12, wertFarbe, 'left', 600)
   }
-  // links: Erzeugung
-  const ySo = zeile(0.3), yNb = zeile(0.72), bezug = Math.max(0, netzW)
-  fluss([xl + 30, ySo], [xm - rand, yH - hausGr * 0.08], pvW, GR); fluss([xl + 30, yNb], [xm - rand, yH + hausGr * 0.2], bezug, NETZROT)
-  eintrag('sonne', xl, ySo - 10, 44, GR, 'SONNE', pvW, GR)
-  eintrag('mast', xl, yNb - 10, 42, MASTF, 'NETZBEZUG', bezug, bezug > 20 ? NETZROT : AUS)
-  // rechts: Speicher und Abgabe
-  const yAk = zeile(0.2), yVk = zeile(0.5), yAu = zeile(0.8), verkauf = Math.max(0, -netzW), laedt = akkuW < -20, entlaedt = akkuW > 20
+  const ySo = zeile(0.36), yNb = zeile(0.76), bezug = Math.max(0, netzW)
+  const yAk = zeile(0.36), yVk = zeile(0.76), verkauf = Math.max(0, -netzW), laedt = akkuW < -20, entlaedt = akkuW > 20
   const akkuF = soc != null && soc < 15 ? ROT : CYAN
-  fluss([xm + rand, yH - hausGr * 0.12], [xr - 30, yAk], -akkuW, laedt ? GR : CYAN)
-  fluss([xm + rand, yH + hausGr * 0.04], [xr - 30, yVk], verkauf, GR)
-  fluss([xm + rand, yH + hausGr * 0.2], [xr - 30, yAu], 0, AUS)
-  eintrag('akku', xr, yAk - 8, 36, akkuF, soc != null ? `AKKU ${Math.round(soc)} %` : 'AKKU', akkuW, akkuF, laedt ? 'LÄDT' : entlaedt ? 'ENTLÄDT' : '')
-  eintrag('mast', xr, yVk - 8, 36, MASTF, 'VERKAUF', verkauf, verkauf > 20 ? GR : AUS)
-  eintrag('auto', xr, yAu - 8, 40, AUS, 'AUTO', 0, AUS, 'NICHT VERBUNDEN')
-  // Mitte: Haus groß, kaum Leuchten
-  symbol(g, 'haus', xm, yH - 8, hausGr, HELL, 0, 0.04)
-  text(g, zahl(pv?.hausW), xm, yH + hausGr * 0.42 + 22, 26, HELL, 'center', 600)
+  // Mitte: Haus und Auto nebeneinander
+  const yM = zeile(0.52), mb = s2 - s1, xh = s1 + mb * 0.3, xa = s1 + mb * 0.74, gh = Math.min(84, hh * 0.3)
+  fluss([s1 - 6, ySo], [xh - gh * 0.45, yM - 10], pvW, GR); fluss([s1 - 6, yNb], [xh - gh * 0.45, yM + 12], bezug, NETZROT)
+  fluss([xa + gh * 0.45, yM - 10], [s2 + 6, yAk], -akkuW, laedt ? GR : CYAN); fluss([xa + gh * 0.45, yM + 12], [s2 + 6, yVk], verkauf, GR)
+  fluss([xh + gh * 0.45, yM], [xa - gh * 0.45, yM], 0, AUS) // Haus ↔ Auto (Wallbox folgt)
+  seite('sonne', 8, ySo, 58, GR, 'SONNE', pvW, GR)
+  seite('mast', 8, yNb, 56, MASTF, 'NETZBEZUG', bezug, bezug > 20 ? NETZROT : AUS)
+  seite('akku', s2 + 8, yAk, 50, akkuF, soc != null ? `AKKU ${Math.round(soc)} %` : 'AKKU', akkuW, akkuF, laedt ? 'LÄDT' : entlaedt ? 'ENTLÄDT' : '')
+  seite('mast', s2 + 8, yVk, 50, MASTF, 'VERKAUF', verkauf, verkauf > 20 ? GR : AUS)
+  symbol(g, 'haus', xh, yM - 14, gh, HELL, 0, 0.04)
+  text(g, 'HAUS', xh, yM + gh * 0.42 + 6, 12, BLASS, 'center', 600); text(g, zahl(pv?.hausW), xh, yM + gh * 0.42 + 30, 24, HELL, 'center', 600)
+  auto(g, xa, yM - 10, gh * 0.82, AUS, 0.08)
+  text(g, 'AUTO', xa, yM + gh * 0.42 + 6, 12, BLASS, 'center', 600); text(g, '–', xa, yM + gh * 0.42 + 30, 24, AUS, 'center', 600)
+  text(g, 'WALLBOX FOLGT', xa, yM + gh * 0.42 + 46, 10, AUS, 'center', 600)
   const aut = pv && pv.hausW > 0 ? Math.round(Math.max(0, Math.min(1, 1 - bezug / pv.hausW)) * 100) : null
-  text(g, aut != null ? `VERBRAUCH · AUTARKIE ${aut} %` : 'VERBRAUCH', xm, yH + hausGr * 0.42 + 40, 10, BLASS, 'center', 600)
+  if (aut != null) text(g, `AUTARKIE ${aut} %`, xm, h - 14, 12, GR, 'center', 600)
 }
 function wetter(g, b, h, w) {
   kopf(g, 'WETTER · ' + (w?.ort ?? 'ÖHRINGEN').toUpperCase(), '', b)
