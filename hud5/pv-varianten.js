@@ -49,14 +49,15 @@ export const PV_VARIANTE = {
     knoten(cols[1], yo, 'haus', 'HAUS', w.haus, HELL, 56); knoten(cols[1], yu - 6, 'auto', 'AUTO', null, AUS, 50)
   },
   /** D · Große Zahlen oben (Wahl Auftraggeber 05.11.2026), darunter die „Verkabelung“ – Varianten 1–4 (unten) */
-  d(g, b, h, pv, t, unten = 1) {
-    kopf(g, b, pv); const w = werte(pv)
-    const spalten = [['sonne', 'ERZEUGUNG', w.pv, GR, ''], ['haus', 'HAUS', w.haus, HELL, ''], ['akku', w.soc != null ? `AKKU ${Math.round(w.soc)} %` : 'AKKU', w.akku, CYAN, w.laedt ? 'LÄDT' : w.entlaedt ? 'ENTLÄDT' : ''], ['mast', w.bezug > 20 ? 'NETZBEZUG' : 'VERKAUF', w.bezug > 20 ? w.bezug : w.verkauf, w.bezug > 20 ? ROT : w.verkauf > 20 ? GR : AUS, '']]
+  d(g, b, h, pv, t, unten = 1, mitKopf = true) {
+    if (mitKopf) kopf(g, b, pv)
+    const w = werte(pv ?? {}), kwz = (x) => (pv ? kw(x) : '–') // ohne Verbindung Striche statt 0 W
+    const spalten = [['sonne', 'ERZEUGUNG', w.pv, GR, ''], ['haus', 'HAUS', w.haus, HELL, ''], ['akku', w.soc != null ? `AKKU ${Math.round(w.soc)} %` : 'AKKU', w.akku, w.soc != null && w.soc < 15 ? ROT : CYAN, w.laedt ? 'LÄDT' : w.entlaedt ? 'ENTLÄDT' : ''], ['mast', w.bezug > 20 ? 'NETZBEZUG' : 'VERKAUF', w.bezug > 20 ? w.bezug : w.verkauf, w.bezug > 20 ? ROT : w.verkauf > 20 ? GR : AUS, '']]
     const sb = (b - 28) / 4, xs = spalten.map((_, i) => 14 + sb * (i + 0.5))
     spalten.forEach(([art, name, wert, farbe, zusatz], i) => {
       const x = xs[i]
       symbol(g, art, x, 100, 66, art === 'mast' ? MAST : farbe, w.soc ?? 0, 0.16) // größer: Hauptfokus (Wunsch 05.11.2026)
-      text(g, kw(wert), x, 190, 36, farbe, 'center'); text(g, name, x, 212, 14, BLASS, 'center'); if (zusatz) text(g, zusatz, x, 230, 12, farbe, 'center')
+      text(g, kwz(wert), x, 190, 36, farbe, 'center'); text(g, name, x, 212, 14, BLASS, 'center'); if (zusatz) text(g, zusatz, x, 230, 12, farbe, 'center')
       if (i) { g.strokeStyle = LINIE; g.beginPath(); g.moveTo(Math.round(14 + sb * i) + 0.5, 46); g.lineTo(Math.round(14 + sb * i) + 0.5, 236); g.stroke() }
     })
     UNTEN[unten](g, b, h, w, t, xs)
