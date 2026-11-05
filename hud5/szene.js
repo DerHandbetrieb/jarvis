@@ -180,7 +180,7 @@ function aufBahn(b, s) {
 }
 
 /** Gold-Knoten in den vier äußeren Bildschirmecken (Teil des Grundbilds) umfärben – Rückmeldung Auftraggeber 05.11.2026:
- *  „springen zu sehr ins Auge“. art: gold (unverändert) | gedaempft | bronze | cyan | weg. Erkannt werden nur goldene
+ *  „springen zu sehr ins Auge“. art: gold (unverändert) | gedaempft | bronze | cyan | anthrazit | weg. Erkannt werden nur goldene
  *  Bildpunkte in den Eckfeldern; der Rest des Bilds bleibt unberührt. */
 const KNOTEN_FELD = { b: 240, h: 260 }
 function knotenUmfaerben(bild, art) {
@@ -194,7 +194,9 @@ function knotenUmfaerben(bild, art) {
       if (gold < 25 || r < gr) continue // nur goldene Bildpunkte
       const l = Math.max(r, gr, bl), w = Math.min(1, (gold - 25) / 60) // weicher Übergang an den Rändern des Ornaments
       const neu = art === 'gedaempft' ? [r * 0.45, gr * 0.45, bl * 0.45] : art === 'bronze' ? [l * 0.42, l * 0.28, l * 0.16]
-        : art === 'cyan' ? [l * 0.18, l * 0.55, l * 0.6] : [10, 16, 22]
+        : art === 'cyan' ? [l * 0.18, l * 0.55, l * 0.6]
+        : art === 'anthrazit' ? (() => { const v = 26 + Math.pow(l / 255, 4) * 125; return [v * 0.95, v, v * 1.06] })() // dunkles Grau, helle Stellen glänzen (Wunsch 05.11.2026)
+        : [10, 16, 22]
       p[i] = r + (neu[0] - r) * w; p[i + 1] = gr + (neu[1] - gr) * w; p[i + 2] = bl + (neu[2] - bl) * w
     }
     g.putImageData(d, x, y)
