@@ -27,7 +27,8 @@ function zufallsfolge(s) { return () => { s = (s * 16807) % 2147483647; return s
 const LICHT = {
   cyan: { kern: '#d8fdff', hof: CYAN },
   gold: { kern: '#fff1cf', hof: '#f2a93b' },
-  kupfer: { kern: '#e9a178', hof: '#a9542a' }, // Kupfer wie die Spulen im Reaktor (Wunsch Auftraggeber 05.11.2026: Ringtext nicht hellgelb)
+  kupfer: { kern: '#e9a178', hof: '#a9542a' },
+  petrol: { kern: '#9fe8dc', hof: '#1f8f86' }, // Türkisgrün/Petrol für die feine Roboto-Schrift (Wunsch Auftraggeber 05.11.2026) // Kupfer wie die Spulen im Reaktor (Wunsch Auftraggeber 05.11.2026: Ringtext nicht hellgelb)
   silber: { kern: '#ffffff', hof: '#9fdcff' },
 }
 /** Stile des Rings um den Reaktor (Vorschläge 05.11.2026, Wahl Auftraggeber: D): Runen größer, wahlweise Gold; Wörter
@@ -159,7 +160,10 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
   }
   const kreisKnoten = (g, segmente, rr, h) => {
     const n = segmente.length, luecke = (h * 0.9) / rr
-    const teile = segmente.map((seg, k) => ({ seg, mitte: (k / n) * Math.PI * 2, halb: winkel(seg, h, rr) / 2 }))
+    // nach Breite verteilen: gleich große Lücken (Flechtband) zwischen den Abschnitten, egal wie lang der Text ist
+    const breiten = segmente.map((seg) => winkel(seg, h, rr)), frei = (Math.PI * 2 - breiten.reduce((x, y) => x + y, 0)) / n
+    let w0 = -breiten[0] / 2
+    const teile = segmente.map((seg, k) => { const t = { seg, mitte: w0 + breiten[k] / 2, halb: breiten[k] / 2 }; w0 += breiten[k] + frei; return t })
     for (const [k, t] of teile.entries()) {
       const nx = teile[(k + 1) % n], von = t.mitte + t.halb + luecke, bis = nx.mitte + (k + 1 === n ? Math.PI * 2 : 0) - nx.halb - luecke
       if (bis > von) knotenband(g, rr, von, bis, h)
@@ -225,7 +229,7 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
   if (variante === 'info-x') { // Runde 3 (Wunsch Auftraggeber 05.11.2026): Angaben doppelt, alles gleich groß, Gold; dazwischen
     // dunkles Knotenband (schwarz mit blauem Schimmer wie die Eck-Knoten); Schrift und Bedeutung von L.O.K.I. wählbar
     SCHRIFT.stil = opt.schrift ?? 'strich'
-    const gold = angaben.map((seg, i) => ({ ...seg, farbe: 'kupfer', gross: 1, ...(i === 0 ? { text: '00:00:00', live: true } : {}) })) // Uhrzeit mit Sekunden (Wunsch Auftraggeber 05.11.2026)
+    const gold = angaben.map((seg, i) => ({ ...seg, farbe: String(opt.schrift).startsWith('roboto') ? 'petrol' : 'kupfer', gross: 1, ...(i === 0 ? { text: '00:00:00', live: true } : {}) })) // Uhrzeit mit Sekunden (Wunsch Auftraggeber 05.11.2026)
     const h = hoehe * 0.8, NAME = 'LOKALE · OHNEHIN · KLÜGERE · INTELLIGENZ'
     const segmente = opt.name === 'imring' ? [...gold, ...NAME.split(' · ').slice(0, 2).map((t) => ({ text: t, farbe: 'dunkel' })), ...gold, ...NAME.split(' · ').slice(2).map((t) => ({ text: t, farbe: 'dunkel' }))] : [...gold, ...gold]
     const plaetze = kreisKnoten(gd, segmente, r, h)
@@ -359,15 +363,15 @@ function randZeichnen(g, s, anteil) {
 }
 
 /** laufende Uhrzeit im Ring: feste Zellenbreite je Zeichen (Ziffern gleich breit, Doppelpunkt schmal) */
-const uhrZelle = (z, h) => (z === ':' ? 1.2 : 3) * (h / 6) + 1.7 * (h / 6)
+const uhrZelle = (z, h) => textBreite(z === ':' ? ':' : '0', h) + 1.7 * (h / 6) // feste Zelle je Zeichen (Ziffern gleich breit)
 const uhrBreite = (h) => 6 * uhrZelle('0', h) + 2 * uhrZelle(':', h) - 1.7 * (h / 6)
 /** Ziffern und Doppelpunkt einmal mit Goldschein vorzeichnen (doppelte Auflösung) */
-function zifferBilder(h) {
+function zifferBilder(h, farbe = 'kupfer') {
   return Object.fromEntries([...'0123456789:'].map((z) => {
     const b = Math.ceil(uhrZelle(z, h) + h), hh = Math.ceil(h * 2.2), c = leinwand(b * FEIN, hh * FEIN), g = c.getContext('2d')
     g.scale(FEIN, FEIN); g.translate(b / 2, hh / 2)
     for (let d = 0; d < 2; d++) {
-      g.strokeStyle = d ? LICHT.kupfer.kern : LICHT.kupfer.hof; g.fillStyle = g.strokeStyle; g.shadowColor = LICHT.kupfer.hof
+      g.strokeStyle = d ? LICHT[farbe].kern : LICHT[farbe].hof; g.fillStyle = g.strokeStyle; g.shadowColor = LICHT[farbe].hof
       g.lineWidth = d ? Math.max(1.4, h * 0.1) : h * 0.16; g.shadowBlur = d ? h * 0.3 : h * 0.8; g.lineCap = 'round'; g.lineJoin = 'round'
       zeichen(g, z, h)
     }
@@ -389,7 +393,7 @@ function ringAktualisieren(s, wetter) {
   s.ringKennung = kennung
   const { dreh, fest, uhr } = infoRing(s.geo.ringMitte.r, 30, s.infoVariante, a, s.ringOpt)
   s.ringMitte = dreh; s.ringFest = fest; s.ringUhr = uhr ?? null
-  if (uhr && !s.ziffern) s.ziffern = zifferBilder(uhr.h)
+  if (uhr && !s.ziffern) { SCHRIFT.stil = s.ringOpt?.schrift ?? 'strich'; s.ziffern = zifferBilder(uhr.h, SCHRIFT.stil.startsWith('roboto') ? 'petrol' : 'kupfer'); s.uhrStil = SCHRIFT.stil; SCHRIFT.stil = 'strich' }
 }
 
 /** Maske für den Ring um den Reaktor: oben voll, unten zum See hin weich ausgeblendet (keine harte Kante) */
@@ -504,6 +508,8 @@ function knotenUmfaerben(bild, art) {
 
 /** Szene laden. basis = Ordner mit grund.webp, aurora.webp … und geometrie.json (relativ zur Seite) */
 export async function ladeSzene(basis, einstellung = {}) {
+  // feine Schrift für den Ring (lokal, offline)
+  for (const w of [100, 300]) { try { const f = new FontFace('Roboto', `url(${basis}roboto-${w}.woff2)`, { weight: String(w) }); document.fonts.add(await f.load()) } catch { /* ohne Datei: Ersatzschrift */ } }
   const geo = await (await fetch(basis + 'geometrie.json')).json()
   const namen = ['grund', ...Object.keys(geo.ebenen)]
   const bilder = Object.fromEntries(await Promise.all(namen.map(async (n) => [n, await bildLaden(basis + n + '.webp')])))
@@ -517,9 +523,9 @@ export async function ladeSzene(basis, einstellung = {}) {
   einstellung = { ring: 'info-x', schrift: 'strich', name: 'ohne', ...Object.fromEntries(Object.entries(einstellung).filter(([, v]) => v != null)) }
   const infoVariante = String(einstellung.ring ?? '').startsWith('info') ? einstellung.ring : null
   const ringMitte = infoVariante ? infoRing(geo.ringMitte.r, 30, infoVariante, { ...zeitAngaben(), wetter: null }).dreh : ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
-  return {
+  const szene = {
     geo, bilder,
-    kupfer, rand, ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
+    kupfer, rand, praegung: null, ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
     runen: runenBilder(38),
     bahnLinks: bahnVorbereiten(geo.bahnLinks, true),
     bahnRechts: bahnVorbereiten(geo.bahnRechts, false),
@@ -531,6 +537,8 @@ export async function ladeSzene(basis, einstellung = {}) {
     rotBilder: Object.fromEntries(['reaktor', 'kernscheibe', 'zellen', 'halo', 'kern', 'schrift'].filter((n) => bilder[n]).map((n) => [n, rotFassung(bilder[n])])),
     seePuffer: leinwand(B, H - HORIZONT), seeMaske: seeMaske(),
   }
+  if (einstellung.praegung !== 'aus') szene.praegung = praegungBild(szene) // Standard ab 05.11.2026 zum Ausprobieren: geprägt
+  return szene
 }
 
 function ebene(g, s, name, alpha, mischung = 'lighter', rot = 0) {
@@ -878,6 +886,8 @@ function beatFolgen(s, ton, t) {
   if (bass > b.schnitt * 1.3 + 0.03 && t - b.letzter > 0.2) { b.schlag = 1; b.letzter = t }
   b.schlag *= Math.exp(-dt * 6.5)
   b.huelle = Math.max(Math.min(1, bass * 1.8), b.huelle * Math.exp(-dt * 5))
+  let hoch = 0; if (ton && ton.length) { const halb = ton.length >= 128 ? 64 : ton.length; for (let i = 16; i < halb; i++) hoch += ((ton[i] ?? 0) + (ton[i + halb] ?? 0)) / (2 * (halb - 16)) }
+  b.hoehe = Math.max(Math.min(1, hoch * 3), (b.hoehe ?? 0) * Math.exp(-dt * 6))
   const laeuft = gesamt > 0.015
   b.musik += ((laeuft ? 1 : 0) - b.musik) * Math.min(1, dt * (laeuft ? 4 : 0.7)) // schnell rein, langsam zurück
   return b
@@ -891,6 +901,9 @@ function reaktor(g, s, t, opt, anteil) {
   const eigen = 0.5 + 0.5 * Math.sin((t * Math.PI * 2) / 2.8), beat = beatFolgen(s, opt.ton, t)
   const imBeat = Math.min(1, 0.25 * beat.huelle + 0.85 * beat.schlag), m = beat.musik
   const puls = eigen * (1 - m) + imBeat * m, takt = beat.schlag * m // takt: kurzes Aufflackern je Schlag
+  // Farben im Beat wie im Audiofeld (Wunsch Auftraggeber 05.11.2026): Kern glüht beim Bass dunkelrot, Zellen außen
+  // leuchten mit Mitten/Höhen türkis bis weiß
+  const bassRot = m * Math.min(0.85, beat.huelle * 1.1 + beat.schlag * 0.3), weiss = m * (beat.hoehe ?? 0)
   const flackern = 0.9 + 0.1 * Math.sin(t * 23) * Math.sin(t * 7.3)
   // Kernscheibe (runde Mitte mit den Lichtpunkten) dreht sich langsam gegen den Uhrzeigersinn
   if (kz && anteil > 0) {
@@ -906,7 +919,7 @@ function reaktor(g, s, t, opt, anteil) {
     for (let i = 0; i < sektoren; i++) {
       const w0 = (i / sektoren) * Math.PI * 2, w1 = ((i + 1) / sektoren) * Math.PI * 2, mitte = (w0 + w1) / 2
       const naehe = Math.pow(Math.max(0, Math.cos(mitte - kopf)), 6)
-      const a = anteil * aus * (0.18 + 0.55 * naehe * (1 - 0.5 * m) + 0.12 * puls + 0.55 * takt + 0.5 * spricht)
+      const a = anteil * aus * (0.18 + 0.55 * naehe * (1 - 0.5 * m) + 0.12 * puls + 0.55 * takt + 0.6 * weiss + 0.5 * spricht)
       if (a < 0.01) continue
       g.save(); g.beginPath(); g.moveTo(r.x, r.y); g.arc(r.x, r.y, 230, w0, w1); g.closePath(); g.clip()
       g.globalAlpha = Math.min(1, a) * (1 - rot); g.drawImage(s.bilder.zellen, ze.x, ze.y, ze.b, ze.h)
@@ -918,7 +931,8 @@ function reaktor(g, s, t, opt, anteil) {
   blitze(g, s, t, (1 + denkt * 2 + spricht * 3) * (rot > 0.5 ? 0.4 : 1), anteil)
   const schlag = s.blitzHell ?? 0 // der Hauptblitz lässt Kern und Lichthof kurz aufleuchten
   ebene(g, s, 'halo', anteil * aus * flackern * (0.35 + 0.5 * puls + 0.4 * takt + 0.7 * spricht + 0.6 * schlag), 'lighter', rot)
-  ebene(g, s, 'kern', anteil * aus * flackern * (0.25 + 0.45 * puls + 0.45 * takt + 0.6 * spricht + 0.5 * schlag), 'lighter', rot)
+  ebene(g, s, 'kern', anteil * aus * flackern * (0.25 + 0.45 * puls + 0.45 * takt + 0.6 * spricht + 0.5 * schlag), 'lighter', Math.max(rot, bassRot))
+  if (weiss > 0.02) ebene(g, s, 'halo', anteil * weiss * 0.35, 'lighter', 0) // Höhen: heller, weißlicher Schein außen
 }
 
 /** Runen wandern links/rechts entlang der gemessenen Bahn im Band und laufen oben und unten aus dem Bild */
@@ -947,7 +961,7 @@ function mittelRing(g, s, winkel, alpha) {
   pg.globalCompositeOperation = 'source-over'; pg.clearRect(0, 0, gr, gr)
   pg.save(); pg.translate(gr / 2, gr / 2); pg.rotate(winkel); pg.drawImage(s.ringMitte, -gr / 2, -gr / 2); pg.restore()
   if (s.ringUhr && s.ziffern) { // Uhrzeit mit Sekunden an ihren festen Plätzen im Ring
-    const { plaetze, h, r } = s.ringUhr, text = uhrJetzt()
+    const { plaetze, h, r } = s.ringUhr, text = uhrJetzt(); SCHRIFT.stil = s.uhrStil ?? 'strich'
     pg.save(); pg.translate(gr / 2, gr / 2); pg.rotate(winkel); pg.scale(FEIN, FEIN)
     for (const start of plaetze) {
       let w = start
@@ -957,7 +971,7 @@ function mittelRing(g, s, winkel, alpha) {
         w += zw
       }
     }
-    pg.restore()
+    pg.restore(); SCHRIFT.stil = 'strich'
   }
   pg.globalCompositeOperation = 'destination-in'; pg.drawImage(s.ringMitteMaske, 0, 0)
   g.globalAlpha = alpha; g.globalCompositeOperation = 'lighter'
@@ -967,8 +981,25 @@ function mittelRing(g, s, winkel, alpha) {
 }
 
 /** verkleinerter L.O.K.I.-Schriftzug mit Drachen, in den Stein graviert (dunkle Rille), leuchtet leicht im Takt des Kerns */
+/** L.O.K.I.-Schrift und Drachen als Prägung im Stein (Wunsch Auftraggeber 05.11.2026: nicht leuchtend): aus der
+ *  Leuchtschrift-Ebene eine Maske, daraus dunkle Vertiefung, Schatten oben links, feine helle Kante unten rechts */
+function praegungBild(s) {
+  const e = s.geo.ebenen.schrift, bild = s.bilder.schrift
+  if (!e || !bild) return null
+  const w = bild.width, h = bild.height, maske = leinwand(w, h), mg = maske.getContext('2d')
+  mg.drawImage(bild, 0, 0); const d = mg.getImageData(0, 0, w, h), p = d.data
+  for (let i = 0; i < p.length; i += 4) { const l = Math.max(p[i], p[i + 1], p[i + 2]) / 255, a = Math.min(1, Math.max(0, (l - 0.55) * 4)) * (p[i + 3] / 255); p[i] = p[i + 1] = p[i + 2] = 0; p[i + 3] = a * 255 } // nur der helle Kern, nicht der Lichthof
+  mg.putImageData(d, 0, 0)
+  const farbig = (farbe) => { const c = leinwand(w, h), cg = c.getContext('2d'); cg.drawImage(maske, 0, 0); cg.globalCompositeOperation = 'source-in'; cg.fillStyle = farbe; cg.fillRect(0, 0, w, h); return c }
+  const c = leinwand(w, h), g = c.getContext('2d'), k = Math.max(1, w / e.b) // Pixel je Szenenpixel
+  g.drawImage(farbig('rgba(205,215,205,0.32)'), 1.2 * k, 1.4 * k) // Lichtkante unten rechts (Licht von oben links fällt in die Rille)
+  g.drawImage(farbig('rgba(0,0,0,0.85)'), -0.8 * k, -0.9 * k) // Schattenkante oben links
+  g.drawImage(farbig('rgba(8,10,10,0.78)'), 0, 0) // Vertiefung
+  return c
+}
 function schrift(g, s, t, anteil) {
   if (anteil <= 0) return
+  if (s.praegung) { const e = s.geo.ebenen.schrift; ebene(g, s, 'gravur', anteil * 0.5, 'source-over'); g.globalAlpha = anteil; g.drawImage(s.praegung, e.x, e.y, e.b, e.h); g.globalAlpha = 1; return }
   const hell = anteil * (0.9 + 0.1 * Math.sin((t * Math.PI * 2) / 2.8))
   ebene(g, s, 'gravur', anteil * 0.75, 'source-over')
   ebene(g, s, 'schrift', hell, 'lighter', s.rot)

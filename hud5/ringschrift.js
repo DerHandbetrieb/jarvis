@@ -46,8 +46,15 @@ for (const [u, b] of [['Ä', 'A'], ['Ö', 'O'], ['Ü', 'U']]) Z[u] = [...Z[b], [
 const PUNKTE = { ':': [2, 4.6], '.': [5.6], '°': [0.6] } // kleine Rauten statt runder Punkte
 const breite = (z) => (z === ' ' ? 2.2 : PUNKTE[z] ? 1 : z === '·' ? 2 : Math.max(...(Z[z] ?? [[0, 0, 2, 0]]).flatMap((s) => [s[0], s[2]])))
 
+// Roboto Thin/Light (Wunsch Auftraggeber 05.11.2026: feine, dünne Schrift; Roboto, OFL-1.1, lokal mitgeliefert)
+const ROBOTO = { 'roboto-100': 100, 'roboto-300': 300 }
+let messer = null
+const robotoFont = (h) => `${ROBOTO[SCHRIFT.stil]} ${(h / 0.711).toFixed(2)}px Roboto` // Versalhöhe von Roboto = 0,711 em
+function robotoBreite(z, h) { messer ??= document.createElement('canvas').getContext('2d'); messer.font = robotoFont(h); return messer.measureText(z).width }
+
 /** Breite eines Texts in Bildpunkten (Höhe h = Versalhöhe) */
 export function textBreite(text, h) {
+  if (ROBOTO[SCHRIFT.stil]) return [...text.toUpperCase()].reduce((s, z) => s + robotoBreite(z, h) + 1.7 * (h / 6), -1.7 * (h / 6))
   const u = h / 6
   return [...text.toUpperCase()].reduce((s, z) => s + (breite(z) + 1.7) * u, -1.7 * u)
 }
@@ -80,6 +87,7 @@ function striche(g, liste, u) {
 
 /** ein Zeichen zeichnen; (0,0) = Mitte unten-oben-zentriert, nur Striche (Strichstärke vom Aufrufer) */
 export function zeichen(g, z, h) {
+  if (ROBOTO[SCHRIFT.stil]) { z = z.toUpperCase(); g.save(); g.font = robotoFont(h); g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillStyle = g.strokeStyle; g.fillText(z, 0, h / 2); g.restore(); return robotoBreite(z, h) }
   const u = h / 6, b = breite(z) * u
   z = z.toUpperCase()
   g.save(); g.translate(-b / 2, -h / 2)
