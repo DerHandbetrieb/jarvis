@@ -531,7 +531,7 @@ export async function ladeSzene(basis, einstellung = {}) {
   const ringMitte = infoVariante ? infoRing(geo.ringMitte.r, 30, infoVariante, { ...zeitAngaben(), wetter: null }).dreh : ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
   const szene = {
     geo, bilder,
-    kupfer, rand, praegung: null, lokiStil: einstellung.loki ?? 'fein', /* bronze: Magnific-Entwurf, relief: Code-Entwurf */ ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
+    kupfer, rand, praegung: null, lokiStil: einstellung.loki ?? 'bronze', /* Wahl Auftraggeber 05.11.2026: Bronze-Flechtschrift Variante 3 (Magnific) */ ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
     runen: runenBilder(38),
     bahnLinks: bahnVorbereiten(geo.bahnLinks, true),
     bahnRechts: bahnVorbereiten(geo.bahnRechts, false),
