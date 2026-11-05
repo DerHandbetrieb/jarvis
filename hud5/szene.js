@@ -6,7 +6,7 @@
 // dem See, Wasser kräuselt sich und spiegelt den Reaktor, Runenringe drehen und laufen weich aus bzw. aus dem Bild.
 // Teuer ist nur das Vorzeichnen beim Laden; je Bild wird nur gedreht, verschoben und überblendet.
 import { FOLGE, rune } from './runen.js'
-import { textBreite, zeichen, wetterSymbol, wetterArt as wetterWort, zeitAngaben } from './ringschrift.js'
+import { textBreite, zeichen, wetterSymbol, wetterArt as wetterWort, zeitAngaben, SCHRIFT } from './ringschrift.js'
 import { bergnebel, erstelleWetter, wetterArt, zeichneFrost, zeichneWetterHinten } from './wetter.js'
 
 export const B = 5760, H = 1080
@@ -106,7 +106,7 @@ function ringBild(r, hoehe, anzahl, versatz = 0, woerter = [], stil = RING_STILE
  * info-c Name dreht, Angaben fest auf dunkler Tafel oben im Ring · info-d alles dreht, Uhrzeit groß in Gold, Wetter als Symbol
  * → { dreh, fest } (fest = steht still, oben; kann fehlen)
  */
-function infoRing(r, hoehe, variante, a) {
+function infoRing(r, hoehe, variante, a, opt = {}) {
   const rand = hoehe * 3, gr = Math.ceil(2 * (r + rand))
   const dreh = leinwand(gr * FEIN, gr * FEIN), fest = leinwand(gr * FEIN, gr * FEIN)
   const name = ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'].map((t) => ({ text: t, farbe: 'cyan' }))
@@ -131,6 +131,69 @@ function infoRing(r, hoehe, variante, a) {
     }
   }
   const raute = (g, w, rr, h, farbe = 'gold') => { const lr = LICHT[farbe]; g.save(); g.rotate(w); g.translate(0, -rr); g.rotate(Math.PI / 4); g.fillStyle = lr.kern; g.shadowColor = lr.hof; g.shadowBlur = h * 0.5; g.fillRect(-h * 0.1, -h * 0.1, h * 0.2, h * 0.2); g.restore() }
+  // dunkle Abschnitte (eingravierte Wörter): schwarzer Strich mit türkisem Schimmer
+  const abschnittDunkel = (g, seg, w, h, rr) => {
+    for (let d = 0; d < 2; d++) {
+      g.strokeStyle = d ? '#071116' : 'rgba(120,235,245,0.55)'; g.fillStyle = g.strokeStyle; g.shadowColor = 'rgba(95,246,255,0.6)'
+      g.lineWidth = d ? Math.max(1.2, h * 0.09) : h * 0.17; g.shadowBlur = d ? 0 : h * 0.35; g.lineCap = 'round'
+      let x = w
+      for (const z of seg.text) { const zw = (textBreite(z, h) + (h / 6) * 1.7) / rr; g.save(); g.rotate(x + zw / 2); g.translate(0, -rr); zeichen(g, z, h); g.restore(); x += zw }
+    }
+  }
+  // Knotenband (zweisträngiges Flechtband) zwischen zwei Winkeln: schwarze Stränge, Kanten mit blauem Schimmer, über/unter
+  const knotenband = (g, rr, von, bis, h) => {
+    const a = h * 0.42, breite = h * 0.3, n = Math.max(1, Math.round(((bis - von) * rr) / (h * 2.4))), schritte = n * 16
+    const punkt = (strang, i) => { const f = i / schritte, w = von + (bis - von) * f, ph = f * n * Math.PI * 2 + strang * Math.PI, rad = rr + Math.sin(ph) * a; return [Math.sin(w) * rad, -Math.cos(w) * rad] }
+    const stueck = (strang, i0, i1) => {
+      const pfad = () => { g.beginPath(); for (let i = i0; i <= i1; i++) { const [x, y] = punkt(strang, i); i === i0 ? g.moveTo(x, y) : g.lineTo(x, y) } }
+      g.shadowBlur = 0; g.lineCap = 'butt'
+      pfad(); g.strokeStyle = 'rgba(2,6,8,1)'; g.lineWidth = breite + 2.4; g.stroke() // Lücke = Über/Unter
+      pfad(); g.strokeStyle = 'rgba(95,246,255,0.42)'; g.lineWidth = breite + 0.9; g.stroke() // Schimmerkante
+      pfad(); g.strokeStyle = '#0a1418'; g.lineWidth = breite - 0.6; g.stroke() // schwarzer Strang
+      pfad(); g.strokeStyle = 'rgba(150,240,250,0.28)'; g.lineWidth = 0.8; g.stroke() // Glanzlinie
+    }
+    const halb = 8 // Kreuzungen alle halbe Welle
+    for (let k = 0; k < n * 2; k++) { const i0 = k * halb, i1 = Math.min(schritte, i0 + halb), oben = k % 2; stueck(1 - oben, i0, i1); stueck(oben, i0, i1) }
+  }
+  const kreisKnoten = (g, segmente, rr, h) => {
+    const n = segmente.length, luecke = (h * 0.9) / rr
+    const teile = segmente.map((seg, k) => ({ seg, mitte: (k / n) * Math.PI * 2, halb: winkel(seg, h, rr) / 2 }))
+    for (const [k, t] of teile.entries()) {
+      const nx = teile[(k + 1) % n], von = t.mitte + t.halb + luecke, bis = nx.mitte + (k + 1 === n ? Math.PI * 2 : 0) - nx.halb - luecke
+      if (bis > von) knotenband(g, rr, von, bis, h)
+    }
+    for (const t of teile) (t.seg.farbe === 'dunkel' ? abschnittDunkel : abschnitt)(g, t.seg, t.mitte - t.halb, h, rr)
+  }
+  // Bedeutung von L.O.K.I. – feste Inschrift (gravur | ringspur | imring | see)
+  const inschrift = (g, art, rr, h, text) => {
+    if (art === 'imring') return
+    const unten = (radius, hh, farbe) => { // Text unten am Kreis, aufrecht, von links nach rechts
+      const ges = textBreite(text, hh) / radius
+      for (let d = 0; d < 2; d++) {
+        if (farbe === 'dunkel') { g.strokeStyle = d ? '#071116' : 'rgba(120,235,245,0.6)'; g.lineWidth = d ? Math.max(1.2, hh * 0.09) : hh * 0.18; g.shadowColor = 'rgba(95,246,255,0.7)'; g.shadowBlur = d ? 0 : hh * 0.4 }
+        g.fillStyle = g.strokeStyle; g.lineCap = 'round'
+        let w = Math.PI / 2 + ges / 2
+        for (const z of text) { const zw = (textBreite(z, hh) + (hh / 6) * 1.7) / radius; g.save(); g.rotate(w - zw / 2); g.translate(radius, 0); g.rotate(-Math.PI / 2); zeichen(g, z, hh); g.restore(); w -= zw }
+      }
+      return ges
+    }
+    if (art === 'gravur') { // dunkles Band schmiegt sich unten an den Reaktor
+      const radius = 332, hh = h * 0.62, ges = textBreite(text, hh) / radius + 0.16
+      g.beginPath(); g.arc(0, 0, radius + hh * 1.1, Math.PI / 2 - ges / 2, Math.PI / 2 + ges / 2); g.arc(0, 0, radius - hh * 1.1, Math.PI / 2 + ges / 2, Math.PI / 2 - ges / 2, true); g.closePath()
+      const v = g.createLinearGradient(0, radius - hh, 0, radius + hh); v.addColorStop(0, '#0d1a1e'); v.addColorStop(1, '#05090b'); g.fillStyle = v; g.shadowBlur = 0; g.fill()
+      g.strokeStyle = 'rgba(95,246,255,0.35)'; g.lineWidth = 1; g.stroke()
+      unten(radius, hh, 'dunkel')
+      knotenband(g, radius, Math.PI / 2 + ges / 2 + 0.01, Math.PI / 2 + ges / 2 + 0.22, hh * 1.6); knotenband(g, radius, Math.PI / 2 - ges / 2 - 0.22, Math.PI / 2 - ges / 2 - 0.01, hh * 1.6)
+    } else if (art === 'ringspur') { // fest unten im selben Kreis, wo der drehende Ring ausblendet
+      const ges = unten(rr, h * 0.85, 'dunkel')
+      knotenband(g, rr, Math.PI / 2 + ges / 2 + 0.03, Math.PI / 2 + ges / 2 + 0.3, h); knotenband(g, rr, Math.PI / 2 - ges / 2 - 0.3, Math.PI / 2 - ges / 2 - 0.03, h)
+    } else if (art === 'see') { // flacher Kreis auf dem Wasser unter dem Reaktor (perspektivisch liegend)
+      g.save(); g.translate(0, 390); g.scale(1, 0.22)
+      g.strokeStyle = 'rgba(95,246,255,0.18)'; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, 400, 0, Math.PI * 2); g.stroke()
+      unten(400, h * 1.3, 'dunkel')
+      g.restore()
+    }
+  }
   // ganzer Kreis: Abschnitte gleichmäßig verteilt, Lücken mit Runen gefüllt
   const kreis = (g, segmente, rr, h, runenFarbe, runeF = 1.25) => {
     const n = segmente.length, runeH = h * runeF, schritt = (runeH * 1.3) / rr
@@ -156,6 +219,17 @@ function infoRing(r, hoehe, variante, a) {
   }
   const gd = dreh.getContext('2d'), gf = fest.getContext('2d')
   for (const g of [gd, gf]) { g.scale(FEIN, FEIN); g.translate(gr / 2, gr / 2) }
+  if (variante === 'info-x') { // Runde 3 (Wunsch Auftraggeber 05.11.2026): Angaben doppelt, alles gleich groß, Gold; dazwischen
+    // dunkles Knotenband (schwarz mit blauem Schimmer wie die Eck-Knoten); Schrift und Bedeutung von L.O.K.I. wählbar
+    SCHRIFT.stil = opt.schrift ?? 'strich'
+    const gold = angaben.map((seg) => ({ ...seg, farbe: 'gold', gross: 1 }))
+    const h = hoehe * 0.8, NAME = 'LOKALE · OHNEHIN · KLÜGERE · INTELLIGENZ'
+    const segmente = opt.name === 'imring' ? [...gold, ...NAME.split(' · ').slice(0, 2).map((t) => ({ text: t, farbe: 'dunkel' })), ...gold, ...NAME.split(' · ').slice(2).map((t) => ({ text: t, farbe: 'dunkel' }))] : [...gold, ...gold]
+    kreisKnoten(gd, segmente, r, h)
+    inschrift(gf, opt.name ?? 'gravur', r, h, NAME)
+    SCHRIFT.stil = 'strich'
+    return { dreh, fest }
+  }
   const NEU = { 'info-e': { doppelt: false, uhr: 1.15, kasten: 'gerade' }, 'info-f': { doppelt: true, uhr: 1.15, kasten: 'kerbe' }, 'info-g': { doppelt: true, uhr: 1.45, kasten: 'bogen' }, 'info-h': { doppelt: true, uhr: 1.3, kasten: 'kerbe', linien: true } }[variante]
   if (NEU) {
     const gold = angaben.map((seg, i) => ({ ...seg, farbe: 'gold', gross: i === 0 ? NEU.uhr : 1 }))
@@ -215,7 +289,7 @@ function ringAktualisieren(s, wetter) {
   const a = { ...zeitAngaben(), wetter }, kennung = JSON.stringify([a.uhr, a.datum, wetter?.code, Math.round(wetter?.grad ?? -99)])
   if (kennung === s.ringKennung) return
   s.ringKennung = kennung
-  const { dreh, fest } = infoRing(s.geo.ringMitte.r, 30, s.infoVariante, a)
+  const { dreh, fest } = infoRing(s.geo.ringMitte.r, 30, s.infoVariante, a, s.ringOpt)
   s.ringMitte = dreh; s.ringFest = fest
 }
 
@@ -340,7 +414,7 @@ export async function ladeSzene(basis, einstellung = {}) {
   const ringMitte = infoVariante ? infoRing(geo.ringMitte.r, 30, infoVariante, { ...zeitAngaben(), wetter: null }).dreh : ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
   return {
     geo, bilder,
-    ringMitte, infoVariante, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
+    ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
     runen: runenBilder(38),
     bahnLinks: bahnVorbereiten(geo.bahnLinks, true),
     bahnRechts: bahnVorbereiten(geo.bahnRechts, false),

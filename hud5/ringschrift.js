@@ -52,6 +52,32 @@ export function textBreite(text, h) {
   return [...text.toUpperCase()].reduce((s, z) => s + (breite(z) + 1.7) * u, -1.7 * u)
 }
 
+/** Schriftart (Vorschläge 05.11.2026): strich (feine Striche) | kerbe (keilförmig, wie in Stein geschlagen) |
+ *  stab (verlängerte senkrechte Stäbe wie auf Runensteinen) | doppel (hohl, wie in Metall graviert) */
+export const SCHRIFT = { stil: 'strich' }
+function striche(g, liste, u) {
+  const stil = SCHRIFT.stil
+  if (stil === 'kerbe') { // jeder Strich ein spitz zulaufender Keil
+    g.fillStyle = g.strokeStyle
+    for (const [x1, y1, x2, y2] of liste) {
+      const dx = x2 - x1, dy = y2 - y1, l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l, b0 = 0.55, b1 = 0.12
+      g.beginPath(); g.moveTo((x1 + nx * b0) * u, (y1 + ny * b0) * u); g.lineTo((x2 + nx * b1) * u, (y2 + ny * b1) * u); g.lineTo((x2 - nx * b1) * u, (y2 - ny * b1) * u); g.lineTo((x1 - nx * b0) * u, (y1 - ny * b0) * u); g.closePath(); g.fill()
+      if (g.shadowBlur > 0) g.stroke()
+    }
+    return
+  }
+  const lw = g.lineWidth
+  g.beginPath()
+  for (let [x1, y1, x2, y2] of liste) {
+    if (stil === 'stab' && x1 === x2) { const o = 0.7, auf = y1 < y2; y1 += auf ? -o : o; y2 += auf ? o : -o } // Stäbe länger
+    g.moveTo(x1 * u, y1 * u); g.lineTo(x2 * u, y2 * u)
+  }
+  if (stil === 'stab') { g.lineCap = 'butt'; g.lineWidth = lw * 1.25 }
+  if (stil === 'doppel') { g.lineWidth = lw * 2.3; g.stroke(); const alt = g.strokeStyle, sb = g.shadowBlur; g.shadowBlur = 0; g.strokeStyle = '#061014'; g.lineWidth = lw * 1.0; g.stroke(); g.strokeStyle = alt; g.shadowBlur = sb }
+  else g.stroke()
+  g.lineWidth = lw; g.lineCap = 'round'
+}
+
 /** ein Zeichen zeichnen; (0,0) = Mitte unten-oben-zentriert, nur Striche (Strichstärke vom Aufrufer) */
 export function zeichen(g, z, h) {
   const u = h / 6, b = breite(z) * u
@@ -62,7 +88,7 @@ export function zeichen(g, z, h) {
   } else if (z === '·') {
     g.save(); g.translate(1 * u, 3 * u); g.rotate(Math.PI / 4); g.fillRect(-0.55 * u, -0.55 * u, 1.1 * u, 1.1 * u); g.restore()
   } else if (Z[z]) {
-    g.beginPath(); for (const [x1, y1, x2, y2] of Z[z]) { g.moveTo(x1 * u, y1 * u); g.lineTo(x2 * u, y2 * u) } g.stroke()
+    striche(g, Z[z], u)
   }
   g.restore()
   return b
