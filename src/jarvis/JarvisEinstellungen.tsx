@@ -7,6 +7,7 @@ import { gehoerSchalten, hoerenWaehlen, sprechen, startSequenzJetzt, stimmeWaehl
 import WerkstattVerbindung from './WerkstattVerbindung'
 import KameraVerbindung from './KameraVerbindung'
 import PvVerbindung from './PvVerbindung'
+import StationVerbindung from './StationVerbindung'
 import ModellPruefung from './ModellPruefung'
 import { NEU_GRUPPEN, type NeuGruppe } from './neuigkeiten'
 
@@ -80,6 +81,7 @@ export default function JarvisEinstellungen() {
           <HudEinrichten />
           <KameraVerbindung />
           <PvVerbindung />
+          <StationVerbindung />
           <p className="text-neutral-500">Das X oben rechts versteckt nur das Fenster – L.O.K.I. hört weiter zu. Ganz beenden: Rechtsklick auf das L.O.K.I.-Symbol unten rechts → „Beenden“.</p>
           <div className="flex flex-wrap items-end gap-4">
             <label className="block">Anrede<br /><input className="mt-1 w-40 rounded-lg border border-neutral-300 px-2 py-1.5" value={e.anrede} onChange={(x) => setzeJarvis({ anrede: x.target.value })} /></label>

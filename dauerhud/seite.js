@@ -32,6 +32,7 @@ async function holen() {
     if (!r.ok) throw new Error(String(r.status))
     const neu = await r.json()
     if (nr !== klickNr) neu.loki = antwort?.loki ?? neu.loki
+    if (neu?.station && neu.wetter && Number.isFinite(neu.station.grad)) neu.wetter = { ...neu.wetter, grad: neu.station.grad } // Ring: Temperatur der eigenen Station
     antwort = neu
   } catch {
     antwort = null // ohne L.O.K.I.: Beispielwerte, klar als „BEISPIEL“ markiert; Systemfeld zeigt „nicht verbunden“

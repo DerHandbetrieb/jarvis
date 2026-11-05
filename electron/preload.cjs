@@ -32,6 +32,11 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     entfernen: () => ipcRenderer.invoke('kamera-entfernen'),
   },
   /** PV-Anlage FENECON (nur lesen): Passwort wird nur weitergereicht, verschlüsselt im Hauptprozess gespeichert, nie zurückgegeben */
+  station: {
+    status: () => ipcRenderer.invoke('station-status'),
+    einrichten: (d) => ipcRenderer.invoke('station-einrichten', { appKey: String(d?.appKey ?? ''), apiKey: String(d?.apiKey ?? ''), mac: String(d?.mac ?? '') }),
+    entfernen: () => ipcRenderer.invoke('station-entfernen'),
+  },
   pv: {
     status: () => ipcRenderer.invoke('pv-status'),
     einrichten: (d) => ipcRenderer.invoke('pv-einrichten', { adresse: String(d?.adresse ?? ''), passwort: String(d?.passwort ?? '') }),

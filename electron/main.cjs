@@ -15,6 +15,7 @@ const { erstelleKamera } = require('./kamera.cjs')
 const { erstelleKameraLive } = require('./kameralive.cjs')
 const { erstelleTonAbgriff } = require('./tonabgriff.cjs')
 const { erstellePv } = require('./pv.cjs')
+const { erstelleWetterstation } = require('./wetterstation.cjs')
 const { ueberwachen } = require('./vollbild.cjs')
 const { erstelleNeuigkeiten } = require('./neuigkeiten.cjs')
 const { erstelleKamerawache } = require('./kamerawache.cjs')
@@ -68,6 +69,7 @@ let beenden = false // erst true, wenn wirklich beendet werden soll (Menü „Be
 let tray = null
 let tonWerte = () => null // PC-Ton fürs Dauer-HUD (tonabgriff.cjs), gesetzt beim Start
 let pvAnzeige = () => null // PV-Werte fürs Dauer-HUD (pv.cjs), gesetzt beim Start
+let stationAnzeige = () => null // Wetterstation Ecowitt (wetterstation.cjs), gesetzt beim Start
 let trayZustand = { zustand: 'aus', mikrofon: false }
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 
@@ -408,6 +410,14 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('pv-status', (e) => (vonFenster(e) ? pv.status() : null))
     ipcMain.handle('pv-einrichten', async (e, d) => (vonFenster(e) ? pv.einrichten({ adresse: d?.adresse, passwort: d?.passwort }) : null))
     ipcMain.handle('pv-entfernen', (e) => (vonFenster(e) ? pv.entfernen() : null))
+    // Wetterstation Ecowitt (05.11.2026): Cloud API v3, nur lesen, einmal je Minute; Zugang verschlüsselt (wetterstation.cjs)
+    const station = erstelleWetterstation({ speicher: verschluesselt(path.join(app.getPath('userData'), 'wetterstation.bin')), protokoll: (...a) => console.error(...a) })
+    void station.laden()
+    app.on('will-quit', () => station.stoppen())
+    stationAnzeige = () => station.anzeige()
+    ipcMain.handle('station-status', (e) => (vonFenster(e) ? station.status() : null))
+    ipcMain.handle('station-einrichten', async (e, d) => (vonFenster(e) ? station.einrichten({ appKey: d?.appKey, apiKey: d?.apiKey, mac: d?.mac }) : null))
+    ipcMain.handle('station-entfernen', (e) => (vonFenster(e) ? station.entfernen() : null))
     // Kamera-Wache (04.11.2026): linkes Objektiv, nur Personen (Interview). Meldungen laufen über dieselbe Warteschlange
     // wie die Werkstatt-Neuigkeiten – dort gelten „nur wenn er am PC ist“, nie dazwischenreden, Verpasstes gesammelt.
     let kameraAlarm = 0
@@ -450,7 +460,7 @@ if (!app.requestSingleInstanceLock()) {
       daten: async () => {
         const l = werkstatt.lage()
         const k = kamera.status()
-        return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null } : null, loki: { ...trayZustand } }
+        return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null } : null, loki: { ...trayZustand } }
       },
       // roter Knopf im Wallpaper: wie „Mikrofon aus/an“ im Infobereich, beim Stummschalten verstummt Loki auch sofort
       stumm: async () => {

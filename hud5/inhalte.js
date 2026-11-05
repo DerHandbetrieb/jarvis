@@ -277,8 +277,15 @@ function wetter(g, b, h, w) {
   if (!w || !Number.isFinite(w.grad)) { text(g, 'Keine Wetterdaten', 16, 70, 14, BLASS); return }
   text(g, `${Math.round(w.grad)}°`, 18, 112, 56, HELL, 'left', 300)
   text(g, w.text ?? '', 130, 78, 16, CYAN, 'left', 600)
-  text(g, w.wolken != null ? `Bewölkung ${Math.round(w.wolken)} %` : '', 130, 100, 13, BLASS)
-  text(g, 'Wetterstation: noch nicht verbunden · Quelle Open-Meteo', 16, h - 14, 11, BLASS)
+  const st = w.station, k = (v, e) => (v == null ? '–' : `${String(Math.round(v * 10) / 10).replace('.', ',')} ${e}`)
+  if (st) {
+    const zeilen = [['FEUCHTE', k(st.feuchte, '%')], ['WIND', `${k(st.wind, 'km/h')}${st.boe != null ? ' · Böen ' + k(st.boe, '') : ''}`], ['LUFTDRUCK', k(st.druck, 'hPa')], ['REGEN HEUTE', k(st.regenHeute, 'mm')]]
+    zeilen.forEach(([n, v], i) => { const y = 150 + i * 30; text(g, n, 18, y, 11, BLASS); text(g, v, b - 16, y, 14, HELL, 'right', 600) })
+    text(g, 'Quelle: eigene Wetterstation (Ecowitt)', 16, h - 14, 11, BLASS)
+  } else {
+    text(g, w.wolken != null ? `Bewölkung ${Math.round(w.wolken)} %` : '', 130, 100, 13, BLASS)
+    text(g, 'Wetterstation: noch nicht verbunden · Quelle Open-Meteo', 16, h - 14, 11, BLASS)
+  }
 }
 function system(g, b, h, d) {
   const z = d.loki?.zustand ?? 'aus'
@@ -375,7 +382,9 @@ export function ausHud(antwort, jetzt, sequenzDaten, wetterText) {
   return {
     beispiel: !roh,
     werkstatt: { ...d, stand: roh ? d.stand : null, tage, heute, offeneBestellungen: lage.offeneBestellungen ?? null }, // Beispiel: ohne „Stand“
-    wetter: w && Number.isFinite(w.grad) ? { ort: w.ort ?? 'Öhringen', grad: w.grad, wolken: w.wolken, text: wetterText?.(w) ?? '' } : null,
+    // Wetterstation (Ecowitt) hat Vorrang für die Messwerte; Himmel/Bewölkung weiter von Open-Meteo (05.11.2026)
+    wetter: (() => { const st = antwort?.station; const grad = Number.isFinite(st?.grad) ? st.grad : w?.grad; if (!Number.isFinite(grad)) return null
+      return { ort: w?.ort ?? 'Öhringen', grad, wolken: w?.wolken, text: w ? wetterText?.(w) ?? '' : '', station: st ? { feuchte: st.feuchte, wind: st.wind, boe: st.boe, druck: st.druck, regenHeute: st.regenHeute } : null } })(),
     kamera: antwort?.kamera ?? null,
     pv: antwort?.pv ?? null,
     loki: antwort?.loki ?? null,
