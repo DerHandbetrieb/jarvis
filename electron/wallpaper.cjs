@@ -43,4 +43,16 @@ function einrichten({ fs, we, quelle, port, schluessel }) {
   return ziel
 }
 
-module.exports = { bibliotheken, findeWallpaperEngine, einrichten, PROJEKT }
+/** Nur zugang.js des schon eingerichteten Projekts auf den aktuellen Schlüssel bringen (05.11.2026). Legt nichts neu an.
+ *  Ergebnis: 'kein Projekt' | 'aktuell' | 'erneuert' */
+function zugangAbgleichen({ fs, we, port, schluessel }) {
+  const ziel = path.join(we, 'projects', 'myprojects', PROJEKT)
+  if (!fs.existsSync(path.join(ziel, 'project.json'))) return 'kein Projekt'
+  const datei = path.join(ziel, 'zugang.js'), inhalt = `window.LOKI_HUD = ${JSON.stringify({ port: Number(port), schluessel: String(schluessel) })}\n`
+  let alt = null; try { alt = fs.readFileSync(datei, 'utf8') } catch { /* fehlt → neu schreiben */ }
+  if (alt === inhalt) return 'aktuell'
+  fs.writeFileSync(datei, inhalt)
+  return 'erneuert'
+}
+
+module.exports = { bibliotheken, findeWallpaperEngine, einrichten, zugangAbgleichen, PROJEKT }

@@ -3,6 +3,10 @@
 // zusammen mit echter Perspektive gekippt wird). Jeder Stil zeichnet Glas, Rand und Zierde in eine flache Leinwand und
 // gibt den Innenbereich für den Inhalt zurück.
 const CYAN = '#5ff6ff', GOLD = '#f2b04a'
+/** Lichtkanten oben links/unten rechts (Rückmeldung Auftraggeber 05.11.2026: die goldenen Ecken „springen zu sehr ins
+ *  Auge“) – Varianten zur Wahl: gold (bisher), altgold (dunkler, ohne Leuchten), cyan (dezent in Rahmenfarbe),
+ *  akzent (nur kurze Striche an den Ecken), ohne */
+export const KANTE = { art: 'gold' }
 
 function abgeschraegt(g, x, y, b, h, e) { // Viereck mit abgeschrägten Ecken (oben links, unten rechts)
   g.beginPath(); g.moveTo(x + e, y); g.lineTo(x + b, y); g.lineTo(x + b, y + h - e); g.lineTo(x + b - e, y + h); g.lineTo(x, y + h); g.lineTo(x, y + e); g.closePath()
@@ -14,6 +18,10 @@ function lichtkante(g, x0, x1, y, farbe = GOLD, breite = 2) { // leuchtender Str
   const v = g.createLinearGradient(x0, 0, x1, 0)
   v.addColorStop(0, 'rgba(242,176,74,0)'); v.addColorStop(0.5, farbe); v.addColorStop(1, 'rgba(242,176,74,0)')
   g.save(); g.shadowColor = farbe; g.shadowBlur = 10; g.fillStyle = v; g.fillRect(x0, y - breite / 2, x1 - x0, breite); g.restore()
+}
+function flachkante(g, x0, x1, y, farbe, breite, verlauf = true) { // ruhige Kante ohne Leuchten (Varianten 05.11.2026)
+  if (verlauf) { const v = g.createLinearGradient(x0, 0, x1, 0); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(0.5, farbe); v.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = v } else g.fillStyle = farbe
+  g.fillRect(x0, y - breite / 2, x1 - x0, breite)
 }
 function ecken(g, b, h, l, farbe, breite = 2, rand = 0) { // Eckwinkel
   g.strokeStyle = farbe; g.lineWidth = breite; g.shadowColor = farbe; g.shadowBlur = 6
@@ -35,7 +43,11 @@ export const RAHMEN_STILE = {
   /** nur Rand und Lichtkanten – über ein Kamerabild gelegt */
   rand(g, b, h) {
     abgeschraegt(g, 1, 1, b - 2, h - 2, 18); g.strokeStyle = 'rgba(95,246,255,0.55)'; g.lineWidth = 1.2; g.stroke()
-    lichtkante(g, b * 0.15, b * 0.75, 1.5); lichtkante(g, b * 0.35, b * 0.95, h - 1.5, GOLD, 1.5)
+    const a = KANTE.art
+    if (a === 'gold') { lichtkante(g, b * 0.15, b * 0.75, 1.5); lichtkante(g, b * 0.35, b * 0.95, h - 1.5, GOLD, 1.5) }
+    else if (a === 'altgold') { flachkante(g, b * 0.15, b * 0.75, 1, 'rgba(150,112,52,0.75)', 1.2); flachkante(g, b * 0.35, b * 0.95, h - 1, 'rgba(150,112,52,0.75)', 1.2) }
+    else if (a === 'cyan') { flachkante(g, b * 0.15, b * 0.75, 1, 'rgba(95,246,255,0.5)', 1.4); flachkante(g, b * 0.35, b * 0.95, h - 1, 'rgba(95,246,255,0.5)', 1.4) }
+    else if (a === 'akzent') { flachkante(g, 18, 18 + Math.min(70, b * 0.08), 1, 'rgba(201,150,70,0.8)', 1.4, false); flachkante(g, b - 18 - Math.min(70, b * 0.08), b - 18, h - 1, 'rgba(201,150,70,0.8)', 1.4, false) }
   } },
   /** 2 Doppelrahmen mit Reiter – Außen- und Innenlinie, Titel-Reiter oben links, Eckwinkel */
   2: { name: 'Doppelrahmen mit Reiter', zeichne(g, b, h) {

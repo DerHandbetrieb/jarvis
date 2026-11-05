@@ -2,14 +2,17 @@
 import { B, H, ladeSzene, zeichneSzene } from './szene.js'
 import { ausHud } from './inhalte.js'
 import { erstelleTafeln, zeichneTafeln } from './tafeln.js'
+import { KANTE } from './rahmen.js'
 import { sequenzDaten } from '../startsequenz/lageDaten.js'
 
 const c = document.getElementById('flaeche'), g = c.getContext('2d', { alpha: false }), info = document.getElementById('info')
-const s = await ladeSzene('./ebenen/', { ring: new URLSearchParams(location.search).get('ring') ?? undefined })
+const s = await ladeSzene('./ebenen/', { ring: new URLSearchParams(location.search).get('ring') ?? undefined, knoten: new URLSearchParams(location.search).get('knoten') ?? undefined })
 let loki = new URLSearchParams(location.search).get('loki') ?? 'hoert', zoom = false, stopp = false
 // Prüfhilfe ?wetter=regen|schnee|nebel|frost
 const probeWetter = { regen: { code: 63, grad: 8 }, schnee: { code: 73, grad: -2 }, nebel: { code: 45, grad: 3 }, frost: { code: 0, grad: -4 } }[new URLSearchParams(location.search).get('wetter')] ?? { code: 2, grad: 9 }
-const tafeln = erstelleTafeln(document.getElementById('tafeln'))
+const frage = new URLSearchParams(location.search)
+if (frage.get('kante')) KANTE.art = frage.get('kante')
+const tafeln = erstelleTafeln(document.getElementById('tafeln'), 0, frage.get('gross') ? { skala: Number(frage.get('gross')) } : {})
 const beispiel = ausHud({ wetter: { ort: 'Öhringen', grad: 9.4, wolken: 70 }, pv: { akku: 64, akkuW: -1200, netzW: -850, pvW: 4300, hausW: 2250, zustand: 0, inselbetrieb: false, zeit: Date.now() } }, new Date(), sequenzDaten, () => 'BEWÖLKT')
 addEventListener('keydown', (e) => {
   loki = { 1: 'hoert', 2: 'denkt', 3: 'spricht', 4: 'aus' }[e.key] ?? loki

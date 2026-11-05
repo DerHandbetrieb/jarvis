@@ -179,11 +179,35 @@ function aufBahn(b, s) {
   return { x: x0 + (x1 - x0) * f, y: y0 + (y1 - y0) * f, w: Math.atan2(nx, -ny) }
 }
 
+/** Gold-Knoten in den vier äußeren Bildschirmecken (Teil des Grundbilds) umfärben – Rückmeldung Auftraggeber 05.11.2026:
+ *  „springen zu sehr ins Auge“. art: gold (unverändert) | gedaempft | bronze | cyan | weg. Erkannt werden nur goldene
+ *  Bildpunkte in den Eckfeldern; der Rest des Bilds bleibt unberührt. */
+const KNOTEN_FELD = { b: 240, h: 260 }
+function knotenUmfaerben(bild, art) {
+  if (!art || art === 'gold') return bild
+  const c = leinwand(bild.width, bild.height), g = c.getContext('2d'); g.drawImage(bild, 0, 0)
+  const { b: fb, h: fh } = KNOTEN_FELD
+  for (const [x, y] of [[0, 0], [0, c.height - fh], [c.width - fb, 0], [c.width - fb, c.height - fh]]) {
+    const d = g.getImageData(x, y, fb, fh), p = d.data
+    for (let i = 0; i < p.length; i += 4) {
+      const r = p[i], gr = p[i + 1], bl = p[i + 2], gold = r - bl
+      if (gold < 25 || r < gr) continue // nur goldene Bildpunkte
+      const l = Math.max(r, gr, bl), w = Math.min(1, (gold - 25) / 60) // weicher Übergang an den Rändern des Ornaments
+      const neu = art === 'gedaempft' ? [r * 0.45, gr * 0.45, bl * 0.45] : art === 'bronze' ? [l * 0.42, l * 0.28, l * 0.16]
+        : art === 'cyan' ? [l * 0.18, l * 0.55, l * 0.6] : [10, 16, 22]
+      p[i] = r + (neu[0] - r) * w; p[i + 1] = gr + (neu[1] - gr) * w; p[i + 2] = bl + (neu[2] - bl) * w
+    }
+    g.putImageData(d, x, y)
+  }
+  return c
+}
+
 /** Szene laden. basis = Ordner mit grund.webp, aurora.webp … und geometrie.json (relativ zur Seite) */
 export async function ladeSzene(basis, einstellung = {}) {
   const geo = await (await fetch(basis + 'geometrie.json')).json()
   const namen = ['grund', ...Object.keys(geo.ebenen)]
   const bilder = Object.fromEntries(await Promise.all(namen.map(async (n) => [n, await bildLaden(basis + n + '.webp')])))
+  bilder.grund = knotenUmfaerben(bilder.grund, einstellung.knoten)
   const zufall = zufallsfolge(7)
   const ringMitte = ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
   return {

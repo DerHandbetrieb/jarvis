@@ -15,7 +15,7 @@ function gleich(a, b) {
  *  stumm: async () => Objekt (POST /stumm – roter Knopf im Wallpaper: Loki stumm/wieder an, Wunsch 03.11.2026);
  *  liveBild: async (kanal, nach) => { daten, nr }|null (GET /bild/0|1?nach=<nr> – nächstes Bild aus dem Live-Strom je
  *        Objektiv, wartet bis 1,5 s darauf; Nummer im Kopf x-bild-nr; 04.11.2026; nur im Arbeitsspeicher);
- *  schluessel: Zugriffsschlüssel; port: fester Port auf 127.0.0.1 */
+ *  schluessel: Zugriffsschlüssel oder Funktion, die ihn liefert (null = noch nicht geladen → alles abweisen); port: fester Port auf 127.0.0.1 */
 function erstelleHudServer({ port, schluessel, daten, kamera = async () => null, stumm = async () => null, liveBild = async () => null, ton = async () => null, protokoll = console.error }) {
   let server = null
   const kopf = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'x-loki-schluessel', 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Expose-Headers': 'x-bild-nr', 'Cache-Control': 'no-store' }
@@ -26,7 +26,8 @@ function erstelleHudServer({ port, schluessel, daten, kamera = async () => null,
     if (!erlaubt) { res.writeHead(404, kopf); res.end(); return }
     // nur Aufrufe an 127.0.0.1/localhost annehmen (zusätzlicher Schutz gegen „DNS-Rebinding“ fremder Webseiten)
     if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(String(req.headers.host ?? ''))) { res.writeHead(403, kopf); res.end(); return }
-    if (!gleich(req.headers['x-loki-schluessel'], schluessel)) { res.writeHead(403, kopf); res.end(); return }
+    const soll = typeof schluessel === 'function' ? schluessel() : schluessel
+    if (!soll || !gleich(req.headers['x-loki-schluessel'], soll)) { res.writeHead(403, kopf); res.end(); return }
     try {
       if (pfad === '/stumm') {
         req.resume() // Inhalt der Anfrage wird nicht gebraucht

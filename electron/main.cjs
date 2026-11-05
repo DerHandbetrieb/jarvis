@@ -20,7 +20,7 @@ const { erstelleNeuigkeiten } = require('./neuigkeiten.cjs')
 const { erstelleKamerawache } = require('./kamerawache.cjs')
 const { Readable } = require('node:stream')
 let kameraLive = null // Live-Bild fürs Dauer-HUD (04.11.2026)
-const { findeWallpaperEngine, einrichten } = require('./wallpaper.cjs')
+const { findeWallpaperEngine, einrichten, zugangAbgleichen } = require('./wallpaper.cjs')
 const { execFileSync } = require('node:child_process')
 /** Kamera-Protokoll (04.11.2026): kurze Zeilen nach %APPDATA%Jarviskamera.log (höchstens ca. 200 kB, dann neu), damit
  *  sich Aussetzer im Dauer-HUD nachvollziehen lassen. Zugangsdaten/Token werden vorher entfernt. */
@@ -436,9 +436,15 @@ if (!app.requestSingleInstanceLock()) {
       } catch { /* nächster Versuch in 15 Minuten */ }
     }
     void wetterHolen(); setInterval(() => void wetterHolen(), 15 * 60_000)
-    try { hud.schluessel = hudSchluessel(fs, path.join(app.getPath('userData'), 'hud-schluessel')) } catch (f) { console.error('Dauer-HUD-Schlüssel:', f?.message); hud.schluessel = require('node:crypto').randomBytes(32).toString('hex') }
+    // Schlüssel fürs Wallpaper (05.11.2026): kein Zufallsschlüssel mehr, wenn die Datei nicht lesbar ist – sonst weist L.O.K.I.
+    // das Wallpaper ab (403, keine Live-Werte). Stattdessen alle 5 s neu versuchen; Ergebnis/Grund steht in kamera.log.
+    const hudDatei = path.join(app.getPath('userData'), 'hud-schluessel')
+    const schluesselLaden = () => {
+      try { hud.schluessel = hudSchluessel(fs, hudDatei); kameraLog('HUD-Schlüssel geladen'); return true } catch (f) { kameraLog('HUD-Schlüssel nicht lesbar:', f?.code ?? '', f?.message ?? f); return false }
+    }
+    if (!schluesselLaden()) { const t = setInterval(() => { if (schluesselLaden()) clearInterval(t) }, 5000) }
     const hudServer = erstelleHudServer({
-      port: HUD_PORT, schluessel: hud.schluessel,
+      port: HUD_PORT, schluessel: () => hud.schluessel,
       liveBild: async (kanal, nach) => (kamera.status().eingerichtet ? kameraLive.bildNach(kanal, nach) : null),
       ton: async () => tonWerte(),
       daten: async () => {
@@ -459,14 +465,25 @@ if (!app.requestSingleInstanceLock()) {
     hudServer.start().catch(() => { /* Port belegt – Dauer-HUD zeigt dann „Loki nicht verbunden“ */ })
     app.on('will-quit', () => { void hudServer.stop(); kameraLive?.stoppen() })
     // Knopf „Dauer-HUD in Wallpaper Engine einrichten“: legt das Wallpaper als lokales Projekt an (ändert nicht das aktive)
+    const leseSteamPfad = () => {
+      try { return /SteamPath\s+REG_SZ\s+(.+)/.exec(execFileSync(path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'reg.exe'), ['query', 'HKCU\\Software\\Valve\\Steam', '/v', 'SteamPath'], { encoding: 'utf8' }))?.[1]?.trim().replace(/\//g, '\\') ?? null } catch { return null }
+    }
+    // Beim Start den eigenen Schlüssel ins eingerichtete Wallpaper eintragen (05.11.2026): sonst kann das Wallpaper einen
+    // veralteten Schlüssel haben und wird abgewiesen (403, keine Live-Werte, keine Kamera). Nur wenn das Projekt schon da ist.
+    const hudZugangAbgleichen = () => {
+      try {
+        if (!hud.schluessel) return
+        const we = findeWallpaperEngine({ fs, leseSteamPfad })
+        if (we) kameraLog('Wallpaper-Zugang:', zugangAbgleichen({ fs, we, port: HUD_PORT, schluessel: hud.schluessel }))
+      } catch (f) { kameraLog('Wallpaper-Zugang: Fehler', f?.message ?? f) }
+    }
+    setTimeout(hudZugangAbgleichen, 3000)
     ipcMain.handle('hud-einrichten', (e) => {
       if (!vonFenster(e)) return null
-      const leseSteamPfad = () => {
-        try { return /SteamPath\s+REG_SZ\s+(.+)/.exec(execFileSync(path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'reg.exe'), ['query', 'HKCU\\Software\\Valve\\Steam', '/v', 'SteamPath'], { encoding: 'utf8' }))?.[1]?.trim().replace(/\//g, '\\') ?? null } catch { return null }
-      }
       const we = findeWallpaperEngine({ fs, leseSteamPfad })
       if (!we) return { ok: false, meldung: 'Wallpaper Engine wurde auf diesem PC nicht gefunden (Steam).' }
       const quelle = app.isPackaged ? path.join(process.resourcesPath, 'dauer-hud') : path.join(__dirname, '..', 'dist-hud')
+      if (!hud.schluessel) return { ok: false, meldung: 'Der Zugangsschlüssel fürs Wallpaper ist noch nicht geladen – bitte gleich noch einmal versuchen.' }
       if (!fs.existsSync(path.join(quelle, 'dauer-hud.html'))) return { ok: false, meldung: 'Das Dauer-HUD fehlt in diesem Programm (nicht mitgebaut).' }
       try {
         einrichten({ fs, we, quelle, port: HUD_PORT, schluessel: hud.schluessel })

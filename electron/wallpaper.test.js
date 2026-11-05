@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-const { bibliotheken, findeWallpaperEngine, einrichten } = createRequire(import.meta.url)('./wallpaper.cjs')
+const { bibliotheken, findeWallpaperEngine, einrichten, zugangAbgleichen } = createRequire(import.meta.url)('./wallpaper.cjs')
 
 describe('Dauer-HUD in Wallpaper Engine', () => {
   it('liest die Steam-Bibliotheken', () => {
@@ -36,5 +36,15 @@ describe('Dauer-HUD in Wallpaper Engine', () => {
     expect(fs.existsSync(path.join(ziel, 'assets', 'alt-123.js'))).toBe(false)
     expect(fs.readFileSync(path.join(ziel, 'zugang.js'), 'utf8')).toContain('"schluessel":"neu"')
     expect(fs.readFileSync(path.join(fremd, 'x'), 'utf8')).toBe('1') // fremde Projekte bleiben unberührt
+  })
+  it('gleicht beim Start nur den Schlüssel im vorhandenen Projekt ab, legt nichts neu an', () => {
+    const we = fs.mkdtempSync(path.join(os.tmpdir(), 'we-'))
+    expect(zugangAbgleichen({ fs, we, port: 47820, schluessel: 'a' })).toBe('kein Projekt')
+    expect(fs.existsSync(path.join(we, 'projects'))).toBe(false)
+    const ziel = path.join(we, 'projects', 'myprojects', 'loki-dauer-hud'); fs.mkdirSync(ziel, { recursive: true })
+    fs.writeFileSync(path.join(ziel, 'project.json'), '{}'); fs.writeFileSync(path.join(ziel, 'zugang.js'), 'window.LOKI_HUD = {"port":47820,"schluessel":"alt"}\n')
+    expect(zugangAbgleichen({ fs, we, port: 47820, schluessel: 'neu' })).toBe('erneuert')
+    expect(fs.readFileSync(path.join(ziel, 'zugang.js'), 'utf8')).toContain('"schluessel":"neu"')
+    expect(zugangAbgleichen({ fs, we, port: 47820, schluessel: 'neu' })).toBe('aktuell')
   })
 })
