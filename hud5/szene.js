@@ -29,7 +29,10 @@ function ringBild(r, hoehe, anzahl, versatz = 0, woerter = []) {
   g.translate(gr / 2, gr / 2)
   g.lineCap = 'round'; g.lineJoin = 'round'
   g.font = `600 ${Math.round(hoehe * 0.8)}px Georgia, "Times New Roman", serif`; g.textAlign = 'center'; g.textBaseline = 'middle'
-  const abstand = hoehe * 0.14, runenSchritt = (Math.PI * 2) / anzahl
+  // weit gesperrt (Wunsch Auftraggeber 05.11.2026: mehr Raum zwischen den Buchstaben, die Wörter laufen weiter)
+  const abstand = woerter.length ? hoehe * 0.55 : 0, runenSchritt = (Math.PI * 2) / anzahl
+  const a = leinwand(gr, gr), ga = a.getContext('2d') // eigene Lage für die Anfangsbuchstaben (pulsieren blau)
+  ga.translate(gr / 2, gr / 2); ga.font = g.font; ga.textAlign = 'center'; ga.textBaseline = 'middle'
   // Wörter: Mitte bei gleichen Winkelabständen, Breite je Buchstabe als Winkel
   const wortTeile = woerter.map((wort, k) => {
     const breiten = [...wort].map((z) => (g.measureText(z).width + abstand) / r)
@@ -54,16 +57,18 @@ function ringBild(r, hoehe, anzahl, versatz = 0, woerter = []) {
       rune(g, FOLGE[(i + versatz) % FOLGE.length], hoehe)
       g.restore()
     }
+    ga.fillStyle = durchgang ? '#e8f8ff' : '#2fa8ff'; ga.shadowColor = '#2fa8ff'; ga.shadowBlur = durchgang ? hoehe * 0.5 : hoehe * 1.3
     for (const t of wortTeile) {
       let w = t.mitte - t.halb // von links nach rechts
       for (const [i, z] of [...t.wort].entries()) {
         w += t.breiten[i] / 2
-        g.save(); g.rotate(w); g.translate(0, -r); g.fillText(z, 0, 0); g.restore()
+        const ziel = i === 0 ? ga : g // erster Buchstabe in die blaue Lage
+        ziel.save(); ziel.rotate(w); ziel.translate(0, -r); ziel.fillText(z, 0, 0); ziel.restore()
         w += t.breiten[i] / 2
       }
     }
   }
-  return c
+  return { bild: c, anfang: a }
 }
 
 /** Maske für den Ring um den Reaktor: oben voll, unten zum See hin weich ausgeblendet (keine harte Kante) */
@@ -158,7 +163,7 @@ export async function ladeSzene(basis) {
   const ringMitte = ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'])
   return {
     geo, bilder,
-    ringMitte, ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
+    ringMitte: ringMitte.bild, ringAnfang: ringMitte.anfang, ringMitteMaske: ringMaske(ringMitte.bild.width), ringPuffer: leinwand(ringMitte.bild.width, ringMitte.bild.height),
     runen: runenBilder(38),
     bahnLinks: bahnVorbereiten(geo.bahnLinks, true),
     bahnRechts: bahnVorbereiten(geo.bahnRechts, false),
@@ -475,6 +480,12 @@ function mittelRing(g, s, winkel, alpha) {
   pg.globalCompositeOperation = 'destination-in'; pg.drawImage(s.ringMitteMaske, 0, 0)
   g.globalAlpha = alpha; g.globalCompositeOperation = 'lighter'
   g.drawImage(p, k.x - gr / 2, k.y - gr / 2)
+  // Anfangsbuchstaben L, O, K, I pulsieren in kräftigem Blau – man sieht sofort: das ist L.O.K.I.
+  pg.globalCompositeOperation = 'source-over'; pg.clearRect(0, 0, gr, gr)
+  pg.save(); pg.translate(gr / 2, gr / 2); pg.rotate(winkel); pg.drawImage(s.ringAnfang, -gr / 2, -gr / 2); pg.restore()
+  pg.globalCompositeOperation = 'destination-in'; pg.drawImage(s.ringMitteMaske, 0, 0)
+  g.globalAlpha = alpha * (0.45 + 0.55 * (0.5 + 0.5 * Math.sin((s.zeit ?? 0) * 2.2)))
+  g.drawImage(p, k.x - gr / 2, k.y - gr / 2)
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
 }
 
@@ -503,15 +514,16 @@ export function zeichneSzene(g, s, t, opt = {}) {
   const mit = (n) => !(opt.aus ?? []).includes(n) // Prüfhilfe: einzelne Teile weglassen
   if (mit('aurora')) aurora(g, s, t, an.aurora)
   // aufsteigender Rauch hinter dem Reaktor entfernt (Rückmeldung Auftraggeber 05.11.2026: Reaktor soll klar bleiben)
-  ebene(g, s, 'reaktor', an.grund, 'source-over') // deckt den Rauch hinter dem Reaktor ab
   if (mit('wasser')) wasser(g, s, t, an.reaktor)
-  if (mit('wellen')) wellen(g, t, an.reaktor)
+  // pulsierende Wellenringe auf Wunsch des Auftraggebers wieder entfernt (05.11.2026: „gefallen mir gar nicht“)
   if (mit('rauch')) rauch(g, s, t, an.nebel)
+  ebene(g, s, 'reaktor', an.grund, 'source-over') // Reaktor steht vorn: Rauch und Wolken liegen dahinter/darunter
   if (mit('reaktor')) reaktor(g, s, t, opt, an.reaktor)
   if (mit('schrift')) schrift(g, s, t, an.reaktor)
 
   const denkt = opt.loki === 'denkt' ? 1 : 0
   const hell = an.runen * (0.85 + 0.15 * Math.sin(t * 0.63))
+  s.zeit = t
   mittelRing(g, s, t * ((Math.PI * 2) / 240) * (1 + denkt * 3), hell)
   s.versatz = opt.versatz ?? 0
   seitenRunen(g, s, s.bahnLinks, t, -6, hell, 4) // links nach oben, rechts nach unten – gegenläufig wie die Mitte
