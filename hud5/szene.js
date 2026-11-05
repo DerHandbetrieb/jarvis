@@ -129,7 +129,7 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
       g.strokeStyle = d ? lr.kern : lr.hof; g.fillStyle = g.strokeStyle; g.shadowColor = lr.hof
       g.lineWidth = d ? Math.max(1.4, hh * 0.1) : hh * 0.16; g.shadowBlur = d ? hh * 0.3 : hh * 0.8; g.lineCap = 'round'; g.lineJoin = 'round'
       let x = w
-      if (seg.symbol) { const sw = (h * 2.3) / rr; g.save(); g.rotate(x + sw / 2); g.translate(0, -rr); g.lineWidth *= 0.8; wetterSymbol(g, seg.symbol, h * 1.7); g.restore(); x += sw }
+      if (seg.symbol) { const sw = (h * 2.3) / rr; g.save(); g.rotate(x + sw / 2); g.translate(0, -rr); if (String(SCHRIFT.stil).startsWith('roboto')) g.lineWidth = d ? h * 0.045 : h * 0.09; else g.lineWidth *= 0.8; /* Strichstärke wie die Schrift */ wetterSymbol(g, seg.symbol, h * 1.7); g.restore(); x += sw }
       for (const z of seg.text) { const zw = (textBreite(z, hh) + sperrung(hh)) / rr; g.save(); g.rotate(x + zw / 2); g.translate(0, -rr); zeichen(g, z, hh); g.restore(); x += zw }
     }
   }
@@ -234,7 +234,7 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
   if (variante === 'info-x') { // Runde 3 (Wunsch Auftraggeber 05.11.2026): Angaben doppelt, alles gleich groß, Gold; dazwischen
     // dunkles Knotenband (schwarz mit blauem Schimmer wie die Eck-Knoten); Schrift und Bedeutung von L.O.K.I. wählbar
     SCHRIFT.stil = opt.schrift ?? 'strich'
-    const gold = angaben.map((seg, i) => ({ ...seg, farbe: String(opt.schrift).startsWith('roboto') ? 'petrol' : 'kupfer', gross: 1, ...(i === 0 ? { text: '00:00:00', live: true } : {}) })) // Uhrzeit mit Sekunden (Wunsch Auftraggeber 05.11.2026)
+    const gold = angaben.filter((seg) => !seg.text.startsWith('KW')).map((seg, i) => /* ohne KW (Wunsch Auftraggeber 05.11.2026) */ ({ ...seg, farbe: String(opt.schrift).startsWith('roboto') ? 'petrol' : 'kupfer', gross: 1, ...(i === 0 ? { text: '00:00:00', live: true } : {}) })) // Uhrzeit mit Sekunden (Wunsch Auftraggeber 05.11.2026)
     const h = hoehe * 0.8, NAME = 'LOKALE · OHNEHIN · KLÜGERE · INTELLIGENZ'
     const segmente = opt.name === 'imring' ? [...gold, ...NAME.split(' · ').slice(0, 2).map((t) => ({ text: t, farbe: 'dunkel' })), ...gold, ...NAME.split(' · ').slice(2).map((t) => ({ text: t, farbe: 'dunkel' }))] : [...gold, ...gold]
     const plaetze = kreisKnoten(gd, segmente, r, h)

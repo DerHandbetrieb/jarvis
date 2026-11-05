@@ -50,7 +50,7 @@ const breite = (z) => (z === ' ' ? 2.2 : PUNKTE[z] ? 1 : z === '·' ? 2 : Math.m
 const ROBOTO = { 'roboto-100': 100, 'roboto-300': 300 }
 let messer = null
 /** Buchstabenabstand: Roboto enger gesperrt (05.11.2026: Platz für Trennlinien), Strichschrift wie bisher */
-export const sperrung = (h) => (ROBOTO[SCHRIFT.stil] ? 0.8 : 1.7) * (h / 6)
+export const sperrung = (h) => 1.7 * (h / 6)
 const robotoFont = (h) => `${ROBOTO[SCHRIFT.stil]} ${(h / 0.711).toFixed(2)}px Roboto` // Versalhöhe von Roboto = 0,711 em
 function robotoBreite(z, h) { messer ??= document.createElement('canvas').getContext('2d'); messer.font = robotoFont(h); return messer.measureText(z).width }
 
