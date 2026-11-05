@@ -10,7 +10,7 @@ let loki = new URLSearchParams(location.search).get('loki') ?? 'hoert', zoom = f
 // Prüfhilfe ?wetter=regen|schnee|nebel|frost
 const probeWetter = { regen: { code: 63, grad: 8 }, schnee: { code: 73, grad: -2 }, nebel: { code: 45, grad: 3 }, frost: { code: 0, grad: -4 } }[new URLSearchParams(location.search).get('wetter')] ?? { code: 2, grad: 9 }
 const tafeln = erstelleTafeln(document.getElementById('tafeln'))
-const beispiel = ausHud({ wetter: { ort: 'Öhringen', grad: 9.4, wolken: 70 } }, new Date(), sequenzDaten, () => 'BEWÖLKT')
+const beispiel = ausHud({ wetter: { ort: 'Öhringen', grad: 9.4, wolken: 70 }, pv: { akku: 64, akkuW: -1200, netzW: -850, pvW: 4300, hausW: 2250, zustand: 0, inselbetrieb: false, zeit: Date.now() } }, new Date(), sequenzDaten, () => 'BEWÖLKT')
 addEventListener('keydown', (e) => {
   loki = { 1: 'hoert', 2: 'denkt', 3: 'spricht', 4: 'aus' }[e.key] ?? loki
   if (e.key === 'z' || e.key === 'Z') { zoom = !zoom; c.width = zoom ? 1920 : B; c.style.width = zoom ? '1920px' : '100vw' }

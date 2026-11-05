@@ -91,6 +91,16 @@ export type KameraBruecke = {
 }
 export const kameraBruecke = (): KameraBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.kamera ?? null : null)
 
+/** PV-Anlage FENECON (05.11.2026): nur lesen; Passwort wird nur weitergereicht, verschlüsselt im Hauptprozess gespeichert */
+export type PvWerte = { akku: number | null; akkuW: number | null; netzW: number | null; pvW: number | null; hausW: number | null; zustand: number | null; inselbetrieb: boolean; zeit: number }
+export type PvStatus = { eingerichtet: boolean; adresse: string | null; werte: PvWerte | null; fehler: string | null }
+export type PvBruecke = {
+  status: () => Promise<PvStatus | null>
+  einrichten: (d: { adresse: string; passwort: string }) => Promise<PvStatus | null>
+  entfernen: () => Promise<PvStatus | null>
+}
+export const pvBruecke = (): PvBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.pv ?? null : null)
+
 /** Start-Sequenz über alle Bildschirme; Meldungen: gruss (Loki hat dort gesprochen), ohne-gruss, abgebrochen, ende */
 export type SequenzBruecke = {
   starten: (lautstaerke: number) => Promise<boolean>

@@ -211,13 +211,53 @@ function kamera(g, b, h, bild, name, alarm, t) {
     g.fillStyle = 'rgba(120,10,0,0.55)'; g.fillRect(0, h - 30, b, 30); text(g, 'PERSON ERKANNT', b / 2, h - 10, 14, HELL, 'center', 600)
   }
 }
-function energie(g, b, h) {
-  kopf(g, 'ENERGIE · PV-ANLAGE', 'NICHT VERBUNDEN', b)
-  const knoten = [['PV', 0.12], ['HAUS', 0.38], ['AKKU', 0.64], ['NETZ', 0.9]], y = 34 + (h - 34) / 2
-  g.strokeStyle = 'rgba(95,246,255,0.25)'; g.setLineDash([4, 6]); g.beginPath(); g.moveTo(b * 0.12, y); g.lineTo(b * 0.9, y); g.stroke(); g.setLineDash([])
-  for (const [n, f] of knoten) {
-    g.strokeStyle = 'rgba(95,246,255,0.55)'; g.lineWidth = 1.2; g.beginPath(); g.arc(b * f, y, 24, 0, Math.PI * 2); g.stroke()
-    text(g, n, b * f, y + 5, 12, CYAN, 'center', 600); text(g, '– W', b * f, y + 44, 12, BLASS, 'center')
+/**
+ * Energiefluss der PV-Anlage (FENECON, 05.11.2026, Werte von L.O.K.I. über /hud → pv): PV, Akku, Haus, Netz als Knoten;
+ * Lichtpunkte laufen in Flussrichtung, umso schneller und dichter, je mehr Leistung fließt. Akku als Ring mit Ladestand.
+ * Vorzeichen laut FENECON: Akku + = entladen, − = laden; Netz + = Bezug, − = Einspeisung.
+ */
+const kw = (w) => (w == null ? '–' : Math.abs(w) >= 1000 ? `${(Math.abs(w) / 1000).toFixed(1).replace('.', ',')} kW` : `${Math.round(Math.abs(w))} W`)
+function energie(g, b, h, pv, t) {
+  const stoerung = pv && pv.zustand >= 3, warnung = pv && pv.zustand === 2
+  kopf(g, 'ENERGIE · PV-ANLAGE', !pv ? 'NICHT VERBUNDEN' : stoerung ? 'STÖRUNG' : warnung ? 'WARNUNG' : pv.inselbetrieb ? 'INSELBETRIEB' : 'LIVE', b)
+  const y = 34 + (h - 34) / 2 - 6, R = 22
+  const K = { pv: [b * 0.1, y], akku: [b * 0.34, y], haus: [b * 0.62, y], netz: [b * 0.88, y] }
+  // Flüsse: [von, nach, Watt]; Richtung nach Vorzeichen
+  const fl = !pv ? [] : [
+    ['pv', 'haus', Math.max(0, pv.pvW ?? 0)],
+    (pv.akkuW ?? 0) >= 0 ? ['akku', 'haus', pv.akkuW ?? 0] : ['haus', 'akku', -(pv.akkuW ?? 0)],
+    (pv.netzW ?? 0) >= 0 ? ['netz', 'haus', pv.netzW ?? 0] : ['haus', 'netz', -(pv.netzW ?? 0)],
+  ]
+  const bahn = (a, z) => { // PV läuft im Bogen oben über den Akku zum Haus
+    const [x1, y1] = K[a], [x2, y2] = K[z]
+    return a === 'pv' || z === 'pv' ? (f) => [x1 + (x2 - x1) * f, y1 - Math.sin(f * Math.PI) * 30] : (f) => [x1 + (x2 - x1) * f, y1 + (y2 - y1) * f]
+  }
+  for (const [a, z] of [['pv', 'haus'], ['akku', 'haus'], ['netz', 'haus']]) { // Leitungen
+    const p = bahn(a, z); g.strokeStyle = 'rgba(95,246,255,0.18)'; g.lineWidth = 1.2; g.beginPath()
+    for (let i = 0; i <= 30; i++) { const [x, yy] = p(i / 30); i ? g.lineTo(x, yy) : g.moveTo(x, yy) }
+    g.stroke()
+  }
+  for (const [a, z, w] of fl) { // Lichtpunkte
+    if (w < 20) continue
+    const p = bahn(a, z), anzahl = Math.min(9, 2 + Math.round(w / 800)), tempo = 0.25 + Math.min(1.2, w / 4000)
+    const farbe = a === 'pv' ? GOLD : z === 'netz' ? '#7dffb0' : a === 'netz' ? '#ff8a6a' : CYAN
+    for (let i = 0; i < anzahl; i++) {
+      const f = ((t * tempo + i / anzahl) % 1) * 0.86 + 0.07, [x, yy] = p(f)
+      const v = g.createRadialGradient(x, yy, 0, x, yy, 6); v.addColorStop(0, farbe); v.addColorStop(1, 'rgba(0,0,0,0)')
+      g.fillStyle = v; g.fillRect(x - 6, yy - 6, 12, 12)
+    }
+  }
+  for (const [id, name, wert, farbe] of [['pv', 'PV', pv?.pvW, GOLD], ['akku', 'AKKU', pv?.akkuW, CYAN], ['haus', 'HAUS', pv?.hausW, HELL], ['netz', 'NETZ', pv?.netzW, BLASS]]) {
+    const [x, yy] = K[id]
+    g.fillStyle = 'rgba(4,20,28,0.9)'; g.beginPath(); g.arc(x, yy, R, 0, Math.PI * 2); g.fill()
+    g.strokeStyle = 'rgba(95,246,255,0.45)'; g.lineWidth = 1.2; g.stroke()
+    if (id === 'akku' && pv?.akku != null) { // Ladestand als Ring
+      g.strokeStyle = pv.akku < 15 ? ROT : CYAN; g.lineWidth = 3
+      g.beginPath(); g.arc(x, yy, R + 4, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * pv.akku) / 100); g.stroke()
+    }
+    text(g, id === 'akku' && pv?.akku != null ? `${Math.round(pv.akku)}%` : name, x, yy + 5, 12, farbe, 'center', 600)
+    const zusatz = !pv ? '' : id === 'akku' ? ((pv.akkuW ?? 0) < -20 ? ' LÄDT' : (pv.akkuW ?? 0) > 20 ? ' ENTLÄDT' : '') : id === 'netz' ? ((pv.netzW ?? 0) < -20 ? ' EINSPEISUNG' : (pv.netzW ?? 0) > 20 ? ' BEZUG' : '') : ''
+    text(g, `${id === 'akku' ? 'AKKU' : name} ${kw(wert)}${zusatz}`, x, yy + R + 20, 11, BLASS, 'center', 600)
   }
 }
 function wetter(g, b, h, w) {
@@ -304,7 +344,7 @@ export function ausHud(antwort, jetzt, sequenzDaten, wetterText) {
   const lage = roh ?? BEISPIEL_LAGE(jetzt)
   const d = sequenzDaten({ ...lage, geholt: roh ? lage.geholt : jetzt.getTime() }, jetzt)
   // echte, aber veraltete/unvollständige Daten: keine Zahlen zeigen, die wie aktuelle aussehen (Prüf-Agent)
-  if (roh && !d) return { beispiel: false, veraltet: true, werkstatt: {}, wetter: null, kamera: antwort?.kamera ?? null, loki: antwort?.loki ?? null, uhr: jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) }
+  if (roh && !d) return { beispiel: false, veraltet: true, werkstatt: {}, wetter: null, kamera: antwort?.kamera ?? null, pv: antwort?.pv ?? null, loki: antwort?.loki ?? null, uhr: jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) }
   const tage = (lage.verkauf?.tage ?? []).map((t) => ({ tag: `${String(t.tag).slice(8, 10)}.${String(t.tag).slice(5, 7)}`, umsatz: (Number(t.umsatzCent) || 0) / 100, bestellungen: Number(t.bestellungen) || 0 }))
   const w = antwort?.wetter
   return {
@@ -312,6 +352,7 @@ export function ausHud(antwort, jetzt, sequenzDaten, wetterText) {
     werkstatt: { ...d, stand: roh ? d.stand : null, tage, offeneBestellungen: lage.offeneBestellungen ?? null }, // Beispiel: ohne „Stand“
     wetter: w && Number.isFinite(w.grad) ? { ort: w.ort ?? 'Öhringen', grad: w.grad, wolken: w.wolken, text: wetterText?.(w) ?? '' } : null,
     kamera: antwort?.kamera ?? null,
+    pv: antwort?.pv ?? null,
     loki: antwort?.loki ?? null,
     uhr: jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }),
   }
@@ -347,7 +388,7 @@ export const ZEICHNER = {
   bestellungen: (g, b, h, d) => bestellungen(g, b, h, d.werkstatt ?? {}),
   kamera1: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[0] ?? null, 'CAM 01 · LINKS', !!d.kamera?.alarm, t),
   kamera2: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[1] ?? null, 'CAM 02 · RECHTS', false, t),
-  energie: (g, b, h) => energie(g, b, h),
+  energie: (g, b, h, d, t) => energie(g, b, h, d.pv, t),
   wetter: (g, b, h, d) => wetter(g, b, h, d.wetter),
   system: (g, b, h, d) => system(g, b, h, { ...(d.werkstatt ?? {}), loki: d.loki, verbunden: !d.beispiel && !d.veraltet, kamera: d.kamera, uhr: d.uhr }),
 }

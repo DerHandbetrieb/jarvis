@@ -1,5 +1,5 @@
 // Was das Windows-Programm der Oberfläche über die Brücke (electron/preload.cjs) gibt
-import type { Autostart, JarvisBruecke, KameraBruecke, SequenzBruecke, WerkstattBruecke } from './jarvis/desktop'
+import type { Autostart, JarvisBruecke, KameraBruecke, PvBruecke, SequenzBruecke, WerkstattBruecke } from './jarvis/desktop'
 
 declare global {
   interface Window {
@@ -12,6 +12,7 @@ declare global {
       sequenz?: SequenzBruecke
       werkstatt?: WerkstattBruecke
       kamera?: KameraBruecke
+      pv?: PvBruecke
       hud?: { einrichten: () => Promise<{ ok: boolean; meldung: string } | null> }
     }
   }

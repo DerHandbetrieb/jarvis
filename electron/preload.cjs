@@ -31,6 +31,12 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     bild: () => ipcRenderer.invoke('kamera-bild'),
     entfernen: () => ipcRenderer.invoke('kamera-entfernen'),
   },
+  /** PV-Anlage FENECON (nur lesen): Passwort wird nur weitergereicht, verschlüsselt im Hauptprozess gespeichert, nie zurückgegeben */
+  pv: {
+    status: () => ipcRenderer.invoke('pv-status'),
+    einrichten: (d) => ipcRenderer.invoke('pv-einrichten', { adresse: String(d?.adresse ?? ''), passwort: String(d?.passwort ?? '') }),
+    entfernen: () => ipcRenderer.invoke('pv-entfernen'),
+  },
   /** Dauer-HUD: als lokales Wallpaper in Wallpaper Engine anlegen */
   hud: { einrichten: () => ipcRenderer.invoke('hud-einrichten') },
   /** Start-Sequenz über alle Bildschirme (Lokis Spruch kommt live aus seiner Stimme ins Finale) */
