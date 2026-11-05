@@ -45,6 +45,28 @@ if len(sys.argv) > 1:
     gross = Image.open(sys.argv[1]).convert('RGB'); quelle = 'magnific'
 else:
     gross = esrgan(roh.resize((2896, 543), Image.LANCZOS)); quelle = 'esrgan'
+# Reaktor: „L.O.K.I.“ und Drachen kleiner (Wunsch Auftraggeber 05.11.2026). Magnific hat die Stelle im Ausschnitt
+# sauber zu Stein nachgemalt (grafik/magnific/reaktor_ohne_schrift.png, Ausschnitt laut reaktor_ausschnitt.json).
+# Die Leuchtschrift selbst = Unterschied alt − neu (additives Licht); sie wird verkleinert als eigene Ebene „schrift“
+# wieder aufgelegt, darunter schreibt die Szene die volle Bedeutung.
+schrift = None
+SCHRIFT_FAKTOR = 0.62
+if quelle == 'magnific' and os.path.exists('grafik/magnific/reaktor_ohne_schrift.png'):
+    box = json.load(open('grafik/magnific/reaktor_ausschnitt.json'))['box']
+    alt = np.asarray(gross.crop(box)).astype(np.int16)
+    neu = Image.open('grafik/magnific/reaktor_ohne_schrift.png').convert('RGB').resize((box[2] - box[0], box[3] - box[1]))
+    maske = np.asarray(Image.open('grafik/magnific/reaktor_maske.png').convert('L').resize(neu.size)) > 127
+    licht = np.clip((alt - np.asarray(neu).astype(np.int16)) * 1.5, 0, 255) * maske[..., None]  # etwas heller: kleiner wirkt sonst blass
+    gross = gross.copy(); gross.paste(neu, box[:2])
+    # Licht um die eigene Mitte verkleinern (bleibt mittig im Steinband, darunter Platz für die Bedeutung)
+    ys, xs = np.nonzero(licht.max(axis=2) > 20)
+    mx, my = (xs.min() + xs.max()) / 2, (ys.min() + ys.max()) / 2
+    l = Image.fromarray(licht.astype(np.uint8)); kb = (round(l.width * SCHRIFT_FAKTOR), round(l.height * SCHRIFT_FAKTOR))
+    klein = l.resize(kb, Image.LANCZOS)
+    schrift = Image.new('RGB', l.size)
+    schrift.paste(klein, (round(mx - mx * SCHRIFT_FAKTOR), round(my - my * SCHRIFT_FAKTOR + 24)))  # etwas tiefer: weg von den Spulen
+    gs = Image.new('RGB', gross.size); gs.paste(schrift, box[:2]); schrift = gs
+    print('Schrift im Reaktor: verkleinert auf', SCHRIFT_FAKTOR)
 grund = np.asarray(gross.resize((B, H), Image.LANCZOS)).copy()
 print('Grundbild', quelle, gross.size)
 
@@ -119,6 +141,10 @@ ausGrund('kernscheibe', kreis(-10, 98, 6))
 blau = (gf[..., 2] - gf[..., 0] - 60) / 80  # leuchtende blaue Zellen zwischen den Spulen
 ausGrund('zellen', np.clip(blau, 0, 1) * kreis(118, 215, 6))
 ebene('halo', monitore([None, FX + 'REACTOR_CORE_HALO_PULSE_RGBA_3840x2160.png', None]))
+if schrift is not None:  # additiv: Farbe = Licht, Deckkraft voll (die Szene legt sie mit „lighter“ auf)
+    a = np.asarray(schrift).astype(np.float32); al = a.max(axis=2)
+    farbe = np.clip(a * 255 / np.maximum(al, 1)[..., None], 0, 255)
+    s4 = Image.fromarray(np.dstack([farbe, al]).astype(np.uint8), 'RGBA'); ebene('schrift', s4)
 # Reaktor-Kern scharf aus dem Grundbild, Form aus der Kern-Maske (für das Pulsieren)
 kern = monitore([None, A + 'MITTE_REAKTOR_RING_01_ORIGINAL_PIXELS_3840x2160.png', None]).resize((B, H), Image.LANCZOS)
 kernScharf = Image.fromarray(grund).convert('RGBA'); kernScharf.putalpha(kern.getchannel('A')); ebene('kern', kernScharf)
