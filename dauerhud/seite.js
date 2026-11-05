@@ -81,7 +81,17 @@ c.addEventListener('click', async (ev) => {
 // hier nur abholen
 let jemalsTon = false
 setInterval(() => { const a = window.LOKI_TON; if (a && a.zeit) { ton = a.werte; letzterTon = a.zeit; jemalsTon = true } }, 30)
-const tonStatus = () => (!window.LOKI_TON_ANGEMELDET ? 'KEIN TON-ZUGRIFF' : !jemalsTon ? 'WARTET AUF TON' : 'STILLE')
+// Ersatz: liefert Wallpaper Engine keinen Ton, holt das Wallpaper ihn bei L.O.K.I. (GET /ton, Windows-Loopback, 05.11.2026)
+let tonVonLoki = false, tonHolen = false
+setInterval(async () => {
+  if (pausiert || tonHolen || performance.now() - letzterTon < 1000) return
+  tonHolen = true
+  try {
+    const r = await fetch(`http://127.0.0.1:${zugang.port}/ton`, { headers: kopf(), signal: AbortSignal.timeout(2000) })
+    if (r.status === 200) { const w = await r.json(); if (Array.isArray(w) && w.length === 128) { window.LOKI_TON = { werte: w, zeit: performance.now() }; tonVonLoki = true } }
+  } catch { /* L.O.K.I. läuft nicht */ } finally { tonHolen = false }
+}, 45)
+const tonStatus = () => (tonVonLoki || jemalsTon ? 'STILLE' : !window.LOKI_TON_ANGEMELDET ? 'KEIN TON-ZUGRIFF' : 'WARTET AUF TON')
 window.wallpaperPropertyListener = { setPaused: (p) => { const war = pausiert; pausiert = !!p; if (war && !pausiert) { lauf++; requestAnimationFrame((ms) => schleife(ms, lauf)) } } }
 
 const szene = await ladeSzene('./ebenen/')

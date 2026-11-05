@@ -4,7 +4,7 @@
 // (5173 gehört der Werkstatt-App, damit beide gleichzeitig laufen können).
 // Immer bereit (Entscheidung Auftraggeber 03.11.2026): startet mit Windows unsichtbar (Argument --autostart), lebt als
 // Symbol im Infobereich unten rechts; das X versteckt nur das Fenster, beendet wird über das Symbol.
-const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, net, protocol, safeStorage, screen, shell, session } = require('electron')
+const { app, BrowserWindow, Menu, Tray, desktopCapturer, ipcMain, nativeImage, net, protocol, safeStorage, screen, shell, session } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const { pathToFileURL } = require('node:url')
@@ -13,6 +13,7 @@ const { erstelleWerkstatt, leseKonfig } = require('./werkstatt.cjs')
 const { erstelleHudServer, hudSchluessel } = require('./hudserver.cjs')
 const { erstelleKamera } = require('./kamera.cjs')
 const { erstelleKameraLive } = require('./kameralive.cjs')
+const { erstelleTonAbgriff } = require('./tonabgriff.cjs')
 const { ueberwachen } = require('./vollbild.cjs')
 const { erstelleNeuigkeiten } = require('./neuigkeiten.cjs')
 const { erstelleKamerawache } = require('./kamerawache.cjs')
@@ -64,6 +65,7 @@ const AUTOSTART_ARG = '--autostart'
 const istAutostart = process.argv.includes(AUTOSTART_ARG)
 let beenden = false // erst true, wenn wirklich beendet werden soll (Menü „Beenden“, Windows fährt herunter)
 let tray = null
+let tonWerte = () => null // PC-Ton fürs Dauer-HUD (tonabgriff.cjs), gesetzt beim Start
 let trayZustand = { zustand: 'aus', mikrofon: false }
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 
@@ -364,6 +366,27 @@ if (!app.requestSingleInstanceLock()) {
         return f
       },
     })
+    // PC-Ton fürs Dauer-HUD (05.11.2026): eigene Sitzung „ton“ – nur dort darf ein Fenster den PC-Ausgang abgreifen
+    // (Windows-Loopback); das Bild der Bildschirmfreigabe wird im Fenster sofort verworfen
+    const tonSitzung = session.fromPartition('ton')
+    tonSitzung.setPermissionRequestHandler((_wc, p, cb) => cb(p === 'media' || p === 'display-capture'))
+    tonSitzung.setDisplayMediaRequestHandler((_req, cb) => {
+      desktopCapturer.getSources({ types: ['screen'] }).then((q) => cb({ video: q[0], audio: 'loopback' })).catch(() => cb({}))
+    })
+    const tonAbgriff = erstelleTonAbgriff({
+      protokoll: (z) => console.error(z),
+      erstelleFenster: () => {
+        const f = new BrowserWindow({ show: false, width: 200, height: 100, skipTaskbar: true, webPreferences: { partition: 'ton', contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload-ton.cjs'), backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' } })
+        f.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+        f.webContents.on('will-navigate', (event) => event.preventDefault())
+        f.loadFile(path.join(__dirname, 'ton-abgriff.html'))
+        return f
+      },
+    })
+    ipcMain.on('ton-werte', (e, d) => tonAbgriff.empfangen(e.sender, d))
+    ipcMain.on('ton-meldung', (e, g) => tonAbgriff.meldung(e.sender, g))
+    app.on('will-quit', () => tonAbgriff.stoppen())
+    tonWerte = () => tonAbgriff.werte()
     ipcMain.on('kamera-live-bild', (e, kanal, daten) => kameraLive.empfangen(e.sender, kanal, daten))
     ipcMain.on('kamera-live-meldung', (e, kanal, grund) => kameraLive.meldung(e.sender, kanal, grund))
     void kamera.laden()
@@ -407,6 +430,7 @@ if (!app.requestSingleInstanceLock()) {
     const hudServer = erstelleHudServer({
       port: HUD_PORT, schluessel: hud.schluessel,
       liveBild: async (kanal, nach) => (kamera.status().eingerichtet ? kameraLive.bildNach(kanal, nach) : null),
+      ton: async () => tonWerte(),
       daten: async () => {
         const l = werkstatt.lage()
         const k = kamera.status()

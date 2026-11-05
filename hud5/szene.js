@@ -276,9 +276,9 @@ function wasser(g, s, t, anteil) {
     // Wellenphase: Abstand „in die Tiefe“ wächst zum Horizont stark (perspektivisch) – minus Zeit = Lauf nach vorn
     const tiefe = 1 / (d + 0.08)
     // ruhig (Rückmeldung Auftraggeber 05.11.2026: „zu waberig“): langsame, flache Dünung, nur ein Hauch Verzerrung
-    const ph1 = -tiefe * 6.0 + t * 0.55, ph2 = -tiefe * 10.5 + t * 0.8 + 1.3, ph3 = -tiefe * 3.4 + t * 0.35 + 0.6
+    const ph1 = -tiefe * 6.0 + t * 0.8, ph2 = -tiefe * 10.5 + t * 1.15 + 1.3, ph3 = -tiefe * 3.4 + t * 0.5 + 0.6
     const welle = Math.sin(ph1) + 0.5 * Math.sin(ph2) + 0.35 * Math.sin(ph3)
-    const dy = welle * (0.08 + 0.7 * d) // senkrechtes Abtasten: Kämme stauchen, Täler dehnen
+    const dy = welle * (0.15 + 1.7 * d) // senkrechtes Abtasten: Kämme stauchen, Täler dehnen
     const kamm = Math.max(0, Math.sin(ph1) * 0.7 + Math.sin(ph2) * 0.3) // vorderer Hang der Welle fängt Licht
     const dx = 0
     const quelle = Math.min(hoehe - zeile, Math.max(0, y + dy))
@@ -288,7 +288,7 @@ function wasser(g, s, t, anteil) {
     const qq = HORIZONT + quelle
     if (glanz && ge && qq >= ge.y && qq < ge.y + ge.h) {
       const fy = glanz.height / ge.h
-      pg.globalAlpha = anteil * (0.3 + 0.25 * kamm) // Glanz auf den Wellenkämmen, läuft sanft mit nach vorn
+      pg.globalAlpha = anteil * (0.22 + 0.45 * kamm) // Glanz auf den Wellenkämmen, läuft sanft mit nach vorn
       pg.drawImage(glanz, 0, (qq - ge.y) * fy, glanz.width, zeile * fy, ge.x + dx, y, ge.b, zeile)
     }
     if (sp && re && quelle < sp.height) {
