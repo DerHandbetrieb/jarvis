@@ -480,7 +480,7 @@ function entladung(r, t) {
 }
 
 function blitze(g, s, t, rate, anteil) {
-  const r = s.geo.reaktor
+  const r = s.geo.kern ?? s.geo.reaktor
   if (!s.naechsterBlitz) s.naechsterBlitz = t + 3
   if (t >= s.naechsterBlitz) {
     s.blitze.push(entladung(r, t))
@@ -526,7 +526,7 @@ function blitze(g, s, t, rate, anteil) {
 
 /** Reaktor: Kernscheibe dreht, Lauflicht wandert durch die Zellen, Kern und Lichthof pulsieren, Blitze */
 function reaktor(g, s, t, opt, anteil) {
-  const r = s.geo.reaktor, kz = s.geo.ebenen.kernscheibe, ze = s.geo.ebenen.zellen
+  const r = s.geo.kern ?? s.geo.reaktor, kz = s.geo.ebenen.kernscheibe, ze = s.geo.ebenen.zellen
   const spricht = opt.loki === 'spricht' ? Math.min(1, opt.pegel ?? 0.5) : 0
   const denkt = opt.loki === 'denkt' ? 1 : 0, aus = 1, rot = s.rot // stumm: rot statt blau (weich überblendet)
   const puls = 0.5 + 0.5 * Math.sin((t * Math.PI * 2) / 2.8)

@@ -169,7 +169,20 @@ ausGrund('wasser', hell * (yy > 845))
 # Reaktor (Wunsch Auftraggeber 05.11.2026: lebendiger, Rauch dahinter, Spiegelung im See) – Kreise vermessen am
 # Grundbild: Steinring außen r ≈ 330, Spulenring r ≈ 120–215, Kernscheibe mit Lichtpunkten r < 98
 xx = np.mgrid[0:H, 0:B][1]
-rr = np.hypot(xx - GEO['reaktor']['x'], yy - GEO['reaktor']['y'])
+# genaue Mitte des Kerns (Rückmeldung Auftraggeber 05.11.2026: die drehende Mitte saß leicht zu tief, ein Stück vom Ring
+# drehte mit): die Mitte suchen, um die der dunkle Spalt zwischen Kernscheibe und Spulenring (r ≈ 90–100) am dunkelsten ist
+hell_ = np.asarray(Image.fromarray(grund).convert('L')).astype(np.float32)
+beste = None
+for cy in np.arange(GEO['reaktor']['y'] - 14, GEO['reaktor']['y'] + 14, 0.5):
+    for cx in np.arange(GEO['reaktor']['x'] - 12, GEO['reaktor']['x'] + 12, 0.5):
+        y0, x0 = int(cy) - 125, int(cx) - 125
+        Y, X = np.mgrid[y0:y0 + 250, x0:x0 + 250]; r_ = np.hypot(X - cx, Y - cy); sub = hell_[y0:y0 + 250, x0:x0 + 250]
+        for k in range(84, 108, 2):
+            m = sub[(r_ >= k) & (r_ < k + 2)].mean()
+            if beste is None or m < beste[0]: beste = (m, float(cx), float(cy), k)
+GEO['kern'] = {'x': beste[1], 'y': beste[2], 'spalt': beste[3]}
+print('Kernmitte', GEO['kern'])
+rr = np.hypot(xx - GEO['kern']['x'], yy - GEO['kern']['y'])
 def kreis(r0, r1, rand):
     return np.clip((rr - r0) / rand + 1, 0, 1) * np.clip((r1 - rr) / rand + 1, 0, 1)
 # Umriss des Reaktors aus der freigestellten Vorlage (1254 px im 4K-Bildschirm, Mitte bei 1922/989) – genauer als ein
@@ -178,7 +191,7 @@ vorlage = Image.open(Q + '03_CENTER/REACTOR/REACTOR_ORIGINAL_TRANSPARENT_1254x12
 umriss = Image.new('L', (B, H)); s2 = 1254 / 2
 umriss.paste(vorlage.getchannel('A').resize((round(s2), round(s2)), Image.LANCZOS), (round(GEO['reaktor']['x'] - s2 / 2), round(GEO['reaktor']['y'] - s2 / 2)))
 ausGrund('reaktor', cv2.erode(np.asarray(umriss, np.float32) / 255, np.ones((3, 3), np.uint8)))
-ausGrund('kernscheibe', kreis(-10, 98, 6))
+ausGrund('kernscheibe', kreis(-10, GEO['kern']['spalt'] - 1, 4))  # nur die Scheibe innerhalb des dunklen Spalts
 blau = (gf[..., 2] - gf[..., 0] - 60) / 80  # leuchtende blaue Zellen zwischen den Spulen
 ausGrund('zellen', np.clip(blau, 0, 1) * kreis(118, 215, 6))
 ebene('halo', monitore([None, FX + 'REACTOR_CORE_HALO_PULSE_RGBA_3840x2160.png', None]))

@@ -153,39 +153,42 @@ function bestellungen(g, b, h, d) {
     g.strokeStyle = 'rgba(95,246,255,0.08)'; g.beginPath(); g.moveTo(16, y + zeile - 0.5); g.lineTo(b - 16, y + zeile - 0.5); g.stroke()
   })
 }
-/** Tonwellen: was der PC abspielt (Wallpaper Engine liefert 64 Bänder je Kanal), gespiegelt als weiche Welle; spricht
- *  L.O.K.I., kommt seine Welle in Gold dazu */
+/**
+ * PC-Ton als Balken von unten nach oben (Wunsch Auftraggeber 05.11.2026: „wie man das kennt“, flüssig statt ruckig).
+ * 48 Balken, Bass links, Höhen rechts (Tonbereiche logarithmisch verteilt). Die Werte kommen nur etwa 20–30-mal je
+ * Sekunde – darum wird jedes Bild weich nachgeführt: schnell hoch, langsam runter; dazu fallende Spitzen-Marken.
+ * Spricht L.O.K.I., leuchten die Balken golden.
+ */
+const BALKEN = 48, anzeige = new Float32Array(BALKEN), spitze = new Float32Array(BALKEN)
+let letztesBild = 0
 function tonwellen(g, b, h, ton, t, loki, tonStatus) {
-  // Zustand des PC-Tons als Hilfe bei der Fehlersuche: KEIN TON-ZUGRIFF (Wallpaper Engine bietet keinen an), WARTET AUF TON
-  // (angemeldet, aber noch keine Daten), STILLE (Daten da, aber leise), PC-TON
   const pegel = ton ? Math.max(...Array.from(ton, Number).map((v) => (Number.isFinite(v) ? v : 0))) : 0
-  kopf(g, 'AUDIO', loki?.zustand === 'spricht' ? 'L.O.K.I. SPRICHT' : ton && pegel > 0.01 ? 'PC-TON' : tonStatus ?? 'STILLE', b)
-  const mitte = 34 + (h - 34) / 2, x0 = 16, x1 = b - 16, hoehe = (h - 50) / 2
-  const baender = 64, werte = []
-  for (let i = 0; i < baender; i++) {
-    const l = ton ? Math.min(1, ton[i] ?? 0) : 0, r = ton ? Math.min(1, ton[64 + i] ?? 0) : 0
-    werte.push(Math.max(0.015 + 0.012 * Math.sin(t * 2 + i * 0.4), (l + r) / 2))
+  const spricht = loki?.zustand === 'spricht'
+  kopf(g, 'AUDIO', spricht ? 'L.O.K.I. SPRICHT' : ton && pegel > 0.01 ? 'PC-TON' : tonStatus ?? 'STILLE', b)
+  const jetzt = performance.now(), dt = Math.min(0.1, Math.max(0.005, (jetzt - (letztesBild || jetzt)) / 1000)); letztesBild = jetzt
+  const x0 = 16, x1 = b - 16, unten = h - 12, oben = 42, hoehe = unten - oben, breite = (x1 - x0) / BALKEN
+  for (let i = 0; i < BALKEN; i++) {
+    // Tonbereich i: gestaucht über die 64 Bänder (Bass bekommt mehr Balken, jeder Balken eigene Bänder)
+    const a = Math.floor(Math.pow(i / BALKEN, 1.6) * 63), e = Math.max(a + 1, Math.floor(Math.pow((i + 1) / BALKEN, 1.6) * 63))
+    let ziel = 0
+    if (ton) for (let k = a; k < e; k++) ziel = Math.max(ziel, Math.min(1, ((Number(ton[k]) || 0) + (Number(ton[64 + k]) || 0)) / 2))
+    if (spricht && !ton) ziel = 0.25 + 0.35 * Math.abs(Math.sin(t * 6 + i * 0.4) * Math.sin(t * 2.3 + i * 0.13))
+    ziel = Math.pow(ziel, 0.8) // leise Töne etwas sichtbarer
+    const k = ziel > anzeige[i] ? 1 - Math.exp(-dt * 28) : 1 - Math.exp(-dt * 5) // schnell hoch, langsam runter
+    anzeige[i] += (ziel - anzeige[i]) * k
+    spitze[i] = Math.max(anzeige[i], spitze[i] - dt * 0.35)
   }
-  const welle = (w, farbe, breite, phase) => {
-    for (const s of [-1, 1]) {
-      g.beginPath()
-      for (let x = x0; x <= x1; x += 3) {
-        const f = (x - x0) / (x1 - x0), k = Math.min(baender - 1, Math.floor(Math.abs(f - 0.5) * 2 * baender)) // Mitte = Bass
-        const huelle = Math.sin(f * Math.PI)
-        const y = mitte + s * hoehe * w[k] * huelle * (0.75 + 0.25 * Math.sin(x * 0.11 + t * 9 + phase))
-        x === x0 ? g.moveTo(x, y) : g.lineTo(x, y)
-      }
-      g.strokeStyle = farbe; g.lineWidth = breite; g.stroke()
-    }
-  }
-  g.save(); g.shadowColor = CYAN; g.shadowBlur = 8
-  welle(werte, 'rgba(95,246,255,0.35)', 4, 0); welle(werte, CYAN, 1.4, 0)
-  if (loki?.zustand === 'spricht') { // Lokis eigene Stimme (Pegel nicht bekannt → lebhafte Kunstwelle)
-    const v = werte.map((_, i) => 0.35 + 0.45 * Math.abs(Math.sin(t * 7 + i * 0.5) * Math.sin(t * 3.1 + i * 0.13)))
-    g.shadowColor = GOLD; welle(v, 'rgba(242,176,74,0.9)', 1.6, 1.7)
+  const farbe = spricht ? [242, 176, 74] : [95, 246, 255]
+  g.save()
+  for (let i = 0; i < BALKEN; i++) {
+    const x = x0 + i * breite + 1, bw = Math.max(1, breite - 3), hb = Math.max(1.5, anzeige[i] * hoehe)
+    const v = g.createLinearGradient(0, unten - hb, 0, unten)
+    v.addColorStop(0, `rgba(${farbe},0.95)`); v.addColorStop(1, `rgba(${farbe},0.25)`)
+    g.fillStyle = v; g.fillRect(x, unten - hb, bw, hb)
+    if (spitze[i] > 0.02) { g.fillStyle = `rgba(${farbe},0.9)`; g.fillRect(x, unten - spitze[i] * hoehe - 3, bw, 2) }
   }
   g.restore()
-  g.strokeStyle = 'rgba(95,246,255,0.18)'; g.beginPath(); g.moveTo(x0, mitte + 0.5); g.lineTo(x1, mitte + 0.5); g.stroke()
+  g.strokeStyle = 'rgba(95,246,255,0.25)'; g.beginPath(); g.moveTo(x0, unten + 0.5); g.lineTo(x1, unten + 0.5); g.stroke()
 }
 
 // ---------- Inhalte rechts (Haus) ----------
