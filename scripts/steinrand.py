@@ -6,7 +6,7 @@
 # Aufruf: modelle/upscale/.venv/Scripts/python.exe scripts/steinrand.py
 import json, math
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 B, H, BR = 5760, 1080, 760  # Breite des Streifens je Seite
 grund = np.asarray(Image.open('hud5/ebenen/grund.webp').convert('RGB')).astype(np.float32)
@@ -126,7 +126,7 @@ for seite in ('links', 'rechts'):
         fuge = 1 - 0.6 * (glatt(-0.12, 0, spalte_f) * (1 - glatt(0, 0.02, spalte_f)) + glatt(0.98, 1, spalte_f) * (1 - glatt(1.0, 1.12, spalte_f)))
         stein = np.where(in_leiste[..., None], stein * (1 - kante[..., None]) + farbe * kante[..., None], stein * fuge[..., None])
         alpha = glatt(r0 - 1, r0 + 1, d) * 255
-        Image.fromarray(np.dstack([np.clip(stein, 0, 255), alpha]).astype(np.uint8), 'RGBA').resize((BR, H), Image.LANCZOS).save(f'hud5/ebenen/rand-{v}-{seite}.webp', quality=90)
+        Image.fromarray(np.dstack([np.clip(stein, 0, 255), alpha]).astype(np.uint8), 'RGBA').resize((BR, H), Image.LANCZOS).filter(ImageFilter.UnsharpMask(radius=1.2, percent=70, threshold=2)).save(f'hud5/ebenen/rand-{v}-{seite}.webp', quality=90)
 json.dump({'breite': BR, 'abstand': ABSTAND, **geo}, open('hud5/ebenen/rand.json', 'w'), indent=1)
 print('fertig')
 
