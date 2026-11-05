@@ -55,12 +55,11 @@ export const PV_VARIANTE = {
     const sb = (b - 28) / 4, xs = spalten.map((_, i) => 14 + sb * (i + 0.5))
     spalten.forEach(([art, name, wert, farbe, zusatz], i) => {
       const x = xs[i]
-      symbol(g, art, x, 82, 50, art === 'mast' ? MAST : farbe, w.soc ?? 0, 0.16)
-      text(g, kw(wert), x, 152, 30, farbe, 'center'); text(g, name, x, 172, 12, BLASS, 'center'); if (zusatz) text(g, zusatz, x, 188, 11, farbe, 'center')
-      if (i) { g.strokeStyle = LINIE; g.beginPath(); g.moveTo(Math.round(14 + sb * i) + 0.5, 46); g.lineTo(Math.round(14 + sb * i) + 0.5, 196); g.stroke() }
+      symbol(g, art, x, 100, 66, art === 'mast' ? MAST : farbe, w.soc ?? 0, 0.16) // größer: Hauptfokus (Wunsch 05.11.2026)
+      text(g, kw(wert), x, 190, 36, farbe, 'center'); text(g, name, x, 212, 14, BLASS, 'center'); if (zusatz) text(g, zusatz, x, 230, 12, farbe, 'center')
+      if (i) { g.strokeStyle = LINIE; g.beginPath(); g.moveTo(Math.round(14 + sb * i) + 0.5, 46); g.lineTo(Math.round(14 + sb * i) + 0.5, 236); g.stroke() }
     })
     UNTEN[unten](g, b, h, w, t, xs)
-    if (w.aut != null) text(g, `AUTARKIE ${w.aut} %`, b - 16, h - 12, 12, GR, 'right')
   },
 }
 
@@ -101,13 +100,13 @@ const UNTEN = {
   },
   /** 3 · Knoten: ein Verteilerpunkt in der Mitte unten, alle Teilnehmer laufen sternförmig hinein, das Auto hängt darunter */
   3(g, b, h, w, t, xs) {
-    const k = [b / 2, 286]
+    const k = [b / 2, 338]
     g.strokeStyle = 'rgba(95,246,255,0.5)'; g.lineWidth = 1.4; g.beginPath(); g.arc(k[0], k[1], 16, 0, Math.PI * 2); g.stroke()
     text(g, 'VERTEILER', k[0], k[1] + 34, 10, BLASS, 'center')
-    punkte(g, [xs[0], 206], k, w.pv, GR, t)
-    punkte(g, k, [xs[1], 206], w.haus, HELL, t)
-    punkte(g, k, [xs[2], 206], -w.akku, w.laedt ? GR : CYAN, t)
-    punkte(g, [xs[3], 206], k, w.bezug - w.verkauf, w.bezug > 20 ? ROT : GR, t)
+    punkte(g, [xs[0], 244], k, w.pv, GR, t)
+    punkte(g, k, [xs[1], 244], w.haus, HELL, t)
+    punkte(g, k, [xs[2], 244], -w.akku, w.laedt ? GR : CYAN, t)
+    punkte(g, [xs[3], 244], k, w.bezug - w.verkauf, w.bezug > 20 ? ROT : GR, t)
     const r = g.createRadialGradient(k[0], k[1], 0, k[0], k[1], 16); r.addColorStop(0, 'rgba(95,246,255,0.5)'); r.addColorStop(1, 'rgba(95,246,255,0)'); g.fillStyle = r; g.fillRect(k[0] - 16, k[1] - 16, 32, 32)
     punkte(g, [k[0] + 16, k[1]], [b - 150, k[1]], 0, AUS, t); autoKlein(g, b - 120, k[1])
   },
