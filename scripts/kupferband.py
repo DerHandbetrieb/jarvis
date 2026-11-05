@@ -6,8 +6,8 @@ import json
 import numpy as np
 from PIL import Image
 
-BREITE = 460 * 2  # Breite in der Szene 460 px, gespeichert doppelt (scharf); Höhe auf 72 % gestaucht (schmales Band)
-STAUCHEN = 0.72
+BREITE = 760 * 2  # Breite in der Szene 760 px (Wunsch Auftraggeber: breiter, damit die Inschrift lesbar ist), doppelt gespeichert
+STAUCHEN = 0.5  # flacher
 masse = {}
 for n in range(1, 5):
     bild = Image.open(f'grafik/magnific/kupfer-{n}-frei.png').convert('RGBA')

@@ -290,7 +290,7 @@ function unterschrift(g, kasten, h) {
  * Rundung. Liegt hinter Rauch und Wolken. Einmal beim Laden in doppelter Auflösung vorgezeichnet.
  */
 function kupferBild(bild, m, k) {
-  const R = 380, B2 = bild.width, H2 = bild.height // Bild ist doppelt aufgelöst
+  const R = 425, B2 = bild.width, H2 = bild.height // Bild ist doppelt aufgelöst
   const gr = Math.ceil(2 * (R + H2 / 2 + 20)), c = leinwand(gr * FEIN, gr * FEIN), g = c.getContext('2d')
   g.scale(FEIN, FEIN); g.translate(gr / 2, gr / 2); g.imageSmoothingQuality = 'high'
   const mitte = (x) => m.parabel[0] * x * x + m.parabel[1] * x + m.parabel[2] // Mittellinie der Kupferfläche (Bild-Pixel)
@@ -303,14 +303,14 @@ function kupferBild(bild, m, k) {
   }
   // Inschrift: klare Schrift, gesperrt, eingeschlagen (dunkle Rille, helle Unterkante)
   // Schriftgröße so, dass die Inschrift 80 % der Kupferfläche (ohne Beschläge) einnimmt
-  const text = 'LOKALE · OHNEHIN · KLÜGERE · INTELLIGENZ', platz = ((m.x1 - m.x0) / 2) * 0.8
-  g.font = '600 20px Georgia, "Times New Roman", serif'
-  const roh = [...text].reduce((a, z) => a + g.measureText(z).width + 20 * 0.22, 0), h = Math.min(16, (20 * platz) / roh)
-  g.font = `600 ${h}px Georgia, "Times New Roman", serif`; g.textAlign = 'center'; g.textBaseline = 'middle'
+  const text = 'LOKALE · OHNEHIN · KLÜGERE · INTELLIGENZ', platz = ((m.x1 - m.x0) / 2) * 0.86
+  g.font = '700 20px Georgia, "Times New Roman", serif'
+  const roh = [...text].reduce((a, z) => a + g.measureText(z).width + 20 * 0.22, 0), h = Math.min(30, (20 * platz) / roh)
+  g.font = `700 ${h}px Georgia, "Times New Roman", serif`; g.textAlign = 'center'; g.textBaseline = 'middle'
   const sperr = h * 0.22, breiten = [...text].map((z) => g.measureText(z).width + sperr), ges = breiten.reduce((a, b) => a + b, 0) / R
-  for (const [farbe, dy] of [['rgba(255,190,140,0.35)', 0.9], ['rgba(38,14,4,0.88)', 0]]) {
+  for (const [farbe, dy] of [['rgba(255,200,150,0.5)', 1.2], ['rgba(28,9,2,0.95)', 0]]) {
     g.fillStyle = farbe; let w = Math.PI / 2 + ges / 2
-    for (const [i, z] of [...text].entries()) { const zw = breiten[i] / R; g.save(); g.rotate(w - zw / 2 - Math.PI / 2); g.translate(0, R + dy + 7); g.fillText(z, 0, 0); g.restore(); w -= zw }
+    for (const [i, z] of [...text].entries()) { const zw = breiten[i] / R; g.save(); g.rotate(w - zw / 2 - Math.PI / 2); g.translate(0, R + dy + 4); g.fillText(z, 0, 0); g.restore(); w -= zw }
   }
   return { bild: c, gr }
 }
