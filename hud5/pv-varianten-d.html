@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="de"><head><meta charset="UTF-8" /><title>L.O.K.I. – PV D, Verbindungen</title>
+<style>html,body{margin:0;background:#06121a;font:600 18px Bahnschrift,sans-serif;color:#9ef} .feld{display:inline-block;margin:8px;vertical-align:top} canvas{display:block}</style></head>
+<body><div id="wurzel"></div>
+<script type="module">
+import { PV_VARIANTE } from './pv-varianten.js'
+import { RAHMEN_STILE } from './rahmen.js'
+const pv = { akku: 64, akkuW: -1200, netzW: -850, pvW: 4300, hausW: 2250, zustand: 0, inselbetrieb: false, zeit: Date.now() }
+const namen = { 1: 'D1 · Sammelschiene', 2: 'D2 · Bögen', 3: 'D3 · Verteiler-Knoten', 4: 'D4 · Bilanz-Bänder' }
+for (const k of [1, 2, 3, 4]) {
+  const d = document.createElement('div'); d.className = 'feld'; d.textContent = namen[k]
+  const c = document.createElement('canvas'); c.width = 800; c.height = 396; const g = c.getContext('2d')
+  RAHMEN_STILE[1].zeichne(g, 800, 396); PV_VARIANTE.d(g, 800, 396, pv, 1.3, k)
+  d.appendChild(c); document.getElementById('wurzel').appendChild(d)
+}
+</script></body></html>

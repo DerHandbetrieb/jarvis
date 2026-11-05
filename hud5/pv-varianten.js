@@ -48,20 +48,83 @@ export const PV_VARIANTE = {
     const vx = cols[1] - 90, vb = 180; g.strokeStyle = LINIE; g.lineWidth = 1; g.strokeRect(vx + 0.5, 48.5, vb, h - 70); text(g, 'VERBRAUCH', cols[1], 66, 11, BLASS, 'center')
     knoten(cols[1], yo, 'haus', 'HAUS', w.haus, HELL, 56); knoten(cols[1], yu - 6, 'auto', 'AUTO', null, AUS, 50)
   },
-  /** D · Große Zahlen oben (Erzeugung, Verbrauch, Akku, Netz), darunter eine schlichte Flusslinie mit kleinen Symbolen */
-  d(g, b, h, pv, t) {
+  /** D · Große Zahlen oben (Wahl Auftraggeber 05.11.2026), darunter die „Verkabelung“ – Varianten 1–4 (unten) */
+  d(g, b, h, pv, t, unten = 1) {
     kopf(g, b, pv); const w = werte(pv)
-    const spalten = [['sonne', 'ERZEUGUNG', w.pv, GR, ''], ['haus', 'VERBRAUCH', w.haus, HELL, 'HAUS · AUTO –'], ['akku', w.soc != null ? `AKKU ${Math.round(w.soc)} %` : 'AKKU', w.akku, CYAN, w.laedt ? 'LÄDT' : w.entlaedt ? 'ENTLÄDT' : ''], ['mast', w.bezug > 20 ? 'NETZBEZUG' : 'VERKAUF', w.bezug > 20 ? w.bezug : w.verkauf, w.bezug > 20 ? ROT : w.verkauf > 20 ? GR : AUS, '']]
-    const sb = (b - 28) / 4
+    const spalten = [['sonne', 'ERZEUGUNG', w.pv, GR, ''], ['haus', 'HAUS', w.haus, HELL, ''], ['akku', w.soc != null ? `AKKU ${Math.round(w.soc)} %` : 'AKKU', w.akku, CYAN, w.laedt ? 'LÄDT' : w.entlaedt ? 'ENTLÄDT' : ''], ['mast', w.bezug > 20 ? 'NETZBEZUG' : 'VERKAUF', w.bezug > 20 ? w.bezug : w.verkauf, w.bezug > 20 ? ROT : w.verkauf > 20 ? GR : AUS, '']]
+    const sb = (b - 28) / 4, xs = spalten.map((_, i) => 14 + sb * (i + 0.5))
     spalten.forEach(([art, name, wert, farbe, zusatz], i) => {
-      const x = 14 + sb * (i + 0.5)
-      symbol(g, art, x, 92, 54, art === 'mast' ? MAST : farbe, w.soc ?? 0, 0.16)
-      text(g, kw(wert), x, 170, 32, farbe, 'center'); text(g, name, x, 192, 12, BLASS, 'center'); if (zusatz) text(g, zusatz, x, 210, 11, farbe, 'center')
-      if (i) { g.strokeStyle = LINIE; g.beginPath(); g.moveTo(Math.round(14 + sb * i) + 0.5, 50); g.lineTo(Math.round(14 + sb * i) + 0.5, 220); g.stroke() }
+      const x = xs[i]
+      symbol(g, art, x, 82, 50, art === 'mast' ? MAST : farbe, w.soc ?? 0, 0.16)
+      text(g, kw(wert), x, 152, 30, farbe, 'center'); text(g, name, x, 172, 12, BLASS, 'center'); if (zusatz) text(g, zusatz, x, 188, 11, farbe, 'center')
+      if (i) { g.strokeStyle = LINIE; g.beginPath(); g.moveTo(Math.round(14 + sb * i) + 0.5, 46); g.lineTo(Math.round(14 + sb * i) + 0.5, 196); g.stroke() }
     })
-    const y = 290, xs = [14 + sb * 0.5, 14 + sb * 1.5, 14 + sb * 2.5, 14 + sb * 3.5]
-    punkte(g, [xs[0], y], [xs[1], y], w.pv, GR, t); punkte(g, [xs[1], y], [xs[2], y], -w.akku, w.laedt ? GR : CYAN, t); punkte(g, [xs[1], y + 30], [xs[3], y + 30], -(w.bezug || -w.verkauf), w.bezug > 20 ? ROT : GR, t)
-    text(g, 'SONNE → HAUS → AKKU', (xs[0] + xs[2]) / 2, y - 12, 10, BLASS, 'center'); text(g, 'HAUS ↔ NETZ', (xs[1] + xs[3]) / 2, y + 52, 10, BLASS, 'center')
-    if (w.aut != null) text(g, `AUTARKIE ${w.aut} %`, b / 2, h - 12, 12, GR, 'center')
+    UNTEN[unten](g, b, h, w, t, xs)
+    if (w.aut != null) text(g, `AUTARKIE ${w.aut} %`, b - 16, h - 12, 12, GR, 'right')
+  },
+}
+
+// Verbindungen unter D. xs = Mitte der vier Spalten (Sonne, Haus, Akku, Netz); Auto hängt am Haus
+const autoKlein = (g, x, y) => { auto(g, x, y, 34, AUS, 0.05); text(g, 'AUTO –', x + 26, y + 5, 11, AUS, 'left') }
+const UNTEN = {
+  /** 1 · Sammelschiene: waagerechte Leitung, jede Spalte hängt mit einer senkrechten Leitung daran; Auto unter dem Haus */
+  1(g, b, h, w, t, xs) {
+    const yS = 262
+    g.strokeStyle = 'rgba(95,246,255,0.32)'; g.lineWidth = 2; g.beginPath(); g.moveTo(xs[0], yS); g.lineTo(xs[3], yS); g.stroke()
+    const hoch = 206
+    punkte(g, [xs[0], hoch], [xs[0], yS], w.pv, GR, t)
+    punkte(g, [xs[1], yS], [xs[1], hoch], w.haus, HELL, t)
+    punkte(g, [xs[2], yS], [xs[2], hoch], -w.akku, w.laedt ? GR : CYAN, t)
+    punkte(g, [xs[3], hoch], [xs[3], yS], w.bezug - w.verkauf, w.bezug > 20 ? ROT : GR, t)
+    // Strom auf der Schiene: von der Sonne zu den Abnehmern
+    punkte(g, [xs[0], yS], [xs[3], yS], w.pv, GR, t)
+    punkte(g, [xs[1], yS], [xs[1], 312], 0, AUS, t); autoKlein(g, xs[1], 326)
+    for (const x of xs) { g.fillStyle = CYAN; g.beginPath(); g.arc(x, yS, 3.5, 0, Math.PI * 2); g.fill() }
+    text(g, 'SAMMELSCHIENE', xs[0], yS + 18, 10, BLASS, 'left')
+  },
+  /** 2 · Bögen: von der Quelle im Bogen zum Ziel, je dicker und schneller, je mehr fließt */
+  2(g, b, h, w, t, xs) {
+    const y0 = 214, bogen = (i, j, wert, farbe, tief) => {
+      const x1 = xs[i], x2 = xs[j], mx = (x1 + x2) / 2, my = y0 + tief, an = Math.abs(wert) >= 20
+      g.strokeStyle = an ? farbe + '66' : 'rgba(95,246,255,0.1)'; g.lineWidth = an ? 1.5 + Math.min(3, Math.abs(wert) / 1500) : 1
+      g.beginPath(); g.moveTo(x1, y0); g.quadraticCurveTo(mx, my, x2, y0); g.stroke()
+      if (!an) return
+      const n = Math.min(8, 2 + Math.round(Math.abs(wert) / 800)), v = 0.25 + Math.min(1, Math.abs(wert) / 4000)
+      for (let k = 0; k < n; k++) { let f = ((t * v + k / n) % 1); if (wert < 0) f = 1 - f; const x = (1 - f) ** 2 * x1 + 2 * (1 - f) * f * mx + f * f * x2, y = (1 - f) ** 2 * y0 + 2 * (1 - f) * f * my + f * f * y0, r = g.createRadialGradient(x, y, 0, x, y, 6); r.addColorStop(0, farbe); r.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = r; g.fillRect(x - 6, y - 6, 12, 12) }
+    }
+    bogen(0, 1, Math.min(w.pv, w.haus ?? 0), GR, 50)
+    bogen(0, 2, w.laedt ? -w.akku : 0, GR, 95)
+    bogen(0, 3, w.verkauf, GR, 140)
+    bogen(2, 1, w.entlaedt ? w.akku : 0, CYAN, 50)
+    bogen(3, 1, w.bezug, ROT, 95)
+    autoKlein(g, xs[1], 340); g.strokeStyle = 'rgba(95,246,255,0.12)'; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(xs[1], y0); g.lineTo(xs[1], 322); g.stroke(); g.setLineDash([])
+  },
+  /** 3 · Knoten: ein Verteilerpunkt in der Mitte unten, alle Teilnehmer laufen sternförmig hinein, das Auto hängt darunter */
+  3(g, b, h, w, t, xs) {
+    const k = [b / 2, 286]
+    g.strokeStyle = 'rgba(95,246,255,0.5)'; g.lineWidth = 1.4; g.beginPath(); g.arc(k[0], k[1], 16, 0, Math.PI * 2); g.stroke()
+    text(g, 'VERTEILER', k[0], k[1] + 34, 10, BLASS, 'center')
+    punkte(g, [xs[0], 206], k, w.pv, GR, t)
+    punkte(g, k, [xs[1], 206], w.haus, HELL, t)
+    punkte(g, k, [xs[2], 206], -w.akku, w.laedt ? GR : CYAN, t)
+    punkte(g, [xs[3], 206], k, w.bezug - w.verkauf, w.bezug > 20 ? ROT : GR, t)
+    const r = g.createRadialGradient(k[0], k[1], 0, k[0], k[1], 16); r.addColorStop(0, 'rgba(95,246,255,0.5)'); r.addColorStop(1, 'rgba(95,246,255,0)'); g.fillStyle = r; g.fillRect(k[0] - 16, k[1] - 16, 32, 32)
+    punkte(g, [k[0] + 16, k[1]], [b - 150, k[1]], 0, AUS, t); autoKlein(g, b - 120, k[1])
+  },
+  /** 4 · Bilanz-Bänder: oben „woher kommt der Strom“, unten „wohin geht er“ – Anteile als Balken mit laufendem Lichtschimmer */
+  4(g, b, h, w, t, xs) {
+    const x0 = 24, bb = b - 48, band = (y, titel, teile) => {
+      text(g, titel, x0, y - 8, 11, BLASS)
+      const s = Math.max(1, teile.reduce((a, c) => a + c[1], 0)); let x = x0
+      for (const [n, v, f] of teile) {
+        if (v < 20) continue
+        const tb = (bb * v) / s; g.fillStyle = f + '30'; g.fillRect(x + 1, y, tb - 2, 30); g.fillStyle = f; g.fillRect(x + 1, y, tb - 2, 2)
+        const sx = x + ((t * 60) % tb); const r = g.createLinearGradient(sx - 30, 0, sx + 30, 0); r.addColorStop(0, 'rgba(255,255,255,0)'); r.addColorStop(0.5, f + '55'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(Math.max(x + 1, sx - 30), y + 2, Math.min(60, x + tb - sx + 30), 28)
+        if (tb > 70) text(g, `${n} ${kw(v)}`, x + 10, y + 20, 13, f)
+        x += tb
+      }
+    }
+    band(226, 'WOHER KOMMT DER STROM?', [['SONNE', w.pv, GR], ['AKKU', w.entlaedt ? w.akku : 0, CYAN], ['NETZ', w.bezug, ROT]])
+    band(296, 'WOHIN GEHT ER?', [['HAUS', w.haus ?? 0, HELL], ['AUTO', 0, AUS], ['AKKU', w.laedt ? -w.akku : 0, CYAN], ['VERKAUF', w.verkauf, GR]])
   },
 }
