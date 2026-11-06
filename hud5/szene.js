@@ -9,6 +9,7 @@ import { FOLGE, rune } from './runen.js'
 import { textBreite, zeichen, wetterSymbol, wetterArt as wetterWort, zeitAngaben, SCHRIFT, sperrung, istNacht } from './ringschrift.js'
 import { bergnebel, erstelleWetter, wetterArt, zeichneWetterHinten } from './wetter.js'
 import { erstelleSeeEis, seeEisBild } from './seeeis.js'
+import { plasma } from './plasma.js'
 
 export const B = 5760, H = 1080
 const CYAN = '#5ff6ff'
@@ -997,7 +998,9 @@ function reaktor(g, s, t, opt, anteil) {
     if (zt) { g.globalAlpha = Math.min(1, tuerkis * 1.4); g.drawImage(zt, ze.x, ze.y, ze.b, ze.h) }
     g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
   }
-  blitze(g, s, t, (1 + denkt * 2 + spricht * 3) * (rot > 0.5 ? 0.4 : 1), anteil)
+  // Testlauf 06.11.2026: s.plasmaArt a–d = Entladung aus der Mitte (hud5/plasma.js), sonst der bisherige Blitz
+  if (s.plasmaArt) plasma(g, s, t, (s.plasmaTempo ?? 1) * (1 + denkt * 2 + spricht * 3) * (rot > 0.5 ? 0.4 : 1), anteil, s.plasmaArt)
+  else blitze(g, s, t, (1 + denkt * 2 + spricht * 3) * (rot > 0.5 ? 0.4 : 1), anteil)
   const schlag = s.blitzHell ?? 0 // der Hauptblitz lässt Kern und Lichthof kurz aufleuchten
   ebene(g, s, 'halo', anteil * aus * flackern * (0.35 + 0.5 * puls + 0.4 * takt + 0.7 * spricht + 0.6 * schlag) * (1 - 0.4 * bassRot), 'lighter', Math.max(rot, bassRot))
   ebene(g, s, 'kern', anteil * aus * flackern * (0.25 + 0.45 * puls + 0.45 * takt + 0.6 * spricht + 0.5 * schlag) * (1 - 0.9 * bassRot), 'lighter', Math.max(rot, bassRot))

@@ -10,6 +10,23 @@ import { sequenzDaten } from '../startsequenz/lageDaten.js'
 const c = document.getElementById('flaeche'), g = c.getContext('2d', { alpha: false }), info = document.getElementById('info')
 const s = await ladeSzene('./ebenen/', { ring: new URLSearchParams(location.search).get('ring') ?? undefined, knoten: new URLSearchParams(location.search).get('knoten') ?? undefined, schrift: new URLSearchParams(location.search).get('schrift') ?? undefined, name: new URLSearchParams(location.search).get('name') ?? undefined, rand: new URLSearchParams(location.search).get('rand') ?? undefined, praegung: new URLSearchParams(location.search).get('praegung') ?? undefined, loki: new URLSearchParams(location.search).get('loki-stil') ?? undefined })
 let loki = new URLSearchParams(location.search).get('loki') ?? 'hoert', zoom = false, stopp = false
+// Testlauf Entladung (06.11.2026): ?plasma=a|b|c|d zeigt den mittleren Bildschirm, Impulse alle paar Sekunden, Knöpfe zum Umschalten
+const plasmaWahl = new URLSearchParams(location.search).get('plasma')
+if (plasmaWahl) {
+  s.plasmaArt = plasmaWahl; s.plasmaTempo = 4; zoom = true; c.width = 1920; c.style.width = '100vw'
+  document.getElementById('tafeln').style.display = 'none'
+  const leiste = document.createElement('div')
+  leiste.style.cssText = 'position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:8px;z-index:9'
+  const namen = { a: 'A Plasmakugel', b: 'B Tesla-Spule', c: 'C Schlange', d: 'D Stoß', alt: 'Bisher' }
+  for (const [k, n] of Object.entries(namen)) {
+    const b = document.createElement('button'); b.textContent = n
+    b.style.cssText = 'padding:9px 16px;font:600 15px system-ui;background:#04222bcc;color:#7ff0ff;border:1px solid #5ff6ff88;border-radius:6px;cursor:pointer'
+    b.onclick = () => { s.plasmaArt = k === 'alt' ? null : k; s.plasmaNaechst = 0; s.naechsterBlitz = 0; for (const x of leiste.children) x.style.background = '#04222bcc'; b.style.background = '#0d5a6b' }
+    if (k === plasmaWahl) b.style.background = '#0d5a6b'
+    leiste.appendChild(b)
+  }
+  document.body.appendChild(leiste)
+}
 // Prüfhilfe ?wetter=regen|schnee|nebel|frost
 const probeWetter = { regen: { code: 63, grad: 8 }, schnee: { code: 73, grad: -2 }, nebel: { code: 45, grad: 3 }, frost: { code: 0, grad: -4 }, gewitter: { code: 95, grad: 16 }, hagel: { code: 99, grad: 12 } }[new URLSearchParams(location.search).get('wetter')] ?? { code: 2, grad: 9 }
 const stationProbe = { regen: { grad: 6, regenRate: 3.5, feuchte: 92, wind: 5 }, schnee: { grad: 0.4, regenRate: 1.2, feuchte: 95, wind: 4 }, frost: { grad: -3, regenRate: 0, feuchte: 80, wind: 2 }, trocken: { grad: 9, regenRate: 0, feuchte: 70, wind: 8 } }[new URLSearchParams(location.search).get('station')]
@@ -27,6 +44,7 @@ addEventListener('keydown', (e) => {
 const zeiten = []
 let vorher = performance.now(), laengste = 0
 function schleife(ms) {
+  window.letzteZeit = ms / 1000
   if (stopp) return
   requestAnimationFrame(schleife)
   const a = performance.now()
@@ -69,3 +87,4 @@ window.ausschnitt = (t, x, y, b, h) => {
   k.getContext('2d').drawImage(c, x, y, b, h, 0, 0, b, h)
   return k.toDataURL('image/png')
 }
+window.plasmaStand = () => { const l = s.plasmaListe ?? []; return l.length ? performance.now() / 1000 - l[l.length - 1].von - (performance.now() / 1000 - (window.letzteZeit ?? performance.now() / 1000)) : null }
