@@ -16,7 +16,7 @@ if (plasmaWahl) {
   s.plasmaArt = plasmaWahl; s.plasmaTempo = 4; zoom = true; c.width = 1920; c.style.width = '100vw'
   document.getElementById('tafeln').style.display = 'none'
   const leiste = document.createElement('div')
-  leiste.style.cssText = 'position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:8px;z-index:9'
+  leiste.style.cssText = 'position:fixed;left:50%;bottom:72px;transform:translateX(-50%);display:flex;gap:8px;z-index:9'
   const namen = { a: 'A Plasmakugel', b: 'B Tesla-Spule', c: 'C Schlange', d: 'D Stoß', alt: 'Bisher' }
   for (const [k, n] of Object.entries(namen)) {
     const b = document.createElement('button'); b.textContent = n
