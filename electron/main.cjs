@@ -18,6 +18,7 @@ const { erstellePv } = require('./pv.cjs')
 const { erstelleWetterstation } = require('./wetterstation.cjs')
 const { ueberwachen } = require('./vollbild.cjs')
 const whatsappHinweis = require('./whatsapphinweis.cjs')
+const { eisStufe } = require('./seeeis.cjs')
 const { erstelleNeuigkeiten } = require('./neuigkeiten.cjs')
 const { erstelleKamerawache } = require('./kamerawache.cjs')
 const { Readable } = require('node:stream')
@@ -444,9 +445,9 @@ if (!app.requestSingleInstanceLock()) {
     let hudWetter = null
     const wetterHolen = async () => {
       try {
-        const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=49.057&longitude=9.899&current=temperature_2m,weather_code,cloud_cover&timezone=Europe%2FBerlin', { signal: AbortSignal.timeout(15_000) })
-        const c = r.ok ? (await r.json())?.current : null
-        if (c) hudWetter = { ort: 'Obersontheim', grad: c.temperature_2m ?? null, code: c.weather_code ?? null, wolken: c.cloud_cover ?? 0, geholt: Date.now() }
+        const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=49.057&longitude=9.899&current=temperature_2m,weather_code,cloud_cover&daily=temperature_2m_max&past_days=14&forecast_days=1&timezone=Europe%2FBerlin', { signal: AbortSignal.timeout(15_000) })
+        const j = r.ok ? await r.json() : null, c = j?.current
+        if (c) hudWetter = { ort: 'Obersontheim', grad: c.temperature_2m ?? null, code: c.weather_code ?? null, wolken: c.cloud_cover ?? 0, eis: eisStufe(j?.daily?.temperature_2m_max), geholt: Date.now() }
       } catch { /* nächster Versuch in 15 Minuten */ }
     }
     void wetterHolen(); setInterval(() => void wetterHolen(), 15 * 60_000)

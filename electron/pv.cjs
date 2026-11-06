@@ -5,14 +5,17 @@
 const KANAELE = ['EssSoc', 'EssDischargePower', 'EssActivePower', 'GridActivePower', 'ProductionActivePower', 'ConsumptionActivePower', 'State', 'GridMode']
 // FEMS ist ein kleiner Rechner: gemessen beim Auftraggeber 05.11.2026 – 7 gleichzeitige Abfragen liefen in Zeitüberschreitung.
 // Darum: eine Sammelabfrage (regulärer Ausdruck, laut OpenEMS-Doku erlaubt), sonst nacheinander; großzügige Zeitgrenze.
+const { holeTag, heuteBerlin } = require('./pvverlauf.cjs')
+const TAG_MS = 5 * 60_000 // Tagesverlauf: die Anlage rechnet in Viertelstunden, alle 5 Minuten reicht
 const TAKT_MS = 5000, ZEITGRENZE_MS = 10_000, FEHLER_AB = 3
 
 const privat = (a) => /^(10\.\d{1,3}|192\.168|172\.(1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}$/.test(String(a ?? '')) && String(a).split('.').every((o) => Number(o) <= 255)
 
 /** speicher: { lesen(): Promise<string|null>, schreiben(text): Promise<boolean>, loeschen(): void }; holen: fetch-ähnlich */
-function erstellePv({ speicher, holen = fetch, protokoll = console.error, jetzt = () => Date.now() }) {
+function erstellePv({ speicher, holen = fetch, protokoll = console.error, jetzt = () => Date.now(), wsKlasse = globalThis.WebSocket }) {
   // lauf: Nummer des aktuellen Zugangs – Ergebnisse älterer Abfragen (nach Trennen/neu Eintragen) werden verworfen;
   // laeuft: nie zwei Abfragen gleichzeitig (Prüf-Agent 05.11.2026)
+  let tag = null, tagUhr = null
   let zugang = null, werte = null, fehler = null, uhr = null, pause = 0, lauf = 0, laeuft = false, fehlschlaege = 0
   async function abfrage(z) {
     const kopf = { Authorization: 'Basic ' + Buffer.from('x:' + z.passwort).toString('base64') }
@@ -64,7 +67,13 @@ function erstellePv({ speicher, holen = fetch, protokoll = console.error, jetzt 
     }
     finally { laeuft = false }
   }
-  function starten() { clearInterval(uhr); uhr = setInterval(() => void takt(), TAKT_MS); void takt() }
+  async function tagHolen() {
+    const z = zugang, meiner = lauf
+    if (!z) return
+    try { const t = await holeTag({ adresse: z.adresse, passwort: z.passwort, Ws: wsKlasse, jetzt }); if (meiner === lauf) tag = t }
+    catch (f) { protokoll('PV-Verlauf:', String(f?.message ?? f)) }
+  }
+  function starten() { clearInterval(uhr); uhr = setInterval(() => void takt(), TAKT_MS); void takt(); clearInterval(tagUhr); tagUhr = setInterval(() => void tagHolen(), TAG_MS); void tagHolen() }
   return {
     async laden() {
       try { const t = await speicher.lesen(); const z = t ? JSON.parse(t) : null; if (z && privat(z.adresse)) { zugang = z; starten() } } catch { zugang = null }
@@ -77,15 +86,15 @@ function erstellePv({ speicher, holen = fetch, protokoll = console.error, jetzt 
       try {
         const w = await abfrage({ adresse, passwort })
         if (!(await speicher.schreiben(JSON.stringify({ adresse, passwort })))) return { ...this.status(), fehler: 'Verschlüsselung nicht verfügbar – Zugang nicht gespeichert.' }
-        lauf++; zugang = { adresse, passwort }; werte = w; fehler = null; fehlschlaege = 0; pause = 0; starten()
+        lauf++; tag = null; zugang = { adresse, passwort }; werte = w; fehler = null; fehlschlaege = 0; pause = 0; starten()
         return this.status()
       } catch (f) { const m = String(f?.message ?? f); return { ...this.status(), fehler: m.includes('fetch failed') ? 'FEMS nicht erreichbar – Adresse prüfen.' : /abort|timeout/i.test(m) ? 'Die Anlage antwortet zu langsam – bitte noch einmal versuchen.' : m } }
     },
-    entfernen() { lauf++; clearInterval(uhr); uhr = null; zugang = null; werte = null; fehler = null; try { speicher.loeschen() } catch { /* nichts gespeichert */ } return this.status() },
+    entfernen() { lauf++; clearInterval(uhr); uhr = null; clearInterval(tagUhr); tagUhr = null; tag = null; zugang = null; werte = null; fehler = null; try { speicher.loeschen() } catch { /* nichts gespeichert */ } return this.status() },
     status() { return { eingerichtet: !!zugang, adresse: zugang?.adresse ?? null, werte, fehler } },
     /** für das Dauer-HUD: Werte (höchstens 30 s alt) oder null */
-    anzeige() { return werte && jetzt() - werte.zeit < 30_000 ? werte : null },
-    stoppen() { clearInterval(uhr); uhr = null },
+    anzeige() { return werte && jetzt() - werte.zeit < 30_000 ? { ...werte, tag: tag?.datum === heuteBerlin(jetzt()) ? tag : null } : null },
+    stoppen() { clearInterval(uhr); uhr = null; clearInterval(tagUhr); tagUhr = null },
   }
 }
 

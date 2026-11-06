@@ -8,6 +8,7 @@
 import { FOLGE, rune } from './runen.js'
 import { textBreite, zeichen, wetterSymbol, wetterArt as wetterWort, zeitAngaben, SCHRIFT, sperrung, istNacht } from './ringschrift.js'
 import { bergnebel, erstelleWetter, wetterArt, zeichneWetterHinten } from './wetter.js'
+import { erstelleSeeEis, seeEisBild } from './seeeis.js'
 
 export const B = 5760, H = 1080
 const CYAN = '#5ff6ff'
@@ -530,7 +531,7 @@ export async function ladeSzene(basis, einstellung = {}) {
   const infoVariante = String(einstellung.ring ?? '').startsWith('info') ? einstellung.ring : null
   const ringMitte = infoVariante ? infoRing(geo.ringMitte.r, 30, infoVariante, { ...zeitAngaben(), wetter: null }).dreh : ringBild(geo.ringMitte.r, 30, 26, 0, ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'], RING_STILE[einstellung.ring ?? 'd'])
   const szene = {
-    geo, bilder,
+    basis, geo, bilder,
     kupfer, rand, praegung: null, lokiStil: einstellung.loki ?? 'bronze', /* Wahl Auftraggeber 05.11.2026: Bronze-Flechtschrift Variante 3 (Magnific) */ ringMitte, infoVariante, ringOpt: { schrift: einstellung.schrift, name: einstellung.name }, ringFest: null, ringKennung: '', ringMitteMaske: ringMaske(ringMitte.width), ringPuffer: leinwand(ringMitte.width, ringMitte.height),
     runen: runenBilder(38),
     bahnLinks: bahnVorbereiten(geo.bahnLinks, true),
@@ -613,7 +614,8 @@ function rotFassung(bild) {
  * vorn. Perspektive: am Horizont dicht und flach, vorn breiter und kräftiger, dort auch etwas schneller. Seitlich nur ein
  * Hauch Bewegung. Nach außen (Ecken-Ornamente, Runenbänder) wird alles weich ausgeblendet.
  */
-function wasser(g, s, t, anteil, hell = 1) { /* hell: Intro blendet den See mit dem Grundbild ein */
+function wasser(g, s, t, anteil, hell = 1, eis = 0) { /* hell: Intro blendet den See mit dem Grundbild ein; eis: 0–1, Wellen legen sich */
+  const ruhe = 1 - eis
   const p = s.seePuffer, pg = p.getContext('2d'), hoehe = p.height, zeile = 2
   const glanz = s.bilder.wasser, ge = s.geo.ebenen.wasser, sp = s.spiegel, re = s.geo.ebenen.reaktor
   pg.globalCompositeOperation = 'source-over'; pg.globalAlpha = 1; pg.clearRect(0, 0, B, hoehe)
@@ -624,8 +626,8 @@ function wasser(g, s, t, anteil, hell = 1) { /* hell: Intro blendet den See mit 
     // ruhig (Rückmeldung Auftraggeber 05.11.2026: „zu waberig“): langsame, flache Dünung, nur ein Hauch Verzerrung
     const ph1 = -tiefe * 6.0 + t * 0.8, ph2 = -tiefe * 10.5 + t * 1.15 + 1.3, ph3 = -tiefe * 3.4 + t * 0.5 + 0.6
     const welle = Math.sin(ph1) + 0.5 * Math.sin(ph2) + 0.35 * Math.sin(ph3)
-    const dy = welle * (0.15 + 1.7 * d) // senkrechtes Abtasten: Kämme stauchen, Täler dehnen
-    const kamm = Math.max(0, Math.sin(ph1) * 0.7 + Math.sin(ph2) * 0.3) // vorderer Hang der Welle fängt Licht
+    const dy = ruhe * welle * (0.15 + 1.7 * d) // senkrechtes Abtasten: Kämme stauchen, Täler dehnen
+    const kamm = ruhe * Math.max(0, Math.sin(ph1) * 0.7 + Math.sin(ph2) * 0.3) // vorderer Hang der Welle fängt Licht
     const dx = 0
     const quelle = Math.min(hoehe - zeile, Math.max(0, y + dy))
     pg.globalCompositeOperation = 'source-over'; pg.globalAlpha = 1
@@ -646,6 +648,16 @@ function wasser(g, s, t, anteil, hell = 1) { /* hell: Intro blendet den See mit 
   pg.globalAlpha = 1; pg.globalCompositeOperation = 'destination-in'; pg.drawImage(s.seeMaske, 0, 0)
   g.globalAlpha = hell; g.drawImage(p, 0, HORIZONT)
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'
+  seeEis(g, s, eis, hell)
+}
+
+/** Eis auf dem See (06.11.2026): wird beim ersten Frieren einmal aufgebaut, sonst kostet es nichts */
+function seeEis(g, s, eis, hell) {
+  if (eis <= 0.005) return
+  if (!s.seeEisLage) { s.seeEisLage = erstelleSeeEis(s.basis, B, H - HORIZONT) }
+  const bild = seeEisBild(s.seeEisLage, eis)
+  if (!bild) return
+  g.globalAlpha = hell * Math.min(1, eis * 2.5); g.drawImage(bild, 0, HORIZONT); g.globalAlpha = 1
 }
 
 /** Sternschnuppen (Wunsch Auftraggeber 05.11.2026): alle 15–45 s eine, kurz und leuchtend über den Nachthimmel */
@@ -1237,10 +1249,10 @@ export function zeichneSzene(g, s, t, opt = {}) {
   sternschnuppen(g, s, t)
   bergnebel(g, s.nebel2, t, an.grund) // Nebelschwaden in Bergen und Wäldern ziehen langsam (Wunsch Auftraggeber 05.11.2026)
   // aufsteigender Rauch hinter dem Reaktor entfernt (Rückmeldung Auftraggeber 05.11.2026: Reaktor soll klar bleiben)
-  if (mit('wasser')) wasser(g, s, t, an.reaktor, an.grund)
+  if (mit('wasser')) wasser(g, s, t, an.reaktor, an.grund, s.wetter?.sichtbar?.eis ?? 0)
   // Wetter hinter Reaktor und Fenstern: Regen, Schnee, Nebel nach dem echten Wetter (opt.wetter = { code, grad })
   s.wetter = s.wetter ?? erstelleWetter()
-  const w = wetterArt(opt.wetter)
+  const w = { ...wetterArt(opt.wetter), eis: opt.wetter?.eis ?? 0 }
   if (mit('wetter')) zeichneWetterHinten(g, s.wetter, w, t)
   // pulsierende Wellenringe auf Wunsch des Auftraggebers wieder entfernt (05.11.2026: „gefallen mir gar nicht“)
   if (mit('rand')) randZeichnen(g, s, an.grund * an.rand, an.randWeg ?? 0) // Verlauf ins Dunkle + Steinrand außen

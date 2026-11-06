@@ -7,7 +7,7 @@
 import { B, H, ladeSzene, zeichneSzene } from '../hud5/szene.js'
 import { ausHud } from '../hud5/inhalte.js'
 import { erstelleTafeln, kameraGross, zeichneTafeln } from '../hud5/tafeln.js'
-import { erstelleFrost, frostStellen } from '../hud5/frost.js'
+import { erstelleFrost, frostStellen, frostGrad } from '../hud5/frost.js'
 import { sequenzDaten } from '../startsequenz/lageDaten.js'
 import { wetterAusCode } from '../src/jarvis/wetter.ts'
 
@@ -110,7 +110,7 @@ function schleife(ms, meine = lauf) {
   const t = ms / 1000, loki = antwort?.loki ?? null
   const tonJetzt = performance.now() - letzterTon < 2000 ? ton : null
   zeichneSzene(g, szene, t, { wetter: antwort?.wetter ?? null, versatz: VERSATZ, loki: reaktorZustand(loki), pegel: 0.6 + 0.4 * Math.abs(Math.sin(t * 7)), ton: tonJetzt }) // Reaktor pulsiert im Beat
-  const fv = szene.wetter?.sichtbar?.frost ?? 0; if (fv > 0 && !frost) frost = frostEbene(); if (frost) frostStellen(frost, fv)
+  const fv = szene.wetter?.sichtbar?.frost ?? 0; if (fv > 0 && !frost) frost = frostEbene(); if (frost) { frostStellen(frost, fv); frostGrad(frost, antwort?.wetter?.grad) }
   kameraGross(tafeln, antwort?.kamera?.gross ?? null)
   zeichneTafeln(tafeln, { ...daten, tonStatus: tonStatus(), ton: performance.now() - letzterTon < 2000 ? ton : null, kamBilder: [liveBild(0), liveBild(1)] }, t)
 }

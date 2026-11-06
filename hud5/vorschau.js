@@ -2,7 +2,8 @@
 import { B, H, ladeSzene, zeichneSzene } from './szene.js'
 import { ausHud } from './inhalte.js'
 import { erstelleTafeln, kameraGross, zeichneTafeln, SPIEGEL } from './tafeln.js'
-import { erstelleFrost, frostStellen } from './frost.js'
+import { erstelleFrost, frostStellen, frostGrad } from './frost.js'
+import { beispielTag } from './pv-tag.js'
 import { KANTE } from './rahmen.js'
 import { sequenzDaten } from '../startsequenz/lageDaten.js'
 
@@ -14,10 +15,11 @@ const probeWetter = { regen: { code: 63, grad: 8 }, schnee: { code: 73, grad: -2
 const stationProbe = { regen: { grad: 6, regenRate: 3.5, feuchte: 92, wind: 5 }, schnee: { grad: 0.4, regenRate: 1.2, feuchte: 95, wind: 4 }, frost: { grad: -3, regenRate: 0, feuchte: 80, wind: 2 }, trocken: { grad: 9, regenRate: 0, feuchte: 70, wind: 8 } }[new URLSearchParams(location.search).get('station')]
 if (stationProbe) Object.assign(probeWetter, { grad: stationProbe.grad, station: stationProbe })
 const frage = new URLSearchParams(location.search)
+if (frage.get('eis')) probeWetter.eis = Number(frage.get('eis')) // Prüfhilfe ?eis=0.5|1
 if (frage.get('kante')) KANTE.art = frage.get('kante')
 if (frage.get('spiegel')) SPIEGEL.abstand = Number(frage.get('spiegel'))
 const tafeln = erstelleTafeln(document.getElementById('tafeln'), 0, frage.get('gross') ? { skala: Number(frage.get('gross')) } : {})
-const beispiel = ausHud({ wetter: { ort: 'Obersontheim', grad: 9.4, wolken: 70 }, pv: { akku: 64, akkuW: -1200, netzW: -850, pvW: 4300, hausW: 2250, zustand: 0, inselbetrieb: false, zeit: Date.now() } }, new Date(), sequenzDaten, () => 'BEWÖLKT')
+const beispiel = ausHud({ wetter: { ort: 'Obersontheim', grad: 9.4, wolken: 70 }, pv: { akku: 64, akkuW: -1200, netzW: -850, pvW: 4300, hausW: 2250, zustand: 0, inselbetrieb: false, zeit: Date.now(), tag: { punkte: beispielTag(), summen: null, zeit: 1, beispiel: true } } }, new Date(), sequenzDaten, () => 'BEWÖLKT')
 addEventListener('keydown', (e) => {
   loki = { 1: 'hoert', 2: 'denkt', 3: 'spricht', 4: 'aus' }[e.key] ?? loki
   if (e.key === 'z' || e.key === 'Z') { zoom = !zoom; c.width = zoom ? 1920 : B; c.style.width = zoom ? '1920px' : '100vw' }
@@ -35,7 +37,7 @@ function schleife(ms) {
   zeichneSzene(g, s, ms / 1000, { loki, pegel, wetter: probeWetter, versatz: zoom ? 1920 : 0, ton: beatTon, aus: (new URLSearchParams(location.search).get('aus') ?? '').split(',') })
   // Inhalte mit Beispieldaten (in der Vorschau gibt es keine Gegenstelle); Ton: Kunstwerte
   const ton = Array.from({ length: 128 }, (_, i) => Math.max(0, Math.sin(ms / 300 + i * 0.3) * Math.exp(-((i % 64) / 20)) * 0.8))
-  const fv = s.wetter?.sichtbar?.frost ?? 0; if (fv > 0 && !window.frostE) { const d = document.createElement('div'); c.parentElement.appendChild(d); window.frostE = erstelleFrost(d, zoom ? 1920 : 0) } if (window.frostE) frostStellen(window.frostE, fv)
+  const fv = s.wetter?.sichtbar?.frost ?? 0; if (fv > 0 && !window.frostE) { const d = document.createElement('div'); c.parentElement.appendChild(d); window.frostE = erstelleFrost(d, zoom ? 1920 : 0) } if (window.frostE) { frostStellen(window.frostE, fv); frostGrad(window.frostE, Number(new URLSearchParams(location.search).get('grad') ?? -4)) }
   if (new URLSearchParams(location.search).has('kamgross')) kameraGross(tafeln, 0)
   zeichneTafeln(tafeln, { ...beispiel, ton, loki: { zustand: { hoert: 'bereit', denkt: 'denkt', spricht: 'spricht', aus: 'aus' }[loki], mikrofon: loki !== 'aus', whatsapp: Number(new URLSearchParams(location.search).get('wa') ?? 0) } }, ms / 1000)
   const dauer = performance.now() - a

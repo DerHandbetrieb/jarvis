@@ -31,14 +31,14 @@ export function erstelleWetter() {
   return {
     tropfen: Array.from({ length: 900 }, () => ({ x: z() * B, y: z() * H, v: 0.7 + z() * 0.6, l: 0.6 + z() * 0.8 })),
     flocken: Array.from({ length: 700 }, () => ({ x: z() * B, y: z() * H, v: 0.5 + z() * 0.8, r: 1.2 + z() * 2.4, p: z() * 6.28 })),
-    sichtbar: { regen: 0, schnee: 0, nebel: 0, frost: 0, hagel: 0, gewitter: 0 }, letzt: null, blitz: null, naechsterBlitz: 0,
+    sichtbar: { regen: 0, schnee: 0, nebel: 0, frost: 0, hagel: 0, gewitter: 0, eis: 0 }, letzt: null, blitz: null, naechsterBlitz: 0,
   }
 }
 
 /** weiches Überblenden beim Wetterwechsel (ca. 4 s) */
 function nachfuehren(st, w, t) {
   const dt = Math.min(0.1, Math.max(0, t - (st.letzt ?? t))); st.letzt = t
-  const ziel = { regen: w.art === 'regen' ? w.staerke : 0, schnee: w.art === 'schnee' ? w.staerke : 0, nebel: w.art === 'nebel' ? w.staerke : 0, frost: w.frost ? 1 : 0, hagel: w.hagel ? 1 : 0, gewitter: w.gewitter ? 1 : 0 }
+  const ziel = { regen: w.art === 'regen' ? w.staerke : 0, schnee: w.art === 'schnee' ? w.staerke : 0, nebel: w.art === 'nebel' ? w.staerke : 0, frost: w.frost ? 1 : 0, hagel: w.hagel ? 1 : 0, gewitter: w.gewitter ? 1 : 0, eis: w.eis ?? 0 }
   for (const k of Object.keys(ziel)) st.sichtbar[k] += Math.sign(ziel[k] - st.sichtbar[k]) * Math.min(Math.abs(ziel[k] - st.sichtbar[k]), dt / 4)
 }
 
