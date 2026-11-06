@@ -256,7 +256,7 @@ function system(g, b, h, d) {
     // Uhr mit Sekunden und Datum in Zahlen (Wunsch 06.11.2026); Breite aus fester Vorlage, damit nichts mit den Ziffern wandert
     const j = new Date(), zwei = (n) => String(n).padStart(2, '0'), uhr = `${zwei(j.getHours())}:${zwei(j.getMinutes())}:${zwei(j.getSeconds())}`, datum = `${zwei(j.getDate())}.${zwei(j.getMonth() + 1)}.${j.getFullYear()}`
     const uhrB = fein('00:00:00', 30, 600) + 8 + fein('00.00.0000', 15, 500) + 28, breiten = zeilen.map(([n, wert]) => 30 + Math.max(fein(n, 10, 400), fein(wert, 13, 600)))
-    const rest = b - uhrB - 24 - x - breiten.reduce((a, c) => a + c, 0), luecke = Math.max(6, Math.min(30, rest / (zeilen.length + 1)))
+    const rest = b - uhrB - 24 - x - breiten.reduce((a, c) => a + c, 0), luecke = Math.max(6, rest / (zeilen.length + 1)) // gleichmäßig über die ganze Breite (Wunsch Auftraggeber 06.11.2026)
     zeilen.forEach(([n, wert, farbe], i) => {
       trenner(x + luecke / 2); x += luecke
       if (n === 'WHATSAPP' && wa > 0) { g.fillStyle = 'rgba(242,176,74,0.16)'; g.fillRect(x - 6, 7, breiten[i] + 12, h - 14); g.strokeStyle = GOLD; g.lineWidth = 1; g.strokeRect(x - 5.5, 7.5, breiten[i] + 11, h - 15) } // neue Nachricht: fällt schon im Augenwinkel auf

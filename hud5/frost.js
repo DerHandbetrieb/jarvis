@@ -7,6 +7,10 @@
 // Ränder. Helle Bildteile werden zu deckendem Eis, dunkle bleiben durchsichtig – so bleibt die Szene dahinter sichtbar.
 import { B, H } from './szene.js'
 
+// Unten liegt auf allen drei Bildschirmen die Windows-Taskleiste (48 Bildpunkte): der Rand beginnt darüber, sonst wäre er verdeckt
+// (Hinweis Auftraggeber 06.11.2026)
+const UNTEN = H - 48
+
 const hs = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s) }
 function wert(x, y) { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy); return (hs(ix, iy) * (1 - u) + hs(ix + 1, iy) * u) * (1 - v) + (hs(ix, iy + 1) * (1 - u) + hs(ix + 1, iy + 1) * u) * v }
 function fbm(x, y, o = 4) { let s = 0, a = 0.5; for (let i = 0; i < o; i++) { s += a * wert(x, y); x = x * 2.03 + 11.3; y = y * 2.03 + 7.1; a *= 0.5 } return s }
@@ -17,18 +21,21 @@ const glatt = (a, b, x) => { const v = Math.max(0, Math.min(1, (x - a) / (b - a)
 export const frostStufe = (grad) => Math.max(0, Math.min(1, -grad / 8)) ** 1.6
 export const frostFaktor = (grad) => 0.12 + 1.28 * frostStufe(grad)
 /** feste Zufallsanteile eines Szenenpunkts (einmal rechnen; ändert sich nur der Faktor, geht das Neuzeichnen schnell) */
-const FELDER = 6
+const FELDER = 10
 function punkt(x, y) {
   const ecke = (cx, cy, st) => st * Math.exp(-Math.hypot(x - cx, y - cy) / 340)
   const q = (base, t) => base * (0.6 + 0.9 * fbm(t / 420, base))
   const uhrFrei = 1 - 0.8 * Math.exp(-(((x - B / 2) / 620) ** 2)) // oben in der Mitte schmal: Uhrzeit im Ring bleibt lesbar
   return [(fbm(x / 170, y / 170) - 0.5) * 110, q(130, x) * uhrFrei, q(150, x + 999), q(200, y + 333), q(200, y + 777),
-    ecke(0, 0, 340) + ecke(0, H, 170) + ecke(B, 0, 70) + ecke(B, H, 260)] // jede Ecke anders (Wunsch Auftraggeber 06.11.2026)
+    ecke(0, 0, 340) + ecke(0, UNTEN, 170) + ecke(B, 0, 70) + ecke(B, UNTEN, 260), // jede Ecke anders (Wunsch Auftraggeber 06.11.2026)
+    fbm(x / 240, 3.1, 3), fbm(x / 240, 9.7, 3), fbm(y / 200, 5.3, 3), fbm(y / 200, 12.9, 3)] // Flecken je Kante, siehe dichteAus
 }
 function dichteAus(x, y, w, o, f) {
   const rausch = w[o], q0 = w[o + 1], q1 = w[o + 2], q2 = w[o + 3], q3 = w[o + 4], ecken = w[o + 5]
-  const r = rausch * Math.min(1, f), kante = (d, q) => Math.max(0, 1 - glatt(0.1, 1, (d + r) / ((q + ecken) * f)))
-  return 1 - (1 - kante(y, q0)) * (1 - kante(H - y, q1)) * (1 - kante(x, q2)) * (1 - kante(B - x, q3))
+  // Wenig Frost soll keine durchgehende Linie sein (Rückmeldung 06.11.2026): je wärmer, desto mehr Lücken zwischen vereisten Stellen
+  const fleck = (v) => 1 + (glatt(0.4, 0.56, v) * 1.9 - 1) * Math.max(0, 1 - f)
+  const r = rausch * (0.55 + 0.45 * Math.min(1, f)), kante = (d, q, v) => Math.max(0, 1 - glatt(0.1, 1, (d + r) / ((q * fleck(v) + ecken) * f))) * (1 - (1 - glatt(0.44, 0.54, v)) * Math.max(0, 1 - f) ** 0.5)
+  return 1 - (1 - kante(y, q0, w[o + 6])) * (1 - kante(Math.max(0, UNTEN - y), q1, w[o + 7])) * (1 - kante(x, q2, w[o + 8])) * (1 - kante(B - x, q3, w[o + 9]))
 }
 /** Frost-Dichte 0..1 an einem Szenenpunkt (x, y in 5760×1080): am Rand dicht, nach innen unregelmäßig auslaufend. f: Faktor der Tiefe */
 export function frostDichte(x, y, f = 1) { return dichteAus(x, y, punkt(x, y), 0, f) }
@@ -38,10 +45,13 @@ const laden = (u) => new Promise((ok, f) => { const i = new Image(); i.onload = 
 // Gedreht statt gespiegelt und jede anders groß – nichts soll wie ein Rorschach-Bild aussehen (Rückmeldung 06.11.2026).
 // Ecken: oben links groß, unten links mittel, oben rechts nur ein kleines Eck, unten rechts groß.
 const BLUMEN = [
-  [0, 0, 660, 90, 1, false], [0, H, 380, 0, 3, false], [B, 0, 170, 180, 4, false], [B, H, 560, 270, 2, false],
-  [1120, H + 30, 330, -14, 2, true], [2230, H + 20, 170, 22, 4, true], [3700, H + 30, 250, -32, 1, true], [4780, H + 20, 210, 12, 3, true],
+  [0, 0, 660, 90, 1, false], [0, UNTEN, 380, 0, 3, false], [B, 0, 170, 180, 4, false], [B, UNTEN, 560, 270, 2, false],
+  [1120, UNTEN + 30, 330, -14, 2, true], [2230, UNTEN + 20, 170, 22, 4, true], [3700, UNTEN + 30, 250, -32, 1, true], [4780, UNTEN + 20, 210, 12, 3, true],
   [640, -20, 210, 164, 4, true], [2540, -20, 150, 196, 3, true], [4300, -30, 290, 172, 2, true],
   [-20, 610, 230, 74, 2, true], [B + 20, 330, 190, 256, 1, true],
+  // kleine, die schon bei wenig Frost da sind (letzte Zahl: ab dieser Kältestufe, Wunsch 06.11.2026)
+  [300, -8, 125, 170, 1, true, 0.02], [1480, -6, 95, 190, 3, true, 0.06], [3980, -8, 140, 165, 2, true, 0.03], [5050, -6, 105, 185, 4, true, 0.09],
+  [1760, UNTEN + 6, 115, -10, 1, true, 0.05], [4250, UNTEN + 8, 130, 18, 3, true, 0.02], [-6, 320, 100, 80, 4, true, 0.08], [B + 6, 760, 120, 262, 2, true, 0.04],
 ]
 
 async function schleierBauen(tex, basis) {
@@ -97,8 +107,8 @@ async function schleierBauen(tex, basis) {
 function blumenZeichnen(lage, fertig, stufe) {
   const g = lage.getContext('2d'), S = lage.width / B
   g.clearRect(0, 0, lage.width, lage.height)
-  BLUMEN.forEach(([x, y, gr, dreh, , frei], i) => {
-    const schwelle = 0.2 + ((i - 4) / 9) * 0.7, sichtbar = frei ? glatt(schwelle, schwelle + 0.1, stufe) : 1, gross = gr * S * (frei ? 1 : 0.12 + 0.63 * stufe)
+  BLUMEN.forEach(([x, y, gr, dreh, , frei, ab], i) => {
+    const schwelle = ab ?? 0.2 + ((i - 4) / 9) * 0.7, sichtbar = frei ? glatt(schwelle, schwelle + 0.1, stufe) : 1, gross = gr * S * (frei ? 1 : 0.12 + 0.63 * stufe)
     if (sichtbar <= 0.01) return
     g.save(); g.globalAlpha = 0.95 * sichtbar; g.translate(x * S, y * S); g.rotate((dreh * Math.PI) / 180)
     if (frei) g.translate(-gross * 0.42, gross * 0.1) // freie Blumen um ihre Mitte, nicht um die Bildecke
