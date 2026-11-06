@@ -13,7 +13,7 @@ let loki = new URLSearchParams(location.search).get('loki') ?? 'hoert', zoom = f
 // Testlauf Entladung (06.11.2026): ?plasma=a|b|c|d zeigt den mittleren Bildschirm, Impulse alle paar Sekunden, Knöpfe zum Umschalten
 const plasmaWahl = new URLSearchParams(location.search).get('plasma')
 if (plasmaWahl) {
-  s.plasmaArt = plasmaWahl; s.plasmaTempo = 4; zoom = true; c.width = 1920; c.style.width = '100vw'
+  s.plasmaArt = plasmaWahl; s.plasmaTempo = plasmaWahl === 'b' ? 5 : 4; zoom = true; c.width = 1920; c.style.width = '100vw'
   document.getElementById('tafeln').style.display = 'none'
   const leiste = document.createElement('div')
   leiste.style.cssText = 'position:fixed;left:50%;bottom:72px;transform:translateX(-50%);display:flex;gap:8px;z-index:9'

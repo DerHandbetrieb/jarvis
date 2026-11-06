@@ -4,6 +4,8 @@
 // b Tesla-Spule: zackige Bögen mit Verästelung, die im schnellen Takt neu knistern
 // c Schlange: ein bis zwei lange Fäden winden sich spiralförmig um den Reaktor nach außen
 // d Stoß: Lichtring aus der Mitte, Fäden laufen zu den Kupferspulen und knistern dort
+import { blitzWege, kantenKarte } from './reaktorbahn.js'
+
 const KERN = 58, SPULE = 172, RAND = 262
 const zufall = (a, b) => a + Math.random() * (b - a)
 const glatt = (a, b, x) => { const v = Math.max(0, Math.min(1, (x - a) / (b - a))); return v * v * (3 - 2 * v) }
@@ -39,12 +41,46 @@ function neuerFaden(w, lang, drall, gross = 1) {
 }
 const DAUER = { a: 1.9, b: 0.75, c: 2.6, d: 1.2 }
 /** Abstand zum nächsten Impuls in Sekunden (ruhig; rate wie beim alten Blitz: denkt/spricht öfter) */
-const PAUSE = { a: [7, 14], b: [8, 15], c: [9, 16], d: [8, 14] }
+const PAUSE = { a: [7, 14], b: [14, 28], c: [9, 16], d: [8, 14] }
 
-function neuerImpuls(art, t) {
+/** Blitz von der Mitte nach außen: an der Wurzel kräftig, zur Spitze dünn und blass (Wunsch Auftraggeber 06.11.2026) */
+function verjuengt(g, pkt, bis, hell, staerke, von, nach, [aussen, mitte]) {
+  const n = Math.max(2, Math.floor(pkt.length * bis)), stuecke = Math.min(14, n - 1)
+  for (let i = 0; i < stuecke; i++) {
+    const a = Math.floor((i / stuecke) * (n - 1)), b = Math.floor(((i + 1) / stuecke) * (n - 1)) + 1
+    const u = von + (nach - von) * ((i + 0.5) / stuecke), dick = staerke * (1 - u) ** 1.7, teil = pkt.slice(a, b + 1)
+    if (dick < 0.02) continue
+    strich(g, teil, 0, 3 + 24 * dick, aussen, 0.16 * hell * (0.4 + 0.6 * dick))
+    strich(g, teil, 0, 1.6 + 10 * dick, mitte, 0.5 * hell * (0.35 + 0.65 * dick))
+    strich(g, teil, 0, 0.7 + 4.2 * dick, '#ffffff', hell * (0.45 + 0.55 * dick))
+  }
+}
+/** Knistern: die Bahn bleibt auf der Kante, nur die Knoten zittern ein wenig; alle paar Bildpunkte einer, damit es scharf bleibt */
+function knistern(pkt, stark) {
+  const a = []
+  for (let i = 0; i < pkt.length; i += 2) a.push(i === 0 ? pkt[i] : [pkt[i][0] + (Math.random() - 0.5) * stark, pkt[i][1] + (Math.random() - 0.5) * stark])
+  a.push(pkt[pkt.length - 1])
+  return a
+}
+/** Ziele eines Impulses: drei bis fünf lange Blitze, jeder mit Ästen, die seitlich abdriften */
+function teslaZiele(start) {
+  const n = 3 + Math.floor(Math.random() * 3), haupt = [], aeste = []
+  for (let k = 0; k < n; k++) {
+    const w = start + (k / n) * 6.2832 + zufall(-0.35, 0.35), lang = zufall(195, RAND + 18)
+    haupt.push({ w, r: lang })
+    for (let a = 0; a < 3; a++) aeste.push({ w: w + zufall(-0.75, 0.75), r: lang * zufall(0.5, 0.95) })
+  }
+  return { haupt, aeste }
+}
+
+function neuerImpuls(art, t, s) {
   const start = zufall(0, 6.28), i = { art, von: t, dauer: DAUER[art], faeden: [] }
   if (art === 'a') { const n = 4 + Math.floor(Math.random() * 4); for (let k = 0; k < n; k++) i.faeden.push(neuerFaden(start + (k / n) * 6.28 + zufall(-0.3, 0.3), zufall(190, RAND), zufall(-0.5, 0.5))) }
-  if (art === 'b') { const n = 3 + Math.floor(Math.random() * 3); i.ziele = Array.from({ length: n }, (_, k) => ({ w: start + (k / n) * 6.28 + zufall(-0.4, 0.4), lang: zufall(170, RAND) })) }
+  if (art === 'b') {
+    const n = 3 + Math.floor(Math.random() * 3); i.ziele = Array.from({ length: n }, (_, k) => ({ w: start + (k / n) * 6.28 + zufall(-0.4, 0.4), lang: zufall(170, RAND) }))
+    if (s.plasmaKarte === undefined) s.plasmaKarte = kantenKarte(s.bilder.reaktor, s.geo.ebenen.reaktor, s.geo.kern ?? s.geo.reaktor) // einmal; scheitert es, bleiben die freien Zacken
+    if (s.plasmaKarte) { const z = teslaZiele(start); i.wege = blitzWege(s.plasmaKarte, z.haupt, z.aeste, KERN + 22); i.dauer = 0.95 }
+  }
   if (art === 'c') { const n = Math.random() < 0.4 ? 2 : 1, vz = Math.random() < 0.5 ? -1 : 1; for (let k = 0; k < n; k++) i.faeden.push(neuerFaden(start + k * 3.14, zufall(235, RAND), vz * zufall(3.4, 5.2), 0.55)) }
   if (art === 'd') { const spulen = [0, 1, 2, 3, 4, 5, 6, 7].sort(() => Math.random() - 0.5).slice(0, 3 + Math.floor(Math.random() * 3)); for (const k of spulen) i.faeden.push(neuerFaden(-Math.PI / 2 + (k * Math.PI) / 4, SPULE, zufall(-0.2, 0.2), 0.6)) }
   return i
@@ -76,6 +112,17 @@ function zeichne(g, i, z, rot) {
   if (i.art === 'b') {
     const f = farben(rot, true), bis = glatt(0, 0.12, n), hell = (1 - glatt(0.7, 1, n)) * (Math.random() < 0.18 ? 0.35 : 1)
     const takt = Math.floor(z / 0.055)
+    if (i.wege?.length) {
+      if (takt !== i.takt) { i.takt = takt; i.bilder = i.wege.map((w) => knistern(w.pkt, 3.2 - w.tiefe * 0.5)) }
+      i.wege.forEach((w, k) => {
+        const pkt = i.bilder[k], eigenBis = glatt(w.tiefe * 0.05, 0.14 + w.tiefe * 0.08, n)
+        if (eigenBis <= 0.02) return
+        const st = w.tiefe ? 0.42 * (1 - w.abAnteil * 0.5) : 1, von = w.tiefe ? w.abAnteil * 0.6 : 0
+        verjuengt(g, pkt, eigenBis, hell * (w.tiefe ? 0.8 : 1), st, von, 1, f)
+        if (eigenBis > 0.95 && !w.tiefe) { const e = pkt[pkt.length - 1]; glimmen(g, e[0], e[1], 13, rot ? 'rgba(255,90,70,0.25)' : 'rgba(95,246,255,0.25)', hell * 0.5) }
+      })
+      return hell
+    }
     if (takt !== i.takt) { // neue Form alle 55 ms: das macht das Knistern
       i.takt = takt
       i.boegen = i.ziele.map((a) => {
@@ -106,8 +153,9 @@ function zeichne(g, i, z, rot) {
 export function plasma(g, s, t, rate, anteil, art) {
   const r = s.geo.kern ?? s.geo.reaktor
   if (!s.plasmaNaechst) s.plasmaNaechst = t + 1.5
-  if (t >= s.plasmaNaechst) {
-    s.plasmaListe = [...(s.plasmaListe ?? []), neuerImpuls(art, t)]
+  if (art === 'b') rate = Math.sqrt(rate) // Tesla bleibt selten, auch wenn Loki spricht (Wunsch Auftraggeber 06.11.2026)
+  if (t >= s.plasmaNaechst && anteil > 0) {
+    s.plasmaListe = [...(s.plasmaListe ?? []), neuerImpuls(art, t, s)]
     const [a, b] = PAUSE[art]; s.plasmaNaechst = t + zufall(a, b) / rate
   }
   s.plasmaListe = (s.plasmaListe ?? []).filter((i) => t - i.von < i.dauer)
@@ -116,7 +164,7 @@ export function plasma(g, s, t, rate, anteil, art) {
   g.save(); g.translate(r.x, r.y); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round'; g.lineJoin = 'round'
   for (const i of s.plasmaListe) {
     const z = t - i.von
-    glimmen(g, 0, 0, 120, 'rgba(120,200,255,0.25)', (1 - glatt(0, 0.7, z)) * 0.8 * anteil) // Impuls im Kern
+    glimmen(g, 0, 0, 120, s.rot > 0.5 ? 'rgba(255,90,70,0.25)' : 'rgba(120,200,255,0.25)', (1 - glatt(0, 0.7, z)) * 0.8 * anteil) // Impuls im Kern
     s.blitzHell = Math.max(s.blitzHell, zeichne(g, i, z, s.rot > 0.5) * anteil)
   }
   g.restore()
