@@ -22,6 +22,7 @@ export const SPIEGEL = { abstand: 70, deckkraft: 0.45, unschaerfe: 1.5, auslauf:
 // Inhalte in doppelter Auflösung zeichnen (Rückmeldung Auftraggeber 05.11.2026: leicht unscharf) – das schräge Kippen
 // vergrößert die vordere Kante; mit mehr Bildpunkten bleiben Linien und Schrift scharf
 const AUFLOESUNG = 2
+const GROSS = { b: 1560, h: 878, dreh: 'perspective(2600px) rotateY(-5deg)' } // großes Kamerabild, leicht in der Schräge der Fenster
 const BEWEGT = new Set(['ton', 'kamera1', 'kamera2', 'energie', 'wetter']) // energie: laufende Lichtpunkte
 
 /** Tafeln anlegen. huelle = Element über der Szenen-Leinwand (gleiche Größe); faktor = Bildschirm-Pixel je Szenen-Pixel.
@@ -61,9 +62,17 @@ export function erstelleTafeln(huelle, versatz = 0, { skala = TAFEL.skala } = {}
       felder[id] = { c, g: c.getContext('2d'), b, h, k: k * AUFLOESUNG, sg: s.getContext('2d'), sb: s.width, sh: s.height, sauber, sq: sauber.getContext('2d'), phase: fx * 0.013 + fy * 0.02 }
     }
   }
+  // großes, schwebendes Kamerabild: rechter Bildschirm (bei nur einem Bildschirm mittig), ringsum Luft, 16:9 wie die Kamera
+  const grossBild = document.createElement('canvas'); grossBild.width = GROSS.b; grossBild.height = GROSS.h
+  Object.assign(grossBild.style, {
+    position: 'absolute', left: (versatz ? 1920 + (1920 - GROSS.b) / 2 : 3840 + (1920 - GROSS.b) / 2) + 'px', top: (1080 - GROSS.h) / 2 + 'px', width: GROSS.b + 'px', height: GROSS.h + 'px',
+    opacity: '0', transform: `${GROSS.dreh} scale(0.82)`, transformOrigin: '50% 50%', transition: 'opacity 0.45s ease, transform 0.6s cubic-bezier(.2,.9,.25,1.05)',
+    borderRadius: '8px', boxShadow: '0 40px 110px 30px rgba(0,0,0,0.9), 0 0 0 2px rgba(120,235,255,0.75), 0 0 46px 4px rgba(95,246,255,0.35)', pointerEvents: 'none',
+  })
+  flaeche.appendChild(grossBild)
   const passen = () => { const f = (huelle.clientHeight || innerHeight) / 1080; flaeche.style.transform = `scale(${f}) translateX(${-versatz}px)` }
   passen(); addEventListener('resize', passen)
-  return { felder, buehnen, kennung: '' }
+  return { felder, buehnen, kennung: '', grossBild, grossG: grossBild.getContext('2d'), grossKanal: null, grossZeigt: 0 }
 }
 
 function feldZeichnen(f, id, daten, t) {
@@ -101,6 +110,7 @@ export function zeichneTafeln(st, daten, t) {
   const alles = kennung !== st.kennung
   st.kennung = kennung
   for (const [id, f] of Object.entries(st.felder)) { if (alles || BEWEGT.has(id)) feldZeichnen(f, id, daten, t); spiegelWellen(f, t) }
+  if (st.grossBild && (st.grossKanal != null || st.grossBild.style.opacity !== '0')) ZEICHNER[st.grossZeigt === 1 ? 'kamera2' : 'kamera1'](st.grossG, GROSS.b, GROSS.h, daten, t)
 }
 
 /** Intro: Tafeln einer Seite erscheinen lassen. p = { links, rechts } je 0..1 (1 = Endstand wie im Wallpaper).
@@ -131,16 +141,15 @@ export function tafelnStellen(st, art, p) {
   }
 }
 
-/** Kamerabild groß auf dem rechten Bildschirm (Interview 05.11.2026: bei Person, sonst auf Zuruf); die Schräge bleibt.
- *  kanal 0/1 oder null = zurück. Weich über CSS, kostet je Bild nichts. */
+/** Kamerabild groß (Person erkannt oder auf Zuruf; Rückmeldung 06.11.2026: über die Rahmen hinaus, schwebend mit Schatten,
+ *  ringsum bleibt der Hintergrund sichtbar): eigene Leinwand über den Fenstern. kanal 0/1 oder null = zurück. */
 export function kameraGross(st, kanal) {
-  if (st.grossKanal === (kanal ?? null)) return
-  st.grossKanal = kanal ?? null
-  for (const [id, k] of [['kamera1', 0], ['kamera2', 1]]) {
-    const f = st.felder[id]; if (!f) continue
-    const c = f.c, gross = k === kanal
-    c.style.transition = 'transform 0.7s cubic-bezier(.2,.8,.2,1)'; c.style.transformOrigin = '0 0'; c.style.zIndex = gross ? '5' : ''
-    const q = TAFEL.breite / f.b
-    c.style.transform = gross ? `translate3d(${-parseFloat(c.style.left)}px, ${-parseFloat(c.style.top)}px, 2px) scale(${q})` : ''
-  }
+  const neu = kanal ?? null
+  if (st.grossKanal === neu) return
+  if (neu != null) st.grossZeigt = neu // beim Ausblenden bleibt das letzte Bild stehen
+  st.grossKanal = neu
+  const c = st.grossBild; if (!c) return
+  c.style.opacity = neu == null ? '0' : '1'
+  c.style.transform = `${GROSS.dreh} scale(${neu == null ? 0.82 : 1})`
 }
+

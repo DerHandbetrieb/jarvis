@@ -294,6 +294,18 @@ describe('Lautstärke der Ansagen', () => {
   })
 })
 
+describe('Rufname als Low-Key verstanden', () => {
+  it('reagiert auf alle Schreibweisen', () => {
+    expect(codewort('Low-Key, was steht an?')).toEqual({ art: 'hey', rest: 'was steht an' })
+    expect(codewort('Hey Low Key, wie spät ist es?')).toEqual({ art: 'hey', rest: 'wie spaet ist es' })
+    expect(codewort('Guten Morgen, Lowkey.')).toEqual({ art: 'morgen' })
+    expect(codewort('Was steht heute an, Low-Key?')).toEqual({ art: 'hey', rest: 'was steht heute an' })
+    expect(codewort('Das Low-Budget ist knapp')).toBeNull()
+    for (const n of ['Lowki', 'Lokie', 'Lookie', 'Lohki', 'Loggy', 'Lukie', 'Lokey', 'Lowkey', 'Lo Ki', 'Low Kee', 'Lo-Key']) expect(codewort(`${n}, was steht an?`)).toEqual({ art: 'hey', rest: 'was steht an' })
+    for (const n of ['Lucky', 'Locky', 'Lokal', 'Logik', 'Luke', 'Loge', 'Logo']) expect(codewort(`${n}, was steht an?`)).toBeNull()
+  })
+})
+
 describe('Kamera auf Zuruf', () => {
   it('zeig den Carport / Kamera weg', async () => {
     const { befehl } = await import('./befehle')

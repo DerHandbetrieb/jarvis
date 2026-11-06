@@ -36,9 +36,10 @@ export function istName(wort: string): boolean {
  * Ist das Wort „Loki“? Rufname seit 03.11.2026 (Entscheidung Auftraggeber). Whisper small schrieb im Test mit der
  * Thorsten-Stimme „Loki“, „Luki“, „Logi“ (vorschau/hoerproben/loki-test.cjs) – dazu englische Schreibweisen.
  * Nicht: „Loge“, „Luke“, „Lokal“ (andere Endung bzw. länger) und nicht „Lucky“/„Locky“ (Hunde- und Markenname – Prüf-Agent).
+ * Breiter gefasst 06.11.2026 (Wunsch Auftraggeber): auch Lowki, Lokie, Lookie, Lohki, Loggy, Lukie, Lowkey usw.
  */
 export function istLoki(wort: string): boolean {
-  return /^(lo(k|kk|g|q)(i|ie|y|ey|ee)|lu(k|g)i)$/.test(wort)
+  return /^(lo|loh|low|lou|loo|lu|luh)(k|kk|g|gg|q)(i|ie|y|ey|ee)$/.test(wort)
 }
 
 /** Ein Rufname: Loki (neu) oder Jarvis (Arbeitstitel, bleibt als zweiter Rufname erhalten) */
@@ -62,11 +63,13 @@ export type Erkannt =
   | null
 
 /** Steckt ein Codewort im Satz? (Morgen-Gruß nur mit Namen, damit ein beiläufiges „Guten Morgen“ nichts auslöst) */
-export function codewort(text: string): Erkannt {
+export function codewort(eingabe: string): Erkannt {
+  // Whisper schreibt den Namen oft als „Low-Key“ (Rückmeldung Auftraggeber 06.11.2026), auch „Low Key“ oder „Lowkey“
+  const text = eingabe.replace(/\b(low|lo|loh|lou)[\s-](key|keys|ki|kee|kie|ky)\b/gi, 'Loki').replace(/\blowkeys\b/gi, 'Loki')
   // zusammengeschrieben („Highjavis“, „Heyjarvis“, „Heiloki“ – echte Probe 03.11.2026) → trennen
   const t = vereinfachen(text)
     .replace(/\b(hey|hei|hai|hi|high)(?=(j|ch|sch|dsch|tsch)a)/g, '$1 ')
-    .replace(/\b(hey|hei|hai|hi|high|hallo)(?=l[ou](k|g|ck|q))/g, '$1 ')
+    .replace(/\b(hey|hei|hai|hi|high|hallo)(?=l(o|oh|ow|ou|oo|u|uh)(k|g|ck|q))/g, '$1 ')
   const name = findeName(t)
   if (!name) return null
   const vorher = t.slice(0, name.index).trim()
