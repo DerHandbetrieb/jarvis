@@ -1,64 +1,53 @@
-// WhatsApp-Hinweis im Dauer-HUD (06.11.2026, Wunsch Auftraggeber): zeigt, ob WhatsApp neue Nachrichten gemeldet hat.
-// Quelle ist die Windows-Mitteilungszentrale (UserNotificationListener, learn.microsoft.com, „Notification listener“).
-// Es wird NUR gezählt, wie viele Mitteilungen von der WhatsApp-App dort liegen. Absender und Text werden nie gelesen,
-// nichts verlässt den PC, WhatsApp selbst wird nicht berührt. Ein kleines PowerShell-Programm fragt alle 9 s nach.
-// Windows behält eine Mitteilung auch dann, wenn die Nachricht längst gelesen ist (Rückmeldung Auftraggeber 06.11.2026: „1 NEU“
-// trotz nichts Ungelesenem). Darum zählt sie nur, wenn sie jünger ist als der letzte Blick auf WhatsApp (Fenster im Vordergrund,
-// geprüft alle 3 s) und jünger als 2 Stunden. Auf dem Handy Gelesenes sieht der PC nicht; das verschwindet nach den 2 Stunden.
-const { spawn } = require('node:child_process')
+// WhatsApp-Hinweis im Dauer-HUD (06.11.2026, Wunsch Auftraggeber): zeigt, wie viele Nachrichten ungelesen sind.
+// Quelle ist die Zahl, die die WhatsApp-App selbst bei Windows hinterlegt (Badge am Taskleisten-Symbol, Mitteilungsspeicher
+// wpndatabase.db). Geprüft mit einer echten Nachricht: ungelesen stand dort <badge value="1"/>, nach dem Lesen am Handy war der
+// Eintrag weg. Die frühere Quelle (Mitteilungszentrale) kannte das Lesen nicht zuverlässig, Windows behielt alte Mitteilungen.
+// Gelesen wird nur lesend und nur diese eine Zahl: Die Abfrage nimmt ausschließlich Einträge vom Typ „badge“, Mitteilungstexte
+// und Absender werden nie angefasst, nichts verlässt den PC, WhatsApp selbst wird nicht berührt.
+// Grenze: Die Zahl stimmt nur, solange die App am PC läuft und mit dem Handy abgeglichen ist. Der Datenbank-Aufbau ist nicht
+// offiziell dokumentiert und kann sich mit Windows-Updates ändern; dann zeigt das HUD „–“.
+const path = require('node:path')
 
-const SKRIPT = `
-Add-Type -AssemblyName System.Runtime.WindowsRuntime
-$null = [Windows.UI.Notifications.Management.UserNotificationListener, Windows.UI.Notifications, ContentType=WindowsRuntime]
-$null = [Windows.UI.Notifications.NotificationKinds, Windows.UI.Notifications, ContentType=WindowsRuntime]
-$warte = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.IsGenericMethod -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -like 'IAsyncOperation*' } | Select-Object -First 1
-$warte = $warte.MakeGenericMethod([System.Collections.Generic.IReadOnlyList[Windows.UI.Notifications.UserNotification]])
-$l = [Windows.UI.Notifications.Management.UserNotificationListener]::Current
-Add-Type -Namespace Loki -Name Fenster -MemberDefinition '[DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);'
-$gesehen = [DateTime]::MinValue
-function Blick { try { [uint32]$p = 0; [void][Loki.Fenster]::GetWindowThreadProcessId([Loki.Fenster]::GetForegroundWindow(), [ref]$p); if ((Get-Process -Id $p -ErrorAction Stop).ProcessName -like 'WhatsApp*') { $script:gesehen = [DateTime]::UtcNow } } catch {} }
-while ($true) {
-  Blick
-  $n = -1
-  try {
-    if ($l.GetAccessStatus() -eq 'Allowed') {
-      $t = $warte.Invoke($null, @($l.GetNotificationsAsync([Windows.UI.Notifications.NotificationKinds]::Toast)))
-      if ($t.Wait(8000)) { $n = 0; $grenze = [DateTime]::UtcNow.AddHours(-2); if ($gesehen -gt $grenze) { $grenze = $gesehen }; foreach ($x in $t.Result) { try { if ($x.AppInfo.AppUserModelId -like '5319275A.WhatsAppDesktop*' -and $x.CreationTime.UtcDateTime -gt $grenze) { $n++ } } catch {} } }
-    }
-  } catch { $n = -1 }
-  try { [Console]::Out.WriteLine("$n"); [Console]::Out.Flush() } catch { exit }
-  1..3 | ForEach-Object { Start-Sleep -Seconds 3; Blick }
+const TAKT_MS = 9000, FEHLER_BIS_LEER = 3
+const ABFRAGE = `select cast(n.Payload as text) as inhalt from Notification n join NotificationHandler h on h.RecordId = n.HandlerId where n.Type = 'badge' and h.PrimaryId like '5319275A.WhatsAppDesktop%'`
+
+/** Inhalt eines Badge-Eintrags → Anzahl (getestet). Ein Bild-Badge ohne Zahl zählt als 1, „none“ als 0, Unbekanntes als null */
+function badgeAuswerten(inhalt) {
+  const wert = /<badge\b[^>]*\bvalue="([^"]*)"/i.exec(String(inhalt))?.[1]
+  if (wert === undefined) return null
+  if (wert === 'none') return 0
+  return /^\d+$/.test(wert) ? Number(wert) : 1
 }
-`
 
-/** Reine Auswertung (getestet): Ausgabezeile → Anzahl, null = nicht lesbar */
-function zeileAuswerten(zeile) {
-  const t = String(zeile).trim()
-  if (!/^\d+$/.test(t)) return null
-  return Number(t)
+/** Zeilen der Abfrage → größte Anzahl; keine Zeile = nichts ungelesen */
+function zeilenAuswerten(zeilen) {
+  const werte = zeilen.map((z) => badgeAuswerten(z.inhalt)).filter((n) => n !== null)
+  return werte.length ? Math.max(...werte) : zeilen.length ? null : 0
+}
+
+function datenbank() {
+  return path.join(process.env.LOCALAPPDATA ?? '', 'Microsoft', 'Windows', 'Notifications', 'wpndatabase.db')
+}
+
+/** liest die Zahl einmal; öffnet die Datenbank nur lesend und schließt sie gleich wieder */
+function lesen(oeffnen = (d) => new (require('node:sqlite').DatabaseSync)(d, { readOnly: true })) {
+  const db = oeffnen(datenbank())
+  try { return zeilenAuswerten(db.prepare(ABFRAGE).all()) } finally { db.close() }
 }
 
 /** startet die Abfrage; beiAnzahl(n) bei jeder Änderung (null = nicht lesbar). → stoppen() */
-function ueberwachen(beiAnzahl, { protokoll = console.error } = {}) {
-  let p = null, aus = false, zuletzt
-  const start = () => {
-    if (aus) return
-    p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', SKRIPT], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] })
-    let rest = ''
-    p.stdout.on('data', (d) => {
-      rest += d.toString()
-      const zeilen = rest.split(/\r?\n/); rest = zeilen.pop() ?? ''
-      for (const z of zeilen) {
-        const n = zeileAuswerten(z)
-        if (n !== zuletzt) { zuletzt = n; beiAnzahl(n) }
-      }
-    })
-    // stirbt das Programm, nach einer Minute neu starten
-    p.on('exit', () => { p = null; if (!aus) setTimeout(start, 60_000) })
-    p.on('error', (f) => protokoll('WhatsApp-Hinweis:', f.message))
+function ueberwachen(beiAnzahl, { protokoll = console.error, lies = lesen } = {}) {
+  let zuletzt, fehler = 0
+  const melden = (n) => { if (n !== zuletzt) { zuletzt = n; beiAnzahl(n) } }
+  const takt = () => {
+    try { melden(lies()); fehler = 0 }
+    catch (f) { // kurz gesperrte Datenbank ist normal: erst nach mehreren Fehlschlägen „nicht lesbar“
+      if (++fehler === FEHLER_BIS_LEER) { protokoll('WhatsApp-Hinweis:', f?.message ?? f); melden(null) }
+    }
   }
-  start()
-  return () => { aus = true; try { p?.kill() } catch { /* schon beendet */ } }
+  takt()
+  const uhr = setInterval(takt, TAKT_MS)
+  return () => clearInterval(uhr)
 }
 
-module.exports = { ueberwachen, zeileAuswerten, SKRIPT }
+module.exports = { ueberwachen, badgeAuswerten, zeilenAuswerten, ABFRAGE }

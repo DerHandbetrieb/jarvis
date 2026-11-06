@@ -39,7 +39,7 @@ function kameraLog(...teile) {
 }
 const HUD_PORT = 47820 // fest, damit das Wallpaper Loki findet (nur 127.0.0.1)
 const hud = { schluessel: null }
-let whatsappNeu = null // Anzahl der WhatsApp-Mitteilungen in Windows (null = nicht lesbar), siehe whatsapphinweis.cjs
+let whatsappNeu = null // Anzahl ungelesener WhatsApp-Nachrichten laut Windows-Badge (null = nicht lesbar), siehe whatsapphinweis.cjs
 /** nur, was das Dauer-HUD anzeigt (Auswahlliste) – von den Amazon-Problemen nur die Anzahl, kein Freitext (Prüf-Agent) */
 function hudAuswahl(l) {
   const zahl = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
