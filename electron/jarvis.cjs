@@ -14,6 +14,7 @@ const fs = require('node:fs')
 const { spawn } = require('node:child_process')
 const { erstelleLoki } = require('./loki.cjs')
 const { pruefeModell } = require('./modellpruefung.cjs')
+const { erstelleNiesWache } = require('./niesen.cjs')
 
 const QUELLE = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/'
 const MODELLE = {
@@ -22,7 +23,11 @@ const MODELLE = {
   whisper: { datei: 'asr-models/sherpa-onnx-whisper-small.tar.bz2', ordner: 'sherpa-onnx-whisper-small', noetig: ['small-encoder.int8.onnx', 'small-decoder.int8.onnx', 'small-tokens.txt'], weg: ['small-encoder.onnx', 'small-decoder.onnx', 'test_wavs'], mb: 640 },
 }
 
+// freiwillig: fehlt es (kein Netz), läuft L.O.K.I. trotzdem, nur ohne Niesen-Erkennung
+MODELLE.niesen = { datei: 'audio-tagging-models/sherpa-onnx-ced-small-audio-tagging-2024-04-19.tar.bz2', ordner: 'sherpa-onnx-ced-small-audio-tagging-2024-04-19', noetig: ['model.int8.onnx', 'class_labels_indices.csv'], weg: ['model.onnx', 'test_wavs'], mb: 96, freiwillig: true }
+const PFLICHT = () => Object.keys(MODELLE).filter((k) => !MODELLE[k].freiwillig)
 const ordner = () => path.join(app.getPath('userData'), 'jarvis')
+let niesWache = null, niesenLaedt = false
 let sherpa = null
 let tts = null
 let erkenner = null
@@ -97,10 +102,10 @@ function vorhanden(name) {
 function status() {
   return {
     verfuegbar: true,
-    modelle: Object.fromEntries(Object.keys(MODELLE).map((k) => [k, vorhanden(k)])),
+    modelle: Object.fromEntries(PFLICHT().map((k) => [k, vorhanden(k)])),
     bereit: !!tts && !!erkenner && !!vad,
     zuhoeren,
-    groesseMb: Object.values(MODELLE).reduce((s, m) => s + m.mb, 0),
+    groesseMb: PFLICHT().reduce((s, k) => s + MODELLE[k].mb, 0),
     loki: loki.status(),
     gehoer: { ...gehoer.status(), art: hoerArt },
   }
@@ -167,7 +172,7 @@ async function herunterladen(name, fortschritt) {
 
 /** Modelle laden (falls nötig) und Stimme, Pausen-Erkennung und Spracherkennung starten */
 async function vorbereiten(fortschritt) {
-  for (const name of Object.keys(MODELLE)) if (!vorhanden(name)) await herunterladen(name, fortschritt)
+  for (const name of PFLICHT()) if (!vorhanden(name)) await herunterladen(name, fortschritt)
   const s = sherpaLaden()
   const o = ordner()
   if (!tts) {
@@ -186,13 +191,32 @@ async function vorbereiten(fortschritt) {
   }
   baueVad = () => new s.Vad({ sileroVad: { model: path.join(o, MODELLE.vad.einzeln), threshold: vadSchwelle, minSilenceDuration: 0.6, minSpeechDuration: 0.3, maxSpeechDuration: 15, windowSize: 512 }, sampleRate: 16000, numThreads: 1 }, 30)
   if (!vad) vad = baueVad()
+  void niesenLaden()
+}
+
+/** Niesen-Erkennung im Hintergrund laden; ein Fehler betrifft nur sie (siehe niesen.cjs) */
+async function niesenLaden() {
+  if (niesWache || niesenLaedt) return
+  niesenLaedt = true
+  try {
+    if (!vorhanden('niesen')) await herunterladen('niesen', () => {})
+    const d = path.join(ordner(), MODELLE.niesen.ordner), s = sherpaLaden()
+    const tagger = new s.AudioTagging({ model: { ced: path.join(d, 'model.int8.onnx'), numThreads: 2, provider: 'cpu' }, labels: path.join(d, 'class_labels_indices.csv') })
+    niesWache = erstelleNiesWache({
+      auswerten: (samples) => { const st = tagger.createStream(); st.acceptWaveform({ sampleRate: 16000, samples }); return tagger.compute(st, -1).find((x) => x.name === 'Sneeze')?.prob ?? 0 },
+      melden: (wert) => { protokoll(`Niesen erkannt (${wert.toFixed(2)})`); if (fenster && !fenster.isDestroyed()) fenster.webContents.send('jarvis-niesen') },
+      notiz: protokoll,
+    })
+  } catch (f) { protokoll(`Niesen-Erkennung nicht verfügbar: ${f.message}`) } finally { niesenLaedt = false }
 }
 
 // Ton kommt in kleinen Stücken; die VAD braucht Blöcke zu 512 Werten
 let rest = new Float32Array(0)
 let erkennt = Promise.resolve()
 function tonAnnehmen(stueck) {
-  if (!vad || !erkenner || !zuhoeren) return
+  if (!zuhoeren) { niesWache?.zuruecksetzen(); return }
+  niesWache?.ton(stueck)
+  if (!vad || !erkenner) return
   const alles = new Float32Array(rest.length + stueck.length)
   alles.set(rest); alles.set(stueck, rest.length)
   let i = 0

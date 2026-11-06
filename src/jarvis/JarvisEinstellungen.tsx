@@ -129,6 +129,7 @@ export default function JarvisEinstellungen() {
             )}
             <label className="mt-2 flex items-center gap-2 font-medium text-neutral-700"><input type="checkbox" checked={e.kameraMelden} onChange={(x) => setzeJarvis({ kameraMelden: x.target.checked })} /> Kamera: Person am linken Objektiv ansagen (die Kamera erkennt Personen selbst; im Dauer-HUD wird das Bild hervorgehoben)</label>
             <p className="mt-1 pl-6 text-neutral-500">Nur Neues, nur wenn Sie am PC sind (Maus oder Tastatur in den letzten 10 Minuten) – Verpasstes kommt gesammelt. Ihre eigenen Karten (Konto „Alex“) sagt L.O.K.I. nicht an. Abgleich alle 2 Minuten, Bestellungen kommen bis zu 15 Minuten später (Billbee).</p>
+            <label className="mt-2 flex items-center gap-2 font-medium text-neutral-700"><input type="checkbox" checked={e.niesen} onChange={(x) => setzeJarvis({ niesen: x.target.checked })} /> Niesen: L.O.K.I. wünscht Gesundheit (läuft nur auf diesem PC)</label>
           </div>
           <div>
             <p className="font-medium text-neutral-700">Inhalte der Morgen-Lage</p>

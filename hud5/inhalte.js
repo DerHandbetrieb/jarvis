@@ -235,11 +235,11 @@ function wetter(g, b, h, w, t = 0) {
   if (!w || !Number.isFinite(w.grad)) { kopf(g, 'WETTER · ÖHRINGEN', '', b); text(g, 'Keine Wetterdaten', 16, 70, 14, BLASS); return }
   WETTER_ENTWURF.b(g, b, h, { ...w, station: w.station ?? {} }, t)
 }
-const SYSTEM_SYMBOL = { 'L.O.K.I.': 'stimme', MIKROFON: 'mikrofon', WERKSTATT: 'zahnrad', KAMERA: 'kamera', SELBSTTEST: 'schild', WHATSAPP: 'whatsapp' }
+const SYSTEM_SYMBOL = { STATUS: 'stimme', MIKROFON: 'mikrofon', WERKSTATT: 'zahnrad', KAMERA: 'kamera', SELBSTTEST: 'schild', WHATSAPP: 'whatsapp' }
 function system(g, b, h, d) {
   const z = d.loki?.zustand ?? 'aus', wa = d.loki?.whatsapp
   const zeilen = [
-    ['L.O.K.I.', { bereit: 'HÖRT ZU', spricht: 'SPRICHT', denkt: 'DENKT NACH', laedt: 'LÄDT', aus: 'AUS', fehler: 'STÖRUNG' }[z] ?? z.toUpperCase(), z === 'fehler' ? ROT : CYAN],
+    ['STATUS', { bereit: 'HÖRT ZU', spricht: 'SPRICHT', denkt: 'DENKT NACH', laedt: 'LÄDT', aus: 'AUS', fehler: 'STÖRUNG' }[z] ?? z.toUpperCase(), z === 'fehler' ? ROT : CYAN],
     ['MIKROFON', d.loki?.mikrofon ? 'AN' : 'AUS', d.loki?.mikrofon ? CYAN : GOLD],
     ['WERKSTATT', d.verbunden ? `VERBUNDEN · ${d.stand ?? ''}` : 'NICHT VERBUNDEN', d.verbunden ? CYAN : GOLD],
     ['KAMERA', d.kamera ? 'BEREIT' : 'NICHT EINGERICHTET', d.kamera ? CYAN : BLASS],
@@ -248,20 +248,22 @@ function system(g, b, h, d) {
   ]
   if (h < 120) { // schmaler Streifen (rechter Bildschirm): alles in einer Zeile, je Angabe ein Linien-Symbol (Wunsch 06.11.2026)
     const my = h / 2, fein = (t, gr, gew) => { g.font = `${gew} ${gr}px ${SCHRIFT}`; return g.measureText(t).width }
-    let x = 16
-    text(g, 'SYSTEM', x, my + 5, 13, CYAN, 'left', 600); x += fein('SYSTEM', 13, 600) + 20
+    let x = 26 // Abstand zur Schräge links; „SYSTEM“ entfällt (Wunsch 06.11.2026)
+    const trenner = (px) => { g.strokeStyle = 'rgba(95,246,255,0.22)'; g.lineWidth = 1; g.beginPath(); g.moveTo(Math.round(px) + 0.5, 12); g.lineTo(Math.round(px) + 0.5, h - 12); g.stroke() }
     knoten(g, x, my, 20, GOLD); x += 18
-    text(g, 'L.O.K.I.', x, my + 5, 13, CYAN, 'left', 600); x += fein('L.O.K.I.', 13, 600) + 18
-    knoten(g, x, my, 20, GOLD); x += 28
-    const uhrB = fein(d.uhr ?? '', 15, 600) + 34, breiten = zeilen.map(([n, wert]) => 30 + Math.max(fein(n, 10, 400), fein(wert, 13, 600)))
-    const luecke = Math.max(6, (b - uhrB - x - breiten.reduce((a, c) => a + c, 0)) / zeilen.length)
+    text(g, 'L.O.K.I.', x, my + 5, 14, CYAN, 'left', 600); x += fein('L.O.K.I.', 14, 600) + 18
+    knoten(g, x, my, 20, GOLD); x += 12
+    const uhrB = fein(d.uhr ?? '', 34, 600) + 16, breiten = zeilen.map(([n, wert]) => 30 + Math.max(fein(n, 10, 400), fein(wert, 13, 600)))
+    const rest = b - uhrB - 24 - x - breiten.reduce((a, c) => a + c, 0), luecke = Math.max(10, Math.min(30, rest / (zeilen.length + 1)))
     zeilen.forEach(([n, wert, farbe], i) => {
+      trenner(x + luecke / 2); x += luecke
       if (n === 'WHATSAPP' && wa > 0) { g.fillStyle = 'rgba(242,176,74,0.16)'; g.fillRect(x - 6, 7, breiten[i] + 12, h - 14); g.strokeStyle = GOLD; g.lineWidth = 1; g.strokeRect(x - 5.5, 7.5, breiten[i] + 11, h - 15) } // neue Nachricht: fällt schon im Augenwinkel auf
       leistenSymbol(g, SYSTEM_SYMBOL[n], x + 11, my, 22, farbe)
       text(g, n, x + 30, my - 4, 10, BLASS); text(g, wert, x + 30, my + 13, 13, farbe, 'left', 600)
-      x += breiten[i] + luecke
+      x += breiten[i]
     })
-    text(g, d.uhr ?? '', b - 16, my + 6, 15, GOLD, 'right', 600)
+    trenner(b - uhrB - 18)
+    g.save(); g.shadowColor = GOLD; g.shadowBlur = 8; text(g, d.uhr ?? '', b - 18, my + 12, 34, GOLD, 'right', 600); g.restore()
     return
   }
   kopf(g, 'SYSTEM · L.O.K.I.', d.uhr ?? '', b)

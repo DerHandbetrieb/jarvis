@@ -1,6 +1,8 @@
 // Vier Vorschläge fürs PV-Feld (05.11.2026, Wunsch Auftraggeber): große, auf einen Blick lesbare Werte, nicht vollgeklatscht;
 // Erzeugung und Speicher/Verkauf groß, Haus und Auto als ein Verbrauchsbereich. A = aktueller Stand (Drei Spalten).
 import { symbol, auto } from './pv-zeichen.js'
+import { PV_TAG, beispielTag } from './pv-tag.js'
+const TAG_ENTWURF = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('pvtag') : null, TAG_DATEN = beispielTag()
 const GR = '#5dff8a', CYAN = '#5ff6ff', ROT = '#ff4a3a', HELL = '#e8fdff', BLASS = 'rgba(165,230,240,0.62)', AUS = 'rgba(165,230,240,0.35)', MAST = 'rgba(205,225,232,0.85)', LINIE = 'rgba(95,246,255,0.14)'
 const SCHRIFT = 'Bahnschrift, "Segoe UI", Arial, sans-serif'
 function text(g, t, x, y, gr, farbe = HELL, ausr = 'left', gew = 600) { g.font = `${gew} ${gr}px ${SCHRIFT}`; g.fillStyle = farbe; g.textAlign = ausr; g.fillText(t, x, y) }
@@ -54,6 +56,21 @@ export const PV_VARIANTE = {
     const w = werte(pv ?? {}), kwz = (x) => (pv ? kw(x) : '–') // ohne Verbindung Striche statt 0 W
     const spalten = [['sonne', 'ERZEUGUNG', w.pv, GR, ''], ['haus', 'HAUS', w.haus, HELL, ''], ['akku', w.soc != null ? `AKKU ${Math.round(w.soc)} %` : 'AKKU', w.akku, w.soc != null && w.soc < 15 ? ROT : CYAN, w.laedt ? 'LÄDT' : w.entlaedt ? 'ENTLÄDT' : ''], ['mast', w.bezug > 20 ? 'NETZBEZUG' : 'VERKAUF', w.bezug > 20 ? w.bezug : w.verkauf, w.bezug > 20 ? ROT : w.verkauf > 20 ? GR : AUS, '']]
     const sb = (b - 28) / 4, xs = spalten.map((_, i) => 14 + sb * (i + 0.5))
+    if (TAG_ENTWURF) { // zusammengerückt, unten Platz für den Tagesverlauf (Wunsch 06.11.2026)
+      spalten.forEach(([art, name, wert, farbe, zusatz], i) => {
+        const x = xs[i]
+        symbol(g, art, x, 74, 52, art === 'mast' ? MAST : farbe, w.soc ?? 0, 0.16)
+        text(g, kwz(wert), x, 136, 30, farbe, 'center'); text(g, name, x, 153, 12, BLASS, 'center'); if (zusatz) text(g, zusatz, x, 167, 11, farbe, 'center')
+        if (i) { g.strokeStyle = LINIE; g.beginPath(); g.moveTo(Math.round(14 + sb * i) + 0.5, 44); g.lineTo(Math.round(14 + sb * i) + 0.5, 170); g.stroke() }
+      })
+      const k = [b / 2, 196]
+      g.strokeStyle = 'rgba(95,246,255,0.5)'; g.lineWidth = 1.4; g.beginPath(); g.arc(k[0], k[1], 11, 0, Math.PI * 2); g.stroke()
+      punkte(g, [xs[0], 174], k, w.pv, GR, t); punkte(g, k, [xs[1], 174], w.haus, HELL, t); punkte(g, k, [xs[2], 174], -w.akku, w.laedt ? GR : CYAN, t); punkte(g, [xs[3], 174], k, w.bezug - w.verkauf, w.bezug > 20 ? ROT : GR, t)
+      punkte(g, [k[0] + 11, k[1]], [b - 118, k[1]], 0, AUS, t); auto(g, b - 96, k[1], 30, AUS, 0.05); text(g, 'AUTO –', b - 74, k[1] + 4, 11, AUS, 'left')
+      PV_TAG[TAG_ENTWURF]?.(g, 22, 224, b - 44, h - 236, TAG_DATEN, 0.62)
+      text(g, 'BEISPIEL', b - 24, 236, 10, '#f2b04a', 'right')
+      return
+    }
     spalten.forEach(([art, name, wert, farbe, zusatz], i) => {
       const x = xs[i]
       symbol(g, art, x, 100, 66, art === 'mast' ? MAST : farbe, w.soc ?? 0, 0.16) // größer: Hauptfokus (Wunsch 05.11.2026)

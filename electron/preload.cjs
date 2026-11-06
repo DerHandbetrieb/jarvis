@@ -93,6 +93,11 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
       ipcRenderer.on('jarvis-erkannt', h)
       return () => ipcRenderer.removeListener('jarvis-erkannt', h)
     },
+    beiNiesen: (fn) => {
+      const h = () => fn()
+      ipcRenderer.on('jarvis-niesen', h)
+      return () => ipcRenderer.removeListener('jarvis-niesen', h)
+    },
     beiFortschritt: (fn) => {
       const h = (_e, d) => fn({ name: String(d?.name ?? ''), anteil: Number(d?.anteil ?? 0) })
       ipcRenderer.on('jarvis-fortschritt', h)
