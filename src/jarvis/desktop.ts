@@ -143,7 +143,7 @@ export type JarvisEinstellungen = {
   neuigkeiten: boolean
   /** welche Arten angesagt werden */
   neuGruppen: NeuGruppe[]
-  /** Kamera-Wache: Person am linken Objektiv ansagen (04.11.2026) */
+  /** Kamera-Wache: Person oder Auto am linken Objektiv ansagen (04.11.2026, Autos 06.11.2026) */
   kameraMelden: boolean
   niesen: boolean
   /** Sprechtempo – nur für Piper, Loki hat sein Tempo aus der Vorlage */

@@ -250,7 +250,7 @@ describe('Benutzte Sprüche nach hinten (rotation.ts, 04.11.2026)', () => {
     const { NACHSCHUB_TEXT } = await import('./nachschub')
     const { FUNDUS } = await import('./fundus')
     const { SPITZEN } = await import('./morgenlage')
-    const bereiche = new Set([...Object.keys(FUNDUS), 'begruessung', ...['bestellung', 'aufgabe', 'problem', 'knapp', 'freigabe', 'zurueck', 'kamera', 'kamera-zurueck'].map((b) => `neu-${b}`),
+    const bereiche = new Set([...Object.keys(FUNDUS), 'begruessung', ...['bestellung', 'aufgabe', 'problem', 'knapp', 'freigabe', 'zurueck', 'kamera', 'kamera-zurueck', 'auto', 'auto-zurueck'].map((b) => `neu-${b}`),
       ...Object.keys(SPITZEN).map((k) => `lage-${k}`), 'lage-sprueche'])
     for (const z of NACHSCHUB_TEXT.split(/\r?\n/).filter((x) => x.trim() && !x.trimStart().startsWith('#'))) {
       const [b, t] = [z.slice(0, z.indexOf('|')), z.slice(z.indexOf('|') + 1)]
@@ -303,6 +303,18 @@ describe('Rufname als Low-Key verstanden', () => {
     expect(codewort('Das Low-Budget ist knapp')).toBeNull()
     for (const n of ['Lowki', 'Lokie', 'Lookie', 'Lohki', 'Loggy', 'Lukie', 'Lokey', 'Lowkey', 'Lo Ki', 'Low Kee', 'Lo-Key']) expect(codewort(`${n}, was steht an?`)).toEqual({ art: 'hey', rest: 'was steht an' })
     for (const n of ['Lucky', 'Locky', 'Lokal', 'Logik', 'Luke', 'Loge', 'Logo']) expect(codewort(`${n}, was steht an?`)).toBeNull()
+  })
+})
+
+describe('Auto an der Kamera (06.11.2026)', () => {
+  it('sagt das Auto an, wählt die Sprüche fürs Auto und gehört zur Gruppe Kamera', async () => {
+    const { ansage, auswaehlen } = await import('./neuigkeiten')
+    const n = { art: 'auto', seite: 'links' } as const, bereiche: string[] = []
+    expect(ansage([n], { anrede: 'Sir', humor: true, weg: false, spitze: (b: string) => { bereiche.push(b); return null } })).toEqual(['Sir, ein Auto fährt auf das Grundstück.'])
+    expect(bereiche).toEqual(['auto'])
+    expect(auswaehlen([n], ['kamera'])).toEqual([n])
+    expect(ansage([n], { anrede: 'Sir', humor: true, weg: true, spitze: (b: string) => { bereiche.push(b); return null } }).join(' ')).toContain('ein Auto auf dem Grundstück')
+    expect(bereiche).toEqual(['auto', 'auto-zurueck'])
   })
 })
 

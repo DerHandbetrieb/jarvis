@@ -366,6 +366,7 @@ async function behandeln(text: string, c: ReturnType<typeof codewort>, begonnen:
 // War er weg (oder ist das Ereignis älter als 30 Minuten, z. B. weil L.O.K.I. aus war), kommt eine kurze Zusammenfassung.
 const ABWESEND_S = 600, NEU_PRUEFEN_MS = 15_000, NEU_HOECHSTENS_MS = 24 * 3600_000
 let neuSchlange: { n: Neuigkeit; zeit: number; verpasst: boolean }[] = []
+const istKamera = (n: Neuigkeit) => n.art === 'person' || n.art === 'auto'
 
 /** Seitenhieb je Bereich, ohne baldige Wiederholung (die letzten 60 % jedes Bereichs bleiben gesperrt) */
 /** Seitenhiebe nach Neuigkeiten je Bereich, samt Nachschub („neu-<bereich>“ in nachschub.ts) */
@@ -388,7 +389,7 @@ export function spruchPools(): Record<string, string[]> {
     fundus: FUNDUS_ALLE.map((f) => f('Sir')),
     begruessung: BEGRUESSUNGEN.map((b) => b('Sir')),
     'zweites-mal': ZWEITES_MAL,
-    ...Object.fromEntries(([...Object.keys(NEU_SPITZEN), 'kamera', 'kamera-zurueck'] as Spitzenbereich[]).map((b) => [`neu-${b}`, neuListe(b)])),
+    ...Object.fromEntries(([...Object.keys(NEU_SPITZEN), 'kamera', 'kamera-zurueck', 'auto', 'auto-zurueck'] as Spitzenbereich[]).map((b) => [`neu-${b}`, neuListe(b)])),
     ...Object.fromEntries(Object.entries(SPITZEN).map(([k, v]) => [`lage-${k}`, v])),
     'lage-sprueche': SPRUECHE,
     niesen: NIES_SPRUECHE,
@@ -431,7 +432,7 @@ async function neuAnsagen() {
     const geholt = (await b.holeNeuigkeiten?.().catch(() => null)) ?? []
     if (geholt.length) {
       const gruppen = [...e.neuGruppen, ...(e.kameraMelden ? ['kamera' as const] : [])]
-      const neu = geholt.filter((x) => (x.n.art === 'person' ? e.kameraMelden : e.neuigkeiten) && auswaehlen([x.n], gruppen).length)
+      const neu = geholt.filter((x) => (istKamera(x.n) ? e.kameraMelden : e.neuigkeiten) && auswaehlen([x.n], gruppen).length)
       protokoll(`Neuigkeiten: ${geholt.length} neu, ${neu.length} zum Ansagen (${neu.map((x) => x.n.art).join(', ') || '–'})`)
       neuSchlange.push(...neu.map((x) => ({ n: x.n, zeit: x.zeit, verpasst: false })))
     }
@@ -448,7 +449,7 @@ async function neuAnsagen() {
     if (startphase || lage.zustand !== 'bereit') return // inzwischen spricht oder denkt er – die Ansage bleibt in der Schlange
     const jetzt = neuSchlange.splice(0)
     // eine Person „nähert sich“ nur, wenn es frisch ist (≤ 90 s) – sonst Zusammenfassung „war jemand vor der Kamera“ (Prüf-Agent)
-    const weg = jetzt.some((x) => x.verpasst || Date.now() - x.zeit > (x.n.art === 'person' ? 90_000 : VERPASST_MS))
+    const weg = jetzt.some((x) => x.verpasst || Date.now() - x.zeit > (istKamera(x.n) ? 90_000 : VERPASST_MS))
     const saetze = ansage(jetzt.map((x) => x.n), { anrede: e.anrede || 'Sir', humor: e.humor, weg, spitze: neuSpitze })
     if (!saetze.length) return
     protokoll(`Neuigkeiten angesagt (${jetzt.length}${weg ? ', Zusammenfassung' : ''})`)
@@ -594,7 +595,7 @@ export async function rechnerStart() {
       const lageBeginn = Date.now()
       await morgenLageVortragen()
       // Was vor der Lage aufgelaufen ist, stand in ihr – eine Person und alles, was währenddessen neu kam, wird noch gemeldet
-      if (jarvisEinstellungen().zuletztLage === heute()) neuSchlange = neuSchlange.filter((x) => x.n.art === 'person' || x.zeit >= lageBeginn)
+      if (jarvisEinstellungen().zuletztLage === heute()) neuSchlange = neuSchlange.filter((x) => istKamera(x.n) || x.zeit >= lageBeginn)
     }
   } finally { startphase = false }
 }

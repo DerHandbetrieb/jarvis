@@ -19,6 +19,19 @@ describe('Kamera-Wache', () => {
     w._schritt(false); w._schritt(true) // nach 2 Minuten ohne Person → neue Meldung
     expect(ereignisse.map((e) => e.art)).toEqual(['person', 'person'])
   })
+  it('meldet Autos eigenständig neben Personen', () => {
+    let t = 0
+    const arten = []
+    const w = erstelleKamerawache({ abfragen: async () => false, beimEreignis: (e) => arten.push(e.art), jetzt: () => t })
+    w._schritt({ person: false, auto: true }); t = 2000
+    w._schritt({ person: true, auto: true }); t = 4000
+    w._schritt({ person: false, auto: false }); t = 6000
+    w._schritt({ person: false, auto: true })
+    expect(arten).toEqual(['auto', 'person'])
+    t = 6000 + RUHE_MS + 1
+    w._schritt({ person: false, auto: false }); w._schritt({ person: false, auto: true })
+    expect(arten).toEqual(['auto', 'person', 'auto'])
+  })
   it('bei Fehlern: Pause wird länger, danach geht es weiter; stoppen beendet die Schleife', async () => {
     const pausen = []
     let n = 0

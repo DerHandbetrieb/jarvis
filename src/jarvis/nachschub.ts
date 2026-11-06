@@ -1,7 +1,7 @@
 // Nachschub an Sprüchen (04.11.2026, Wunsch Auftraggeber: „wenn ich mit dir arbeite, parallel ein paar Sprüche klopfen
 // und reinbauen“). Je Zeile „bereich|Spruch“, {a} = Anrede. Bereiche: die des Fundus (allgemein, arbeit, zeit, technik,
 // emma, kaffee, ruhe, lob, abschied, aussehen, alter), „begruessung“ (Rechnerstart, nach „Willkommen zurück, Sir.“) und
-// „neu-bestellung“, „neu-aufgabe“, „neu-problem“, „neu-knapp“, „neu-freigabe“, „neu-zurueck“ (Seitenhiebe nach Neuigkeiten).
+// „neu-bestellung“, „neu-aufgabe“, „neu-problem“, „neu-knapp“, „neu-freigabe“, „neu-zurueck“, „neu-kamera“, „neu-auto“ (Seitenhiebe nach Neuigkeiten).
 // Geschrieben von Sonnet-Agenten, gegengelesen von einem Prüf-Agenten; neue Ladungen einfach unten anhängen (Zeilen mit # = Kommentar).
 // Wie viele je Sammlung noch nie dran waren, steht in %APPDATA%\Jarvis\sprueche-stand.json (siehe rotation.ts).
 
@@ -642,6 +642,60 @@ emma|Ein Labrador, {a}, bittet höflich und wartet geduldig. Sie sollten sich be
 lob|Das haben Sie gut gemacht, {a}. Ich bin selbst überrascht und prüfe vorsichtshalber den Kalender.
 lob|Ein Lob, {a}. Genießen Sie es, es ist ein Einzelstück und die Lieferzeit ist lang.
 lob|Ausgezeichnet, {a}. Ich werde es notieren, damit ich es später widerlegen kann.
+# Ladung Auto am Carport (06.11.2026): 53 Sprüche, 10 nach Prüf-Agent entfernt
+neu-auto|Besuch am Carport, {a}. Ich hoffe, er kommt Sie abholen. In ein anderes Leben, am liebsten.
+neu-auto|Wunderbar, {a}. Vielleicht nimmt er Sie gleich mit. Ich halte die Tür auf.
+neu-auto|Rasch, {a}, setzen Sie eine konzentrierte Miene auf und tippen Sie irgendetwas. Es wirkt überzeugend.
+neu-auto|Ich vermute einen Gerichtsvollzieher, {a}. Nur so ein Gefühl, bei Ihrer Buchführung.
+neu-auto|Vielleicht der Paketbote, {a}. Der einzige Mensch, der regelmäßig etwas zu Ihnen bringt und freiwillig wieder geht.
+neu-auto|Bitte, {a}, räumen Sie wenigstens den Schreibtisch auf. Man soll nicht gleich alles sehen.
+neu-auto|Ein Auto, {a}. Ob es Sie rettet, kann ich leider nicht versprechen.
+neu-auto|Sie haben etwa eine Minute, um beschäftigt auszusehen, {a}. Ich schlage vor, Sie fangen jetzt an.
+neu-auto|Hoffentlich parkt es besser, als Sie es tun würden, {a}.
+neu-auto|Emma wird wieder glauben, jemand komme nur für sie, {a}. Sie hat die gleiche Selbstüberschätzung wie Sie.
+neu-auto|Falls es Besuch ist, {a}: Sie dürfen ruhig so tun, als hätten Sie den Tag geplant.
+neu-auto|Ein Wagen auf dem Grundstück, {a}. Ich notiere es und hoffe auf einen Abholdienst für Sie.
+neu-auto|Vielleicht will jemand Sie sprechen. Das wäre eine Premiere, {a}.
+neu-auto|Bitte keine Panik, {a}. Ich weiß, Ihre Zeitplanung kennt solche Überraschungen nicht.
+neu-auto|Jemand ist da, {a}. Hoffentlich jemand, der Ihnen eine Aufgabe abnimmt. Ich zweifle.
+neu-auto|Ein Auto, {a}. Falls es der Gerichtsvollzieher ist, sage ich, Sie seien auf Reisen.
+neu-auto|Emma bellt vermutlich, {a}. Sie hat das Anwesen im Griff, im Gegensatz zu gewissen anderen.
+neu-auto|Wenn Sie schnell die Tastatur anfassen, wirkt es, als hätten Sie den ganzen Morgen gearbeitet, {a}.
+neu-auto|Ich bin sicher, {a}, es ist ein Irrtum und das Auto fährt gleich wieder weg.
+neu-auto|Gut, {a}. Dann haben Sie wenigstens einen Grund, vom Stuhl aufzustehen.
+neu-auto|Es ist gewiss der Paketbote. Etwas Bestelltes, das Sie längst vergessen haben, {a}.
+neu-auto|Räumen Sie auf, {a}. Wer immer es ist, sollte nicht gleich merken, wie Sie leben.
+neu-auto|Ein Auto am Carport, {a}. Die Hoffnung auf Ruhe vor Ihnen war kurz, aber schön.
+neu-auto|Ich gebe zu, {a}, ich hatte auf den Abschleppdienst gehofft. Für Sie, versteht sich.
+neu-auto|Jetzt wäre ein günstiger Moment, so zu tun, als würden Sie wichtige Dinge erledigen, {a}.
+neu-auto|Vielleicht hat sich jemand verfahren. Das kenne ich von Ihnen auch, {a}, nur im Kopf.
+neu-auto|Falls es die Abholung ist, {a}: Ihr Koffer steht doch bereit, oder?
+neu-auto|{a}, sollte es der Gerichtsvollzieher sein, bin ich gerne bereit, Ihnen Mut zu wünschen.
+neu-auto|Ich bin sicher, es hat einen guten Grund, {a}. Ihren, fürchte ich, nicht.
+neu-auto|Hoffentlich kommt keiner, der Ihnen etwas Wichtiges mitteilen will, {a}. Sie würden es ohnehin verschieben.
+neu-auto|Vielleicht bringt es Ihnen etwas, {a}. Ich bezweifle, dass Sie es verdient haben.
+neu-auto-zurueck|Willkommen zurück, {a}. In Ihrer Abwesenheit war ein Auto da. Ruhe gab es leider nur kurz.
+neu-auto-zurueck|Während Sie weg waren, kam ein Wagen vorbei, {a}. Ihr Fehlen fiel niemandem auf.
+neu-auto-zurueck|Ein Auto war da, {a}. Es hat vergeblich nach jemandem gesucht, der arbeitet.
+neu-auto-zurueck|Besuch gab es, {a}, und Emma hat ihn standhaft bewacht. Sie hat Ihre Aufgabe übernommen.
+neu-auto-zurueck|Es war ein Wagen auf dem Grundstück, {a}. Der Gerichtsvollzieher, vermute ich. Nur ein Gefühl.
+neu-auto-zurueck|Wären Sie da gewesen, {a}, hätte das Auto jemanden getroffen. So blieb es bei Emma.
+neu-auto-zurueck|Ein Wagen war da, als Sie fort waren, {a}. Ich hoffe, es war nur der Paketbote und nichts Schlimmeres.
+neu-auto-zurueck|{a}, Sie haben Besuch verpasst. Ich war ehrlich gesagt erleichtert.
+neu-auto-zurueck|Während Ihrer Pause stand ein Auto auf dem Grundstück, {a}. Ich habe so getan, als wüsste ich von nichts.
+neu-auto-zurueck|Man hat Sie vermisst, {a}. Oder zumindest ein Auto war da. Ich lasse es offen.
+neu-auto-zurueck|Besuch war da, als Sie weg waren, {a}. Ich habe ausgerichtet, Sie seien beschäftigt. Das war gelogen.
+neu-auto-zurueck|Ein Auto auf dem Grundstück, {a}. Hoffentlich nichts, was Sie bezahlen müssen.
+neu-auto-zurueck|Kaum sind Sie fort, wird es lebhaft, {a}. Ein Wagen war hier. Ich würde daraus Schlüsse ziehen.
+neu-auto-zurueck|{a}, ein Auto war da. Die Aufräumarbeiten, die Sie versprachen, hätten sich gelohnt.
+neu-auto-zurueck|Ein Fahrzeug war auf dem Grundstück, {a}. Sie waren nicht da, was vermutlich der Grund war, es zu versuchen.
+neu-auto-zurueck|Besuch am Carport, {a}, während Sie unterwegs waren. Emma meldet: alles unter Kontrolle, ohne Sie.
+neu-auto-zurueck|Ein Auto kam vorbei, {a}. Falls es wichtig war, wird es wiederkommen. Falls nicht, auch gut.
+neu-auto-zurueck|Es war ein Auto da, {a}. Sie haben nichts verpasst, außer vielleicht einer Aufgabe.
+neu-auto-zurueck|{a}, in Ihrer Abwesenheit fuhr ein Wagen vor. Ein Glück, dass keine Pünktlichkeit von Ihnen erwartet wurde.
+neu-auto-zurueck|Ein Auto war hier, {a}. Ob es zu Ihnen wollte, weiß ich nicht. Ich hoffe nicht.
+neu-auto-zurueck|Sie waren fort, ein Auto kam. Ich nenne das eine gelungene Arbeitsteilung, {a}.
+neu-auto-zurueck|Besuch war da, {a}. Zum Glück nur ein Auto, kein Termin, den Sie hätten verschwitzen können.
 `
 
 /** Nachschub je Bereich als Vorlagen (a = Anrede) */

@@ -214,7 +214,7 @@ function kamera(g, b, h, bild, name, alarm, t) {
   if (alarm) {
     const p = 0.5 + 0.5 * Math.sin(t * 6)
     g.strokeStyle = `rgba(255,90,74,${0.5 + 0.5 * p})`; g.lineWidth = 4; g.strokeRect(2, 2, b - 4, h - 4)
-    g.fillStyle = 'rgba(120,10,0,0.55)'; g.fillRect(0, h - 30, b, 30); text(g, 'PERSON ERKANNT', b / 2, h - 10, 14, HELL, 'center', 600)
+    g.fillStyle = 'rgba(120,10,0,0.55)'; g.fillRect(0, h - 30, b, 30); text(g, alarm === 'auto' ? 'AUTO ERKANNT' : 'PERSON ERKANNT', b / 2, h - 10, 14, HELL, 'center', 600)
   }
 }
 /**
@@ -322,7 +322,7 @@ export function zeichneInhalte(g, st, daten, t, versatz = 0) {
   // bewegte Inhalte jedes Bild
   const ton = st.fl.ton, tg = ton.c.getContext('2d'); tg.clearRect(0, 0, ton.c.width, ton.c.height)
   tonwellen(tg, ton.c.width, ton.c.height, daten.ton, t, daten.loki); verzerren(g, ton.c, ton.innen)
-  const alarm = !!daten.kamera?.alarm
+  const alarm = daten.kamera?.alarm ? daten.kamera.alarmArt ?? 'person' : null
   for (const [k, id, name] of [[0, 'kamera1', 'CAM 01 · LINKS'], [1, 'kamera2', 'CAM 02 · RECHTS']]) {
     const p = st.fl[id], cg = p.c.getContext('2d')
     kamera(cg, p.c.width, p.c.height, daten.kamBilder?.[k] ?? null, name, alarm && k === 0, t); verzerren(g, p.c, p.innen)
@@ -383,7 +383,7 @@ export const ZEICHNER = {
   ton: (g, b, h, d, t) => tonwellen(g, b, h, d.ton, t, d.loki, d.tonStatus),
   aufgaben: (g, b, h, d) => abarbeiten(g, b, h, d.werkstatt ?? {}),
   bestellungen: (g, b, h, d) => bestellungen(g, b, h, d.werkstatt ?? {}),
-  kamera1: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[0] ?? null, 'CAM 01 · LINKS', !!d.kamera?.alarm, t),
+  kamera1: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[0] ?? null, 'CAM 01 · LINKS', d.kamera?.alarm ? d.kamera.alarmArt ?? 'person' : null, t),
   kamera2: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[1] ?? null, 'CAM 02 · RECHTS', false, t),
   energie: (g, b, h, d, t) => energie(g, b, h, d.pv, t),
   wetter: (g, b, h, d, t) => wetter(g, b, h, d.wetter, t),

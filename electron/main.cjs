@@ -425,15 +425,17 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('station-entfernen', (e) => (vonFenster(e) ? station.entfernen() : null))
     // Kamera-Wache (04.11.2026): linkes Objektiv, nur Personen (Interview). Meldungen laufen über dieselbe Warteschlange
     // wie die Werkstatt-Neuigkeiten – dort gelten „nur wenn er am PC ist“, nie dazwischenreden, Verpasstes gesammelt.
-    let kameraAlarm = 0
+    let kameraAlarm = 0, kameraAlarmArt = 'person'
     const kamerawache = erstelleKamerawache({
-      abfragen: () => kamera.personErkannt(0),
+      abfragen: () => kamera.aiStand(0),
       protokoll: kameraLog,
       beimEreignis: (e) => {
+        // Person hat Vorrang: kommt im selben Moment ein Auto dazu, bleibt die Aufschrift bei der Person
+        if (e.art === 'person' || kameraAlarmArt !== 'person' || e.zeit - kameraAlarm > 25_000) kameraAlarmArt = e.art
         kameraAlarm = e.zeit
-        kameraLog('Kamera-Wache: Person erkannt (linkes Objektiv)')
+        kameraLog(`Kamera-Wache: ${e.art === 'auto' ? 'Auto' : 'Person'} erkannt (linkes Objektiv)`)
         // Personen höchstens 2 Stunden aufheben (sonst nach einer Nacht lauter „jemand war da“, Prüf-Agent)
-        neuPuffer = [...neuPuffer.filter((x) => x.n.art !== 'person' || e.zeit - x.zeit < 2 * 3600_000), { n: { art: 'person', seite: 'links' }, zeit: e.zeit }].slice(-200)
+        neuPuffer = [...neuPuffer.filter((x) => !['person', 'auto'].includes(x.n.art) || e.zeit - x.zeit < 2 * 3600_000), { n: { art: e.art, seite: 'links' }, zeit: e.zeit }].slice(-200)
       },
     })
     const wacheAbgleichen = () => { if (kamera.status().eingerichtet) kamerawache.starten(); else kamerawache.stoppen() }
@@ -466,7 +468,7 @@ if (!app.requestSingleInstanceLock()) {
     const hudDatenJetzt = () => {
       const l = werkstatt.lage()
       const k = kamera.status()
-      return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null, gross: kameraGross() } : null, loki: { ...trayZustand, whatsapp: whatsappNeu } }
+      return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null, alarmArt: kameraAlarmArt, gross: kameraGross() } : null, loki: { ...trayZustand, whatsapp: whatsappNeu } }
     }
     ipcMain.handle('sequenz-hud', (e) => (sequenzFenster && !sequenzFenster.isDestroyed() && e.sender === sequenzFenster.webContents ? hudDatenJetzt() : null))
     const hudServer = erstelleHudServer({
