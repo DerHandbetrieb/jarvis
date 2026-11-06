@@ -97,8 +97,8 @@ export function ansage(liste: Neuigkeit[], o: { anrede: string; humor: boolean; 
     else if (knap.length > 1) s.push(satz(`${gross(zahl(knap.length))} Artikel sind jetzt knapp, darunter ${knap[0].name}${knap[0].variante ? ` ${knap[0].variante}` : ''}`))
     if (aufg.length === 1) s.push(satz(`Neue Aufgabe: ${sprechbar(aufg[0].titel)}`))
     else if (aufg.length > 1) s.push(satz(`${gross(zahl(aufg.length))} neue Aufgaben, darunter: ${aufzaehlen(aufg.slice(0, 2).map((a) => sprechbar(a.titel)))}`))
-    if (frei.length === 1) s.push(satz(`Eine neue Werbe-Freigabe wartet unter Abarbeiten auf Sie: ${sprechbar(frei[0].titel)}`))
-    else if (frei.length > 1) s.push(`${gross(zahl(frei.length))} neue Werbe-Freigaben warten unter Abarbeiten auf Sie.`)
+    if (frei.length === 1) s.push(satz(`Eine neue Freigabe wartet unter Abarbeiten auf Sie: ${sprechbar(frei[0].titel)}`))
+    else if (frei.length > 1) s.push(`${gross(zahl(frei.length))} neue Freigaben warten unter Abarbeiten auf Sie.`)
   }
   if (o.humor && o.spitze) {
     const nurKamera = pers.length === liste.length

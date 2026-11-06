@@ -17,6 +17,7 @@ const glatt = (a, b, x) => { const v = Math.max(0, Math.min(1, (x - a) / (b - a)
 export const frostStufe = (grad) => Math.max(0, Math.min(1, -grad / 8)) ** 1.6
 export const frostFaktor = (grad) => 0.12 + 1.28 * frostStufe(grad)
 /** feste Zufallsanteile eines Szenenpunkts (einmal rechnen; ändert sich nur der Faktor, geht das Neuzeichnen schnell) */
+const FELDER = 6
 function punkt(x, y) {
   const ecke = (cx, cy, st) => st * Math.exp(-Math.hypot(x - cx, y - cy) / 340)
   const q = (base, t) => base * (0.6 + 0.9 * fbm(t / 420, base))
@@ -24,12 +25,13 @@ function punkt(x, y) {
   return [(fbm(x / 170, y / 170) - 0.5) * 110, q(130, x) * uhrFrei, q(150, x + 999), q(200, y + 333), q(200, y + 777),
     ecke(0, 0, 340) + ecke(0, H, 170) + ecke(B, 0, 70) + ecke(B, H, 260)] // jede Ecke anders (Wunsch Auftraggeber 06.11.2026)
 }
-function dichteAus(x, y, [rausch, q0, q1, q2, q3, ecken], f) {
+function dichteAus(x, y, w, o, f) {
+  const rausch = w[o], q0 = w[o + 1], q1 = w[o + 2], q2 = w[o + 3], q3 = w[o + 4], ecken = w[o + 5]
   const r = rausch * Math.min(1, f), kante = (d, q) => Math.max(0, 1 - glatt(0.1, 1, (d + r) / ((q + ecken) * f)))
   return 1 - (1 - kante(y, q0)) * (1 - kante(H - y, q1)) * (1 - kante(x, q2)) * (1 - kante(B - x, q3))
 }
 /** Frost-Dichte 0..1 an einem Szenenpunkt (x, y in 5760×1080): am Rand dicht, nach innen unregelmäßig auslaufend. f: Faktor der Tiefe */
-export function frostDichte(x, y, f = 1) { return dichteAus(x, y, punkt(x, y), f) }
+export function frostDichte(x, y, f = 1) { return dichteAus(x, y, punkt(x, y), 0, f) }
 
 const laden = (u) => new Promise((ok, f) => { const i = new Image(); i.onload = () => ok(i); i.onerror = f; i.src = u })
 // Eisblumen: [x, y, Größe, Drehung in Grad, Bild, frei]. Die Bilder wachsen von ihrer linken unteren Ecke nach rechts oben.
@@ -110,8 +112,14 @@ export function erstelleFrost(huelle, versatz = 0, basis = './ebenen/') {
   const S = 4
   const m = document.createElement('canvas'); m.width = B / S; m.height = H / S
   const mg = m.getContext('2d', { willReadFrequently: true })
-  const feld = []
-  for (let y = 0; y < m.height; y++) for (let x = 0; x < m.width; x++) feld.push(punkt(x * S, y * S))
+  // stückweise rechnen, sonst steht das Wallpaper beim ersten Frost gut zwei Sekunden still
+  const feld = new Float32Array(m.width * m.height * FELDER)
+  const feldBauen = async () => {
+    for (let y = 0, o = 0; y < m.height; y++) {
+      for (let x = 0; x < m.width; x++, o += FELDER) feld.set(punkt(x * S, y * S), o)
+      if (y % 8 === 7) await new Promise((w) => setTimeout(w))
+    }
+  }
   const tex = document.createElement('canvas'); tex.width = B / 2; tex.height = H / 2
   const flaeche = document.createElement('div'); fr.flaeche = flaeche
   Object.assign(flaeche.style, {
@@ -126,12 +134,12 @@ export function erstelleFrost(huelle, versatz = 0, basis = './ebenen/') {
   huelle.appendChild(flaeche)
   const passen = () => { const f = (huelle.clientHeight || innerHeight) / H; flaeche.style.transform = `scale(${f}) translateX(${-versatz}px)` }
   passen(); addEventListener('resize', passen)
-  schleierBauen(tex, basis).then((blumen) => {
+  Promise.all([schleierBauen(tex, basis), feldBauen()]).then(([blumen]) => {
     fr.zeichnen = (grad) => {
       const f = frostFaktor(grad), stufe = frostStufe(grad)
       blumenZeichnen(lage, blumen, stufe)
       const md = mg.createImageData(m.width, m.height)
-      for (let y = 0, i = 0; y < m.height; y++) for (let x = 0; x < m.width; x++, i++) { md.data[i * 4] = md.data[i * 4 + 1] = md.data[i * 4 + 2] = 255; md.data[i * 4 + 3] = Math.round(dichteAus(x * S, y * S, feld[i], f) * 255) }
+      for (let y = 0, i = 0; y < m.height; y++) for (let x = 0; x < m.width; x++, i++) { md.data[i * 4] = md.data[i * 4 + 1] = md.data[i * 4 + 2] = 255; md.data[i * 4 + 3] = Math.round(dichteAus(x * S, y * S, feld, i * FELDER, f) * 255) }
       mg.globalCompositeOperation = 'source-over'; mg.putImageData(md, 0, 0)
       // die Unschärfe auch unter den Eisblumen: Blumen weich in die Maske übernehmen
       mg.globalCompositeOperation = 'lighter'; mg.filter = 'blur(3px)'; mg.drawImage(lage, 0, 0, m.width, m.height); mg.filter = 'none'

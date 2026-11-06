@@ -118,7 +118,7 @@ export function befehl(rest: string): Befehl {
   // Kamera groß im Wallpaper: „Loki, zeig den Carport“, „Kamera weg“ (links = Objektiv 1, rechts = Objektiv 2)
   if (/\b(kamera|carport|bild)\b.*\b(weg|klein|schliessen)\b|\b(mach|schliess|schliesse)\b.*\b(kamera|carport)\b.*\b(zu|aus|klein|weg)\b/.test(t)) return { art: 'kamera', kanal: null }
   // tolerant gegen Verhörer kurzer Befehle (gespraech.log 06.11.2026: „Zeuge Carport“, „Zeigekamera, Carport“); der Name allein reicht
-  if (/\b(zeig\w*|seig\w*|zeuge\w*|zeich\w*)\b.*\b(kamera|carport|einfahrt|hof)\b|\bzeig\w*kamera\b|\b(kamera|carport)\b.*\bgross\b|\b(mach|hol)\b.*\b(kamera|carport)\b.*\b(gross|her)\b|^((die|den|das|zur|zum) )?(kamera|carport)( (kamera|carport|links|rechts|bitte))*$/.test(t)) return { art: 'kamera', kanal: /\b(rechts|rechte|rechten|zweite|zwei)\b/.test(t) ? 1 : 0 }
+  if (/\b(zeig\w*|seig\w*|zeuge\w*|zeich(?!n)\w*)\b.*\b(kamera|carport|einfahrt|hof)\b|\bzeig\w*kamera\b|\b(kamera|carport)\b.*\bgross\b|\b(mach|hol)\b.*\b(kamera|carport)\b.*\b(gross|her)\b|^((die|den|das|zur|zum) )?(kamera|carport)( (kamera|carport|links|rechts|bitte))*$/.test(t)) return { art: 'kamera', kanal: /\b(rechts|rechte|rechten|zweite|zwei)\b/.test(t) ? 1 : 0 }
   if (/\b(oeffne|oeffnet|zeig|zeige|zeigt|geh zu|gehe zu|wechsel zu|wechsle zu|oeffnen)\b/.test(t)) {
     const s = SEITEN.find((x) => x.muster.test(t))
     if (s) return { art: 'oeffnen', pfad: s.pfad, name: s.name }

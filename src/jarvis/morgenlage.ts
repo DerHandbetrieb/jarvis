@@ -248,7 +248,7 @@ export function morgenLage(e: LageEingabe): string[] {
 
   if (b.has('freigaben') && e.freigaben) {
     kapitel()
-    s.push(`Zu den Freigaben: Es ${mehrzahl(e.freigaben, 'wartet', 'warten')} ${zahl(e.freigaben, false)} ${mehrzahl(e.freigaben, 'Werbe-Vorschlag', 'Werbe-Vorschläge')} auf Sie.`)
+    s.push(`Zu den Freigaben: Es ${mehrzahl(e.freigaben, 'wartet', 'warten')} ${zahl(e.freigaben, false)} ${mehrzahl(e.freigaben, 'Vorschlag', 'Vorschläge')} auf Sie.`)
     hieb(SPITZEN.freigaben)
   }
 

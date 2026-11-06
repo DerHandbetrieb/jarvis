@@ -232,7 +232,7 @@ function energie(g, b, h, pv, t) {
 /** Wetter (Wahl Auftraggeber 05.11.2026: Entwurf B) – Temperatur groß mit Himmel-Symbol, darunter Feuchte, Wind, Böen,
  *  Regen als Symbol-Reihe; Werte aus der eigenen Station, Himmel von Open-Meteo, nachts Mond statt Sonne */
 function wetter(g, b, h, w, t = 0) {
-  if (!w || !Number.isFinite(w.grad)) { kopf(g, 'WETTER · ÖHRINGEN', '', b); text(g, 'Keine Wetterdaten', 16, 70, 14, BLASS); return }
+  if (!w || !Number.isFinite(w.grad)) { kopf(g, 'WETTER · OBERSONTHEIM', '', b); text(g, 'Keine Wetterdaten', 16, 70, 14, BLASS); return }
   WETTER_ENTWURF.b(g, b, h, { ...w, station: w.station ?? {} }, t)
 }
 const SYSTEM_SYMBOL = { STATUS: 'stimme', MIKROFON: 'mikrofon', WERKSTATT: 'zahnrad', KAMERA: 'kamera', SELBSTTEST: 'schild', WHATSAPP: 'whatsapp' }

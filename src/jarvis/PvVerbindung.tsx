@@ -8,7 +8,7 @@ const watt = (w: number | null | undefined) => (w == null ? '–' : Math.abs(w) 
 export default function PvVerbindung() {
   const p = pvBruecke()
   const [s, setS] = useState<PvStatus | null>(null)
-  const [f, setF] = useState({ adresse: '192.168.178.38', passwort: '' })
+  const [f, setF] = useState({ adresse: '', passwort: '' })
   const [laeuft, setLaeuft] = useState(false)
   useEffect(() => { void p?.status().then(setS) }, [p])
   useEffect(() => {

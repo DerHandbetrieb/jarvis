@@ -81,7 +81,7 @@ function erstellePv({ speicher, holen = fetch, protokoll = console.error, jetzt 
     /** Adresse + Passwort eintragen und sofort testen; gespeichert wird nur bei Erfolg */
     async einrichten({ adresse, passwort }) {
       adresse = String(adresse ?? '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '')
-      if (!privat(adresse)) return { ...this.status(), fehler: 'Bitte eine Adresse aus dem Heimnetz eintragen (z. B. 192.168.178.38).' }
+      if (!privat(adresse)) return { ...this.status(), fehler: 'Bitte eine Adresse aus dem Heimnetz eintragen (z. B. 192.168.0.10).' }
       if (!passwort) return { ...this.status(), fehler: 'Bitte das Passwort eintragen.' }
       try {
         const w = await abfrage({ adresse, passwort })

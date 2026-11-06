@@ -54,4 +54,16 @@ describe('Werkstatt-Antworten nur aus echten Daten', () => {
     expect(fragenVerbinden('Bestellungen gestern', 'und heute')).not.toContain('gestern')
   })
   it('Thema außerhalb der Daten: ehrlich', () => { expect(text('Was steht auf der Rechnung?')).toContain('steht nicht in den Daten') })
+  it('Wortteile sind keine Werkstattfrage', () => {
+    for (const f of ['Wie viele Sekunden sind das?', 'Magst du Schlager?', 'Wie lang ist der Amazonas?', 'Was ist ein Bestandteil?', 'Wie war der Workshop?']) expect(istWerkstattFrage(f)).toBe(false)
+    for (const f of ['Was ist im Lager?', 'Was macht Amazon?', 'Wie läuft der Shop?']) expect(istWerkstattFrage(f)).toBe(true)
+  })
+  it('fragt man nach einem Kanal, kommt nur dieser', () => {
+    expect(text('Umsatz gestern auf Etsy?')).toContain('Gestern bei Etsy: zwei Bestellungen')
+    expect(text('Bestellungen gestern bei Amazon?')).toContain('Gestern gab es bei Amazon keine Bestellung')
+  })
+  it('Lagerfrage mit dem Wort Artikel bleibt beim Lager', () => {
+    const t = text('Welche Artikel sind im Lager knapp?')
+    expect(t).toContain('Knapp im Lager'); expect(t).not.toContain('Bestellung')
+  })
 })

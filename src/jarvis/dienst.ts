@@ -591,9 +591,10 @@ export async function rechnerStart() {
     setzeJarvis({ letzteBegruessung: nr })
     if (!await sprechen([sequenzGruss(nr, e.anrede, e.humor)])) return
     if (jarvisEinstellungen().zuletztLage !== heute()) {
+      const lageBeginn = Date.now()
       await morgenLageVortragen()
-      // Was bis hierher aufgelaufen ist, stand in der Morgen-Lage – nur eine Person vor der Kamera wird noch gemeldet
-      if (jarvisEinstellungen().zuletztLage === heute()) neuSchlange = neuSchlange.filter((x) => x.n.art === 'person')
+      // Was vor der Lage aufgelaufen ist, stand in ihr – eine Person und alles, was währenddessen neu kam, wird noch gemeldet
+      if (jarvisEinstellungen().zuletztLage === heute()) neuSchlange = neuSchlange.filter((x) => x.n.art === 'person' || x.zeit >= lageBeginn)
     }
   } finally { startphase = false }
 }
