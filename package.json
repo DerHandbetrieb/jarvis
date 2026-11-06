@@ -2,7 +2,7 @@
   "name": "jarvis",
   "productName": "Jarvis",
   "private": true,
-  "version": "0.18.0",
+  "version": "0.19.1",
   "description": "Jarvis – lokaler Sprachassistent für den PC (später Hausassistent), Der Handbetrieb (Bloßfeld und Jungk GbR)",
   "author": "Bloßfeld und Jungk GbR",
   "type": "module",
@@ -37,7 +37,7 @@
       "perMachine": false,
       "createDesktopShortcut": true,
       "shortcutName": "Jarvis",
-      "runAfterFinish": true,
+      "runAfterFinish": false,
       "deleteAppDataOnUninstall": false,
       "include": "build/installer.nsh"
     },

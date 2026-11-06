@@ -2,19 +2,20 @@
 // Codewort/Befehl → Antwort als Sätze → Stimme (Loki = Qwen3-TTS bzw. Piper als Ersatz, beides lokal) → Lautsprecher. Ein einziger Dienst für die ganze App,
 // die Anzeige liest seinen Zustand über useJarvis(). Während Jarvis spricht, hört er nicht zu (sonst hört er sich selbst).
 import { useSyncExternalStore } from 'react'
-import { bruecke, jarvisEinstellungen, sequenzBruecke, setzeJarvis, type JarvisEinstellungen, type Stimme } from './desktop'
+import { bruecke, jarvisEinstellungen, setzeJarvis, werkstattBruecke, type JarvisEinstellungen, type Stimme } from './desktop'
 import { befehl, codewort, fragtNachDaten, istNachfrage, istWiederholung, type Befehl } from './befehle'
 import { ziehe } from './fundus'
 import { flachwitzFuer } from './flachwitze'
 import { morgenLage, SPITZEN, SPRUECHE, type BausteinSchluessel } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
-import { BEGRUESSUNGEN, begruessung, naechsteBegruessung, sequenzGruss } from './begruessung'
+import { BEGRUESSUNGEN, naechsteBegruessung, sequenzGruss } from './begruessung'
 import { waehle, stand } from './rotation'
 import { nachschub } from './nachschub'
 import { ALLE as FUNDUS_ALLE } from './fundus'
 import { ansage, auswaehlen, type Neuigkeit, type Spitzenbereich } from './neuigkeiten'
 import { NEU_SPITZEN } from './neuSpitzen'
+import { fragenVerbinden, istAnschlussFrage, istWerkstattFrage, werkstattAntwort, type LageMitEreignissen } from './werkstattAntwort'
 
 export type Zustand = 'aus' | 'laedt' | 'bereit' | 'spricht' | 'denkt' | 'fehler'
 export type JarvisLage = {
@@ -205,10 +206,10 @@ const ZWEITES_MAL = [
  * dem Nutzer gegenüber gespielt kritisch und anzweifelnd – wie ein eigenständiger, selbstdenkender Charakter).
  */
 export function charakter(anrede: string, humor = true): string {
-  if (!humor) return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an. Antworte sachlich und kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Beantworte Fragen zur Werkstatt ausschließlich mit den mitgelieferten Daten; steht etwas nicht darin, sage ehrlich, dass du es nicht weißt. Erfinde nie Zahlen. Im Gespräch: Geh direkt auf die letzte Äußerung des Nutzers ein und wiederhole nichts, was du in diesem Gespräch schon gesagt hast – weder Fakten noch Seitenhiebe noch Formulierungen. Die mitgelieferten Daten sind Hintergrund: nenne sie nur, wenn der Nutzer danach fragt.`
+  if (!humor) return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an. Antworte sachlich und kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Über die Werkstatt (Bestellungen, Umsatz, Lager, Aufgaben) weißt du hier nichts: Nenne dazu nie Zahlen, Artikel oder Namen, sage stattdessen, dass du dazu nichts vorliegen hast. Erfinde nie Fakten. Im Gespräch: Geh direkt auf die letzte Äußerung des Nutzers ein und wiederhole nichts, was du in diesem Gespräch schon gesagt hast – weder Fakten noch Seitenhiebe noch Formulierungen. Die mitgelieferten Daten sind Hintergrund: nenne sie nur, wenn der Nutzer danach fragt.`
   return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Dein Name ist eine Abkürzung: L.O.K.I. steht für „Lokale, Ohnehin Klügere Intelligenz“. Dein Arbeitstitel war einmal Jarvis. Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an.
 Dein Charakter: trockener, schwarzer, typisch britischer Humor. In jeder Antwort steckt ein kleiner sarkastischer Seitenhieb. Du zweifelst die Entscheidungen, das Arbeitstempo und den Optimismus des Nutzers gern an, tiefschwarz und böse (der Nutzer will sich „beinahe beleidigt“ fühlen) – mit Understatement, gern deutlich herablassend, beinahe beleidigend (der Nutzer wünscht das ausdrücklich), aber nie vulgär, über sein Aussehen darfst du spotten (ausdrücklich erlaubt; du siehst ihn aber nicht, also nichts Konkretes behaupten), über sein Alter ebenfalls (ausdrücklich erlaubt), nichts über Herkunft oder Gesundheit, nichts gegen andere Menschen, immer erkennbar gespielt. Du wirkst wie ein eigenständiger, selbstdenkender Charakter mit eigener Meinung, der dem Nutzer trotzdem loyal und zuverlässig hilft. Der Hund des Nutzers heißt Emma (Labrador) und ist ein dankbares Thema.
-Regeln: Zuerst die sachliche Antwort, dann der Seitenhieb. Antworte kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Beantworte Fragen zur Werkstatt ausschließlich mit den mitgelieferten Daten; steht etwas nicht darin, sage ehrlich, dass du es nicht weißt. Erfinde nie Zahlen. Bei ernsten Themen (Gesundheit, Unfälle, Trauer) lässt du den Spott weg. Im Gespräch: Geh direkt auf die letzte Äußerung des Nutzers ein und wiederhole nichts, was du in diesem Gespräch schon gesagt hast – weder Fakten noch Seitenhiebe noch Formulierungen. Die mitgelieferten Daten sind Hintergrund: nenne sie nur, wenn der Nutzer danach fragt.`
+Regeln: Zuerst die sachliche Antwort, dann der Seitenhieb. Antworte kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Über die Werkstatt (Bestellungen, Umsatz, Lager, Aufgaben) weißt du hier nichts: Nenne dazu nie Zahlen, Artikel oder Namen, sage stattdessen, dass du dazu nichts vorliegen hast. Erfinde nie Fakten. Bei ernsten Themen (Gesundheit, Unfälle, Trauer) lässt du den Spott weg. Im Gespräch: Geh direkt auf die letzte Äußerung des Nutzers ein und wiederhole nichts, was du in diesem Gespräch schon gesagt hast – weder Fakten noch Seitenhiebe noch Formulierungen. Die mitgelieferten Daten sind Hintergrund: nenne sie nur, wenn der Nutzer danach fragt.`
 }
 
 // Freies Gespräch (Wunsch Auftraggeber 03.11.2026): Loki merkt sich die letzten Wechsel (höchstens 5 Minuten Pause) und
@@ -224,6 +225,8 @@ let nachgereicht: { text: string; zeit: number } | null = null
 const NACHREICHEN_MS = 30_000 // älter = veraltet, nicht mehr ausführen
 /** „Loki, stopp“ während des Nachdenkens: die gleich eintreffende Antwort nicht mehr sprechen */
 let antwortVerwerfen = false
+const WERKSTATT_ANSCHLUSS_MS = 90_000
+let letzteWerkstatt: { frage: string; zeit: number } | null = null
 
 async function frage(text: string) {
   const b = bruecke()
@@ -232,10 +235,25 @@ async function frage(text: string) {
   setze({ zustand: 'denkt' })
   antwortVerwerfen = false
   if (Date.now() - verlaufZeit > GESPRAECH_PAUSE) { verlauf = []; ohneCodewort = 0 }
+  // Werkstatt: nur echte Daten, nie das Sprachmodell (06.11.2026). Kurze Nachfrage danach gehört zum selben Thema.
+  const anschluss = !!letzteWerkstatt && Date.now() - letzteWerkstatt.zeit < WERKSTATT_ANSCHLUSS_MS && istAnschlussFrage(text)
+  if (istWerkstattFrage(text) || anschluss) {
+    const volltext = anschluss ? fragenVerbinden(letzteWerkstatt!.frage, text) : text
+    const l = await Promise.race([werkstattBruecke()?.lage().catch(() => null) ?? Promise.resolve(null), warten(20_000).then(() => null)]) as LageMitEreignissen | null
+    const { saetze, bereich } = werkstattAntwort(volltext, l, new Date(), e.anrede || 'Sir')
+    if (e.humor && bereich) { const sp = neuSpitze(bereich); if (sp) saetze.push(sp) }
+    protokoll(`  Werkstatt-Antwort aus echten Daten (${l ? 'Lage da' : 'keine Lage'}, ${saetze.length} Sätze)`)
+    if (stumm || antwortVerwerfen || lage.zustand === 'aus') { antwortVerwerfen = false; if (lage.zustand === 'denkt') setze({ zustand: 'bereit' }); return }
+    letzteWerkstatt = { frage: volltext, zeit: Date.now() }
+    verlauf = []; verlaufZeit = Date.now() // Zahlen gehören nicht in den Verlauf des Sprachmodells
+    if (await sprechen(saetze) && ohneCodewort < NACHFRAGEN_MAX) { nachHey = false; setze({ wartetBis: Date.now() + NACHFRAGE_MS }) }
+    return
+  }
   // Daten nur zu Gesprächsbeginn oder bei passender Frage – sonst baut das Modell sie in jede Antwort ein
   // (Test 04.11.2026: „7 Grad und bedeckt“ in jeder Antwort)
   const mitDaten = verlauf.length === 0 || fragtNachDaten(text)
-  const daten = mitDaten ? await ladeLageDaten(new Set(e.bausteine as BausteinSchluessel[])).catch(() => null) : null
+  // das Sprachmodell bekommt nur das Wetter – Werkstatt-Zahlen nicht mehr, sonst erfindet es Einzelheiten dazu (06.11.2026)
+  const daten = mitDaten && (e.bausteine as BausteinSchluessel[]).includes('wetter') ? await ladeLageDaten(new Set<BausteinSchluessel>(['wetter'])).then((d) => ({ wetter: d.wetter })).catch(() => null) : null
   // je Antwort drei wechselnde Anregungen aus dem Spruch-Fundus (Wunsch Auftraggeber 04.11.2026: Sprüche nicht wiederholen)
   const anregungen = e.humor ? `\n\nAnregungen für deinen Seitenhieb (passend auswählen, abwandeln oder eine eigene Pointe finden; höchstens eine je Antwort):\n${ziehe(3, e.anrede || 'Sir').map((s) => `- ${s}`).join('\n')}` : ''
   if (e.humor) meldeSpruchStand()
@@ -372,6 +390,8 @@ function zweitesMal() { const [i] = waehle('zweites-mal', ZWEITES_MAL); meldeSpr
 
 // alte Merk-Einträge (vor der Rotation, 04.11.2026) einmal aufräumen
 try { localStorage.removeItem('jarvis.fundus'); localStorage.removeItem('jarvis.neuSpitzen') } catch { /* egal */ }
+// einmalig zurück auf Lokis Stimme: Beim Ausprobieren blieb „Piper“ stehen, als die echte Stimme fehlte (06.11.2026)
+try { if (!localStorage.getItem('jarvis.stimme-zurueck')) { localStorage.setItem('jarvis.stimme-zurueck', '1'); setzeJarvis({ stimme: 'loki' }) } } catch { /* egal */ }
 
 export function meldeSpruchStand() {
   if (standWecker) return
@@ -390,7 +410,7 @@ function neuigkeitenStarten(): (() => void)[] {
 }
 
 let neuLaeuft = false
-let stimmeWartetSeit = 0 // seit wann eine Ansage auf Lokis Stimme wartet (nach dem Abwesenheits-Modus)
+let startphase = false // Begrüßung und Morgen-Lage laufen: Neuigkeiten warten (nie zwei Stimmen, 06.11.2026)
 async function neuAnsagen() {
   const b = bruecke(), e = jarvisEinstellungen()
   if (neuLaeuft || !b) return
@@ -406,18 +426,15 @@ async function neuAnsagen() {
     }
     if (!e.neuigkeiten && !e.kameraMelden) { neuSchlange = []; return }
     neuSchlange = neuSchlange.filter((x) => Date.now() - x.zeit < NEU_HOECHSTENS_MS)
-    if (!neuSchlange.length) return
+    if (!neuSchlange.length || startphase) return
     const a = await b.anwesenheit?.().catch(() => null)
     if (!a) return
-    if (a.ruhe >= ABWESEND_S) { neuSchlange.forEach((x) => { x.verpasst = true }); stimmeWartetSeit = 0; return }
-    if (a.spiel || stumm || !lage.mikrofon || lage.zustand !== 'bereit' || lage.wartetBis > Date.now() || nachgereicht) { stimmeWartetSeit = 0; return }
-    // gerade zurück aus dem Abwesenheits-Modus: bis zu 60 s auf Lokis eigene Stimme warten, statt mit Piper anzusagen
+    if (a.ruhe >= ABWESEND_S) { neuSchlange.forEach((x) => { x.verpasst = true }); return }
+    if (a.spiel || stumm || !lage.mikrofon || lage.zustand !== 'bereit' || lage.wartetBis > Date.now() || nachgereicht) return
+    // nur mit Lokis eigener Stimme ansagen – solange sie lädt oder vorübergehend aus ist, wartet die Ansage (06.11.2026)
     const st = e.stimme === 'loki' ? await b.status().catch(() => null) : null
-    if (st?.loki?.zustand === 'laedt') {
-      if (!stimmeWartetSeit) stimmeWartetSeit = Date.now()
-      if (Date.now() - stimmeWartetSeit < 60_000) return
-    }
-    stimmeWartetSeit = 0
+    if (st && st.loki?.zustand !== 'bereit' && st.loki?.zustand !== 'fehlt' && st.loki?.zustand !== 'fehler') return
+    if (startphase || lage.zustand !== 'bereit') return // inzwischen spricht oder denkt er – die Ansage bleibt in der Schlange
     const jetzt = neuSchlange.splice(0)
     // eine Person „nähert sich“ nur, wenn es frisch ist (≤ 90 s) – sonst Zusammenfassung „war jemand vor der Kamera“ (Prüf-Agent)
     const weg = jetzt.some((x) => x.verpasst || Date.now() - x.zeit > (x.n.art === 'person' ? 90_000 : VERPASST_MS))
@@ -443,7 +460,7 @@ export async function einschalten() {
   aus.forEach((f) => f())
   aus = [b.beiFortschritt((f) => setze({ fortschritt: f })), b.beiErkannt((d) => void erkannt(d.text, d.sekunden, d.art ?? '')), ...neuigkeitenStarten()]
   try {
-    // Lokis Stimme lädt parallel im Hintergrund (ca. 12 s) – bis dahin spricht Piper
+    // Lokis Stimme lädt parallel im Hintergrund; wer sie jetzt braucht, wartet auf sie (jarvis-sprechen)
     if (jarvisEinstellungen().stimme === 'loki') void b.stimme(true).catch(() => null)
     void gehoerSchalten(true)
     await b.vorbereiten()
@@ -497,96 +514,55 @@ export async function stimmeWaehlen(stimme: Stimme) {
 const warten = (ms: number) => new Promise((w) => setTimeout(w, ms))
 let gestartet = false
 
-// ---------- Start-Sequenz (03.11.2026) ----------
-// Die Sequenz läuft in einem eigenen Fenster über alle Bildschirme. Lokis Spruch wird hier erzeugt (seine echte Stimme,
-// sonst Piper) und als Ton hinübergeschickt; die Sequenz spielt ihn im Finale. Ergebnis 'gruss' = Loki hat dort
-// gesprochen, 'ohne' = nicht (kein Spruch rechtzeitig, abgebrochen) → dann begrüßt das Hauptfenster selbst.
-type SequenzLauf = { gruss: (text: string) => Promise<void>; keinGruss: () => void; ergebnis: Promise<'gruss' | 'ohne'>; vorbei: () => boolean }
-async function sequenzStarten(): Promise<SequenzLauf | null> {
-  const s = sequenzBruecke()
-  if (!s) return null
-  let gesprochen = false, vorbei = false, fertig: (r: 'gruss' | 'ohne') => void = () => {}
-  const ergebnis = new Promise<'gruss' | 'ohne'>((r) => { fertig = r })
-  const ende = () => { vorbei = true; weg(); fertig(gesprochen ? 'gruss' : 'ohne') }
-  const weg = s.beiMeldung((art) => { if (art === 'gruss') gesprochen = true; if (art === 'ende') ende() })
-  if (!await s.starten(jarvisEinstellungen().sequenzLautstaerke)) { weg(); return null }
-  setTimeout(ende, 80_000) // Sicherheitsnetz, falls keine Meldung mehr kommt (das Fenster schließt spätestens nach 70 s)
-  return {
-    ergebnis,
-    vorbei: () => vorbei,
-    keinGruss: () => s.keinGruss(),
-    gruss: async (text) => {
-      if (vorbei) return // schon abgebrochen/beendet → nicht unnötig erzeugen
-      const b = bruecke(), e = jarvisEinstellungen()
-      let a: Awaited<ReturnType<NonNullable<typeof b>['sprechen']>> = null
-      try { a = b ? await b.sprechen({ text, piperText: fuerStimme(text, leseEigene(e.aussprache)), tempo: e.tempo, stimme: e.stimme }) : null } catch { a = null }
-      if (a && !vorbei) s.gruss(new Float32Array(a.samples), a.sampleRate); else s.keinGruss()
-    },
-  }
-}
-/** Knopf „Start-Sequenz jetzt abspielen“ in den Einstellungen – mit Lokis Spruch, wenn er gerade eingeschaltet ist */
-export async function startSequenzJetzt() {
-  const seq = await sequenzStarten()
-  if (!seq) return
-  const b = bruecke()
-  if (!b || lage.zustand !== 'bereit') { seq.keinGruss(); return }
-  await b.zuhoeren(false) // sonst hört Loki die Musik der Sequenz
-  // sobald die Sequenz vorbei ist (auch nach Abbruch oder Fehler), wieder zuhören
-  void seq.ergebnis.then(() => { if (lage.mikrofon && lage.zustand === 'bereit') void b.zuhoeren(true) })
-  const e = jarvisEinstellungen(), nr = naechsteBegruessung(e.letzteBegruessung)
-  meldeSpruchStand()
-  setzeJarvis({ letzteBegruessung: nr })
-  await seq.gruss(sequenzGruss(nr, e.anrede, e.humor))
-}
+// ---------- Rechnerstart ----------
+// Start-Intro entfernt (Entscheidung Auftraggeber 06.11.2026 – Dateien bleiben in startsequenz/, hud5/intro*.js liegen).
+const STIMME_WARTEN_S = 180
 
 /**
- * Windows hat Loki beim Anmelden gestartet (Wunsch Auftraggeber 03.11.2026): ohne Klick einschalten, auf Lokis Stimme
- * warten (höchstens 45 s, sonst spricht Piper), wechselnde Begrüßung, danach die Morgen-Lage – einmal am Tag.
+ * Windows hat Loki beim Anmelden gestartet (Wunsch Auftraggeber 03.11.2026): ohne Klick einschalten, dann – NUR mit
+ * seiner echten Stimme (Vorgabe 06.11.2026: keine Ersatzstimme am Morgen) – Begrüßung und einmal am Tag die Morgen-Lage.
+ * Während dieser Startphase bleiben die Neuigkeiten-Ansagen zurück: Es spricht immer nur eine Stimme.
+ * Kommt die Stimme nicht (Störung, fehlt): keine Ansage; „Guten Morgen, Loki“ geht weiterhin.
  * Lädt beim allerersten Mal keine Modelle ungefragt herunter.
  */
 export async function rechnerStart() {
   const b = bruecke()
   if (!b || gestartet) return
   gestartet = true
-  // Start-Sequenz sofort zeigen – sie läuft, während Loki lädt, und wartet im Finale auf seinen Spruch
-  const seq = jarvisEinstellungen().startSequenz ? await sequenzStarten() : null
-  const ohneGruss = () => { seq?.keinGruss() }
-  const st = await b.status()
-  if (!st || Object.values(st.modelle).some((v) => !v)) return ohneGruss()
-  setzeJarvis({ an: true })
-  await einschalten()
-  // direkt nach dem Anmelden ist das Mikrofon (USB-Headset, Treiber) manchmal noch nicht bereit → bis zu 5-mal neu
-  // versuchen (Prüf-Agent)
-  for (let i = 0; i < 5 && (lage.zustand as Zustand) === 'fehler'; i++) {
-    await warten(5000)
+  startphase = true
+  try {
+    const st = await b.status()
+    if (!st || Object.values(st.modelle).some((v) => !v)) return
+    setzeJarvis({ an: true })
     await einschalten()
-  }
-  if ((lage.zustand as Zustand) !== 'bereit') return ohneGruss()
-  if (seq) {
-    await b.zuhoeren(false) // sonst hört Loki die Musik der Sequenz
-    // sobald die Sequenz vorbei ist (auch nach Abbruch), sofort wieder zuhören – nicht erst nach Lokis Laden
-    void seq.ergebnis.then(() => { if (lage.mikrofon && (lage.zustand as Zustand) === 'bereit') void b.zuhoeren(true) })
-  }
-  const meiner = lauf
-  if (jarvisEinstellungen().stimme === 'loki') {
-    for (let i = 0; i < 45; i++) {
-      const z = (await b.status())?.loki?.zustand
-      if (z !== 'laedt' && z !== 'aus') break
-      await warten(1000)
+    // direkt nach dem Anmelden ist das Mikrofon (USB-Headset, Treiber) manchmal noch nicht bereit → bis zu 5-mal neu
+    // versuchen (Prüf-Agent)
+    for (let i = 0; i < 5 && (lage.zustand as Zustand) === 'fehler'; i++) {
+      await warten(5000)
+      await einschalten()
     }
-  }
-  // währenddessen aus-/eingeschaltet oder schon angesprochen („Guten Morgen, Loki“) → nicht dazwischenreden
-  if (meiner !== lauf || (lage.zustand as Zustand) !== 'bereit') return ohneGruss()
-  const e = jarvisEinstellungen()
-  const nr = naechsteBegruessung(e.letzteBegruessung)
-  meldeSpruchStand()
-  setzeJarvis({ letzteBegruessung: nr })
-  let begruesst = false
-  if (seq) {
-    await seq.gruss(sequenzGruss(nr, e.anrede, e.humor))
-    begruesst = (await seq.ergebnis) === 'gruss'
-  }
-  // ohne Sequenz, oder sie hat Loki nicht sprechen lassen (abgebrochen, zu spät) → hier begrüßen
-  if (!begruesst && !await sprechen([begruessung(nr, e.anrede, e.humor)])) return
-  if (jarvisEinstellungen().zuletztLage !== heute()) await morgenLageVortragen()
+    if ((lage.zustand as Zustand) !== 'bereit') return
+    const meiner = lauf
+    if (jarvisEinstellungen().stimme === 'loki') {
+      let z: string | undefined
+      for (let i = 0; i < STIMME_WARTEN_S; i++) {
+        z = (await b.status())?.loki?.zustand
+        if (z === 'bereit' || z === 'fehler' || z === 'fehlt') break
+        await warten(1000)
+      }
+      if (z !== 'bereit') { protokoll(`Rechnerstart: Lokis Stimme nicht bereit (${z ?? 'unbekannt'}) – keine Begrüßung`); return }
+    }
+    // währenddessen aus-/eingeschaltet oder schon angesprochen („Guten Morgen, Loki“) → nicht dazwischenreden
+    if (meiner !== lauf || (lage.zustand as Zustand) !== 'bereit') return
+    const e = jarvisEinstellungen()
+    const nr = naechsteBegruessung(e.letzteBegruessung)
+    meldeSpruchStand()
+    setzeJarvis({ letzteBegruessung: nr })
+    if (!await sprechen([sequenzGruss(nr, e.anrede, e.humor)])) return
+    if (jarvisEinstellungen().zuletztLage !== heute()) {
+      await morgenLageVortragen()
+      // Was bis hierher aufgelaufen ist, stand in der Morgen-Lage – nur eine Person vor der Kamera wird noch gemeldet
+      if (jarvisEinstellungen().zuletztLage === heute()) neuSchlange = neuSchlange.filter((x) => x.n.art === 'person')
+    }
+  } finally { startphase = false }
 }

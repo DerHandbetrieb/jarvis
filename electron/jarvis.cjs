@@ -296,6 +296,13 @@ function einrichten(hauptfenster, erlaubt) {
   ipcMain.handle('jarvis-sprechen', async (e, auftrag) => {
     if (!von(e) || !tts) return null
     const text = String(auftrag?.text ?? '').slice(0, 2000)
+    // Lokis Stimme lädt noch (auch: kommt gerade aus dem Abwesenheits-Modus zurück): warten statt Ersatzstimme – er soll
+    // nur mit seiner richtigen Stimme sprechen (Vorgabe Auftraggeber 06.11.2026). Piper nur bei Spiel oder Störung.
+    if (auftrag?.stimme === 'loki') {
+      const bis = Date.now() + 180_000
+      while ((loki.status().zustand === 'laedt' || (lokiZurueck && !spielAktiv)) && Date.now() < bis) await new Promise((w) => setTimeout(w, 200))
+      if (loki.status().zustand === 'laedt' || (lokiZurueck && !spielAktiv)) return null
+    }
     if (auftrag?.stimme === 'loki' && loki.status().zustand === 'bereit') {
       try {
         return { ...(await loki.sprechen(text)), stimme: 'loki' }

@@ -2,8 +2,8 @@
 import { Abschnitt } from '../ui/Abschnitt'
 import { useEffect, useState } from 'react'
 import { BAUSTEINE, type BausteinSchluessel } from './morgenlage'
-import { bruecke, sequenzBruecke, setzeJarvis, useJarvisEinstellungen, type Autostart, type Hoeren, type JarvisStatus, type Stimme } from './desktop'
-import { gehoerSchalten, hoerenWaehlen, sprechen, startSequenzJetzt, stimmeWaehlen, useJarvis } from './dienst'
+import { bruecke, setzeJarvis, useJarvisEinstellungen, type Autostart, type Hoeren, type JarvisStatus, type Stimme } from './desktop'
+import { gehoerSchalten, hoerenWaehlen, sprechen, stimmeWaehlen, useJarvis } from './dienst'
 import WerkstattVerbindung from './WerkstattVerbindung'
 import KameraVerbindung from './KameraVerbindung'
 import PvVerbindung from './PvVerbindung'
@@ -67,16 +67,6 @@ export default function JarvisEinstellungen() {
           ) : (
             <p className="text-neutral-500">Mit Windows starten: nur im installierten Programm möglich.</p>
           )}
-          <div className="flex flex-wrap items-center gap-4">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={e.startSequenz} onChange={(x) => setzeJarvis({ startSequenz: x.target.checked })} />
-              Start-Sequenz beim Rechnerstart (über alle Bildschirme, L.O.K.I. begrüßt im Finale; jede Taste oder ein Klick bricht ab)
-            </label>
-            <label className="flex items-center gap-2">Lautstärke ({Math.round(e.sequenzLautstaerke * 100)} %)
-              <input type="range" min="0" max="1" step="0.05" value={e.sequenzLautstaerke} onChange={(x) => setzeJarvis({ sequenzLautstaerke: Number(x.target.value) })} />
-            </label>
-            <button type="button" className="rounded-lg border border-neutral-300 px-3 py-1.5" disabled={!sequenzBruecke()} onClick={() => void startSequenzJetzt()}>Start-Sequenz jetzt abspielen</button>
-          </div>
           <WerkstattVerbindung />
           <HudEinrichten />
           <KameraVerbindung />

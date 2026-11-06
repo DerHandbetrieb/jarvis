@@ -47,10 +47,10 @@ export function euro(cent: number): string {
   return `${cent < 0 ? 'minus ' : ''}${e} Euro${r ? ` ${r < 10 ? `0${r}` : r}` : ''}`
 }
 /** „A“, „A und B“, „A, B und C“ */
-const aufzaehlen = (t: string[]) => (t.length <= 1 ? t[0] ?? '' : `${t.slice(0, -1).join(', ')} und ${t[t.length - 1]}`)
+export const aufzaehlen = (t: string[]) => (t.length <= 1 ? t[0] ?? '' : `${t.slice(0, -1).join(', ')} und ${t[t.length - 1]}`)
 /** „2× Klettertasse“ → „2 mal Klettertasse“, „1× Tasse“ → „Tasse“ */
-const artikelText = (a: string) => sprechbar(a.replace(/^1× /, '').replace(/^(\d+)× /, '$1 mal '))
-const ohneAmazon = (t: string) => sprechbar(t.replace(/^amazon-problem:\s*/i, '').trim() || t)
+export const artikelText = (a: string) => sprechbar(a.replace(/^1× /, '').replace(/^(\d+)× /, '$1 mal '))
+export const ohneAmazon = (t: string) => sprechbar(t.replace(/^amazon-problem:\s*/i, '').trim() || t)
 /** Titel sprechbar machen: Emojis/Pfeile weg, & → und, / → Leerzeichen, gekürzte Titel ohne „…“ (Prüf-Agent) */
 export const sprechbar = (t: string) => t.replace(/[\p{Extended_Pictographic}←-⇿➡]/gu, '').replace(/\s*&\s*/g, ' und ').replace(/\s*\/\s*/g, ' ').replace(/…$/, '').replace(/\s+/g, ' ').trim()
 const satz = (s: string) => (/[.!?…]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`)
