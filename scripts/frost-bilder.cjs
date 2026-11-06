@@ -2,7 +2,7 @@
 //   npx electron scripts/frost-bilder.cjs
 const { app, BrowserWindow } = require('electron'), fs = require('fs'), path = require('path')
 const W = path.join(__dirname, '..'), Q = path.join(W, 'grafik/magnific/frost'), Z = path.join(W, 'hud5/ebenen')
-const LISTE = [['eis3', 'frost-eis'], ['blume2', 'frost-blume1'], ['blume1', 'frost-blume2'], ['blume3', 'frost-blume3']]
+const LISTE = [['eis3', 'frost-eis'], ['eis1', 'frost-eis2'], ['eis2', 'frost-eis3'], ['eis4', 'frost-eis4'], ['blume2', 'frost-blume1'], ['blume1', 'frost-blume2'], ['blume3', 'frost-blume3'], ['blume4', 'frost-blume4']]
 app.whenReady().then(async () => {
   const w = new BrowserWindow({ show: false, webPreferences: { offscreen: true } })
   await w.loadURL('about:blank')

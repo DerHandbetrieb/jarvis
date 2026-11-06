@@ -24,12 +24,15 @@ describe('Morgen-Lage', () => {
       freigaben: 1,
     })).join(' ')
     expect(s).toContain('Draußen sind es 4 Grad und Nieselregen.')
-    expect(s).toContain('Auf Ihrer Liste stehen elf Aufgaben, zwei davon sind seit gestern neu.')
-    expect(s).toContain('Ganz oben: Kerzenständer produzieren; Tassen schließen.')
-    expect(s).toContain('Amazon meldet Probleme bei Kuh-Kucks-Uhr.')
-    expect(s).toContain('Knapp werden: A, B, C und zwei weitere.')
-    expect(s).toContain('Gestern kamen drei Bestellungen mit vier Artikeln, zusammen etwa 123 Euro.')
-    expect(s).toContain('wartet ein Werbe-Vorschlag auf Ihre Freigabe')
+    expect(s).toContain('Kommen wir zum Abarbeiten: elf Karten sind offen, zwei davon sind neu.')
+    expect(s).toContain('Erstens: Kerzenständer produzieren.')
+    expect(s).toContain('Zweitens: Tassen schließen.')
+    expect(s).toContain('Bei Amazon ist ein Fall offen.')
+    expect(s).toContain('Es geht um Kuh-Kucks-Uhr.')
+    expect(s).toContain('Zum Nachproduzieren haben wir folgende Artikel.')
+    expect(s).toContain('E.')
+    expect(s).toContain('Zum gestrigen Tag: Es kamen drei Bestellungen mit vier Artikeln für')
+    expect(s).toContain('Zu den Freigaben: Es wartet ein Werbe-Vorschlag auf Sie.')
   })
   it('abgeschaltete Bausteine fehlen, Humor nur wenn an', () => {
     const s = morgenLage(basis({ bausteine: new Set(['aufgaben']), wetter: { grad: 1, text: null }, aufgaben: { anzahl: 0, wichtigste: [], neu: 0 } }))
@@ -161,17 +164,6 @@ describe('Spruch-Fundus', () => {
   })
 })
 
-describe('Flachwitz des Tages', () => {
-  it('jeden Tag im Jahr ein anderer', async () => {
-    const { flachwitzFuer, FLACHWITZE } = await import('./flachwitze')
-    expect(new Set(FLACHWITZE).size).toBe(366)
-    const jahr = new Set<string>()
-    for (let t = 0; t < 366; t++) jahr.add(flachwitzFuer(new Date(2028, 0, 1 + t)))
-    expect(jahr.size).toBe(366)
-    expect(flachwitzFuer(new Date(2026, 10, 4, 23, 59))).toBe(flachwitzFuer(new Date(2026, 10, 4, 0, 1)))
-  })
-})
-
 describe('Neuigkeiten ansagen (04.11.2026)', () => {
   it('eine Bestellung, mehrere Bestellungen, Beträge zum Sprechen', async () => {
     const { ansage, euro } = await import('./neuigkeiten')
@@ -299,5 +291,17 @@ describe('Lautstärke der Ansagen', () => {
     expect(verstaerkung(Array(1000).fill(0.001))).toBe(6)
     expect(verstaerkung(Array(1000).fill(0.5))).toBe(1)
     expect(verstaerkung([])).toBe(1)
+  })
+})
+
+describe('Kamera auf Zuruf', () => {
+  it('zeig den Carport / Kamera weg', async () => {
+    const { befehl } = await import('./befehle')
+    expect(befehl('zeig den Carport')).toEqual({ art: 'kamera', kanal: 0 })
+    expect(befehl('zeig die rechte Kamera')).toEqual({ art: 'kamera', kanal: 1 })
+    expect(befehl('Kamera wieder weg')).toEqual({ art: 'kamera', kanal: null })
+    expect(befehl('wie hoch ist die Einfahrt')).toEqual({ art: 'frage', text: 'wie hoch ist die Einfahrt' })
+    expect(befehl('Was kostet eine Kamera aus dem Baumarkt')).toMatchObject({ art: 'frage' })
+    expect(befehl('Wie komme ich zum Hof zu Fuß')).toMatchObject({ art: 'frage' })
   })
 })

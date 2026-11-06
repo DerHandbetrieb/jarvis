@@ -2,8 +2,8 @@
 import { Abschnitt } from '../ui/Abschnitt'
 import { useEffect, useState } from 'react'
 import { BAUSTEINE, type BausteinSchluessel } from './morgenlage'
-import { bruecke, setzeJarvis, useJarvisEinstellungen, type Autostart, type Hoeren, type JarvisStatus, type Stimme } from './desktop'
-import { gehoerSchalten, hoerenWaehlen, sprechen, stimmeWaehlen, useJarvis } from './dienst'
+import { bruecke, setzeJarvis, useJarvisEinstellungen, type Autostart, type Hoeren, type JarvisStatus, type MikrofonStufe, type Stimme } from './desktop'
+import { gehoerSchalten, hoerenWaehlen, mikrofonStufeWaehlen, sprechen, stimmeWaehlen, useJarvis } from './dienst'
 import WerkstattVerbindung from './WerkstattVerbindung'
 import KameraVerbindung from './KameraVerbindung'
 import PvVerbindung from './PvVerbindung'
@@ -96,6 +96,14 @@ export default function JarvisEinstellungen() {
               <select className="mt-1 rounded-lg border border-neutral-300 px-2 py-1.5" value={e.hoeren} onChange={(x) => void hoerenWaehlen({ hoeren: x.target.value as Hoeren })}>
                 <option value="turbo">Genau (Grafikkarte, ca. 1,2 GB)</option>
                 <option value="klein">Klein (Prozessor, alter Stand)</option>
+              </select>
+            </label>
+            <label className="block">Mikrofon-Empfindlichkeit<br />
+              <select className="mt-1 rounded-lg border border-neutral-300 px-2 py-1.5" value={e.mikrofonStufe} onChange={(x) => void mikrofonStufeWaehlen(x.target.value as MikrofonStufe)}>
+                <option value="ruhig">Ruhiger Raum (hört auch Leises)</option>
+                <option value="normal">Normal</option>
+                <option value="laut">Laute Werkstatt</option>
+                <option value="sehrlaut">Sehr laut (nur deutliche Sprache)</option>
               </select>
             </label>
             {e.hoeren === 'turbo' && (

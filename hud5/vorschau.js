@@ -1,7 +1,7 @@
 // Vorschau der Szene mit Bildrate (Regel: Bildrate selbst messen, bevor gezeigt wird – CLAUDE.md Etappe 13)
 import { B, H, ladeSzene, zeichneSzene } from './szene.js'
 import { ausHud } from './inhalte.js'
-import { erstelleTafeln, zeichneTafeln, SPIEGEL } from './tafeln.js'
+import { erstelleTafeln, kameraGross, zeichneTafeln, SPIEGEL } from './tafeln.js'
 import { erstelleFrost, frostStellen } from './frost.js'
 import { KANTE } from './rahmen.js'
 import { sequenzDaten } from '../startsequenz/lageDaten.js'
@@ -10,7 +10,7 @@ const c = document.getElementById('flaeche'), g = c.getContext('2d', { alpha: fa
 const s = await ladeSzene('./ebenen/', { ring: new URLSearchParams(location.search).get('ring') ?? undefined, knoten: new URLSearchParams(location.search).get('knoten') ?? undefined, schrift: new URLSearchParams(location.search).get('schrift') ?? undefined, name: new URLSearchParams(location.search).get('name') ?? undefined, rand: new URLSearchParams(location.search).get('rand') ?? undefined, praegung: new URLSearchParams(location.search).get('praegung') ?? undefined, loki: new URLSearchParams(location.search).get('loki-stil') ?? undefined })
 let loki = new URLSearchParams(location.search).get('loki') ?? 'hoert', zoom = false, stopp = false
 // Prüfhilfe ?wetter=regen|schnee|nebel|frost
-const probeWetter = { regen: { code: 63, grad: 8 }, schnee: { code: 73, grad: -2 }, nebel: { code: 45, grad: 3 }, frost: { code: 0, grad: -4 } }[new URLSearchParams(location.search).get('wetter')] ?? { code: 2, grad: 9 }
+const probeWetter = { regen: { code: 63, grad: 8 }, schnee: { code: 73, grad: -2 }, nebel: { code: 45, grad: 3 }, frost: { code: 0, grad: -4 }, gewitter: { code: 95, grad: 16 }, hagel: { code: 99, grad: 12 } }[new URLSearchParams(location.search).get('wetter')] ?? { code: 2, grad: 9 }
 const stationProbe = { regen: { grad: 6, regenRate: 3.5, feuchte: 92, wind: 5 }, schnee: { grad: 0.4, regenRate: 1.2, feuchte: 95, wind: 4 }, frost: { grad: -3, regenRate: 0, feuchte: 80, wind: 2 }, trocken: { grad: 9, regenRate: 0, feuchte: 70, wind: 8 } }[new URLSearchParams(location.search).get('station')]
 if (stationProbe) Object.assign(probeWetter, { grad: stationProbe.grad, station: stationProbe })
 const frage = new URLSearchParams(location.search)
@@ -36,6 +36,7 @@ function schleife(ms) {
   // Inhalte mit Beispieldaten (in der Vorschau gibt es keine Gegenstelle); Ton: Kunstwerte
   const ton = Array.from({ length: 128 }, (_, i) => Math.max(0, Math.sin(ms / 300 + i * 0.3) * Math.exp(-((i % 64) / 20)) * 0.8))
   const fv = s.wetter?.sichtbar?.frost ?? 0; if (fv > 0 && !window.frostE) { const d = document.createElement('div'); c.parentElement.appendChild(d); window.frostE = erstelleFrost(d, zoom ? 1920 : 0) } if (window.frostE) frostStellen(window.frostE, fv)
+  if (new URLSearchParams(location.search).has('gross')) kameraGross(tafeln, 0)
   zeichneTafeln(tafeln, { ...beispiel, ton, loki: { zustand: { hoert: 'bereit', denkt: 'denkt', spricht: 'spricht', aus: 'aus' }[loki], mikrofon: loki !== 'aus' } }, ms / 1000)
   const dauer = performance.now() - a
   zeiten.push(dauer); if (zeiten.length > 120) zeiten.shift()

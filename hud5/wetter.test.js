@@ -2,6 +2,15 @@
 import { describe, expect, it } from 'vitest'
 import { wetterArt } from './wetter.js'
 
+describe('Gewitter und Hagel', () => {
+  it('kommen aus dem Wettercode', () => {
+    expect(wetterArt({ code: 95, grad: 15 })).toMatchObject({ gewitter: true, hagel: false })
+    expect(wetterArt({ code: 99, grad: 12 })).toMatchObject({ gewitter: true, hagel: true })
+    expect(wetterArt({ code: 2, grad: 12 })).toMatchObject({ gewitter: false, hagel: false })
+  })
+  it('bleiben auch mit Wetterstation erhalten', () => { expect(wetterArt({ code: 96, grad: 14, station: { grad: 14, regenRate: 4 } })).toMatchObject({ art: 'regen', gewitter: true, hagel: true }) })
+})
+
 describe('Wettereffekte nach der Wetterstation', () => {
   it('Regen nur, wenn die Station Regen misst', () => {
     expect(wetterArt({ code: 2, grad: 6, station: { grad: 6, regenRate: 3.5 } }).art).toBe('regen')

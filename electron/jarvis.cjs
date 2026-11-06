@@ -27,6 +27,8 @@ let sherpa = null
 let tts = null
 let erkenner = null
 let vad = null
+let vadSchwelle = 0.5 // Empfindlichkeit: höher = nur klare Sprache löst aus (Werkstatt-Lärm), Einstellung in der Oberfläche
+let baueVad = null
 let laedt = null // laufendes Laden (Promise), damit doppelte Klicks nicht doppelt laden
 let fenster = null
 let zuhoeren = false
@@ -180,9 +182,8 @@ async function vorbereiten(fortschritt) {
       modelConfig: { whisper: { encoder: path.join(w, 'small-encoder.int8.onnx'), decoder: path.join(w, 'small-decoder.int8.onnx'), language: 'de', task: 'transcribe' }, tokens: path.join(w, 'small-tokens.txt'), numThreads: 4, provider: 'cpu' },
     })
   }
-  if (!vad) {
-    vad = new s.Vad({ sileroVad: { model: path.join(o, MODELLE.vad.einzeln), threshold: 0.5, minSilenceDuration: 0.6, minSpeechDuration: 0.3, maxSpeechDuration: 15, windowSize: 512 }, sampleRate: 16000, numThreads: 1 }, 30)
-  }
+  baueVad = () => new s.Vad({ sileroVad: { model: path.join(o, MODELLE.vad.einzeln), threshold: vadSchwelle, minSilenceDuration: 0.6, minSpeechDuration: 0.3, maxSpeechDuration: 15, windowSize: 512 }, sampleRate: 16000, numThreads: 1 }, 30)
+  if (!vad) vad = baueVad()
 }
 
 // Ton kommt in kleinen Stücken; die VAD braucht Blöcke zu 512 Werten
@@ -313,6 +314,15 @@ function einrichten(hauptfenster, erlaubt) {
     const speed = Math.min(1.5, Math.max(0.6, Number(auftrag?.tempo) || 0.88))
     const a = await tts.generateAsync({ text: String(auftrag?.piperText || text).slice(0, 2000), sid: 0, speed, enableExternalBuffer: false })
     return { samples: a.samples, sampleRate: a.sampleRate, stimme: 'piper' }
+  })
+  // Empfindlichkeit des Mikrofons: Schwelle der Sprechpausen-Erkennung (Werkstatt-Lärm)
+  ipcMain.handle('jarvis-empfindlichkeit', (e, wert) => {
+    if (!von(e)) return null
+    const v = Math.min(0.9, Math.max(0.2, Number(wert) || 0.5))
+    if (v === vadSchwelle) return status()
+    vadSchwelle = v
+    if (baueVad && vad) { vad = baueVad(); rest = new Float32Array(0) }
+    return status()
   })
   // Lokis Stimme ein (lädt im Hintergrund, ca. 12 s, 3,4 GB Grafikspeicher) oder aus (gibt den Speicher frei)
   ipcMain.handle('jarvis-stimme', (e, an) => {

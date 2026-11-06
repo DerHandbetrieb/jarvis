@@ -16,46 +16,69 @@ const glatt = (a, b, x) => { const v = Math.max(0, Math.min(1, (x - a) / (b - a)
 export function frostDichte(x, y) {
   const rausch = (fbm(x / 170, y / 170) - 0.5) * 110
   const tiefe = (base, t) => base * (0.6 + 0.9 * fbm(t / 420, base))
-  const ecke = (cx, cy) => 300 * Math.exp(-Math.hypot(x - cx, y - cy) / 340)
-  const ecken = ecke(0, 0) + ecke(0, H) + ecke(B, 0) + ecke(B, H)
+  const ecke = (cx, cy, st) => st * Math.exp(-Math.hypot(x - cx, y - cy) / 340)
+  const ecken = ecke(0, 0, 340) + ecke(0, H, 170) + ecke(B, 0, 70) + ecke(B, H, 260) // jede Ecke anders (Wunsch Auftraggeber 06.11.2026)
   const kante = (d, t, base) => 1 - glatt(0.1, 1, (d + rausch) / (tiefe(base, t) + ecken))
   const a = [kante(y, x, 130), kante(H - y, x + 999, 150), kante(x, y + 333, 200), kante(B - x, y + 777, 200)]
   return 1 - a.reduce((p, k) => p * (1 - Math.max(0, k)), 1)
 }
 
 const laden = (u) => new Promise((ok, f) => { const i = new Image(); i.onload = () => ok(i); i.onerror = f; i.src = u })
-// Eisblumen: [x, y, Größe, spiegelnX, spiegelnY, Bild] – die Bilder wachsen von der linken unteren Ecke nach rechts oben
+// Eisblumen: [x, y, Größe, Drehung in Grad, Bild, frei]. Die Bilder wachsen von ihrer linken unteren Ecke nach rechts oben.
+// Gedreht statt gespiegelt und jede anders groß – nichts soll wie ein Rorschach-Bild aussehen (Rückmeldung 06.11.2026).
+// Ecken: oben links groß, unten links mittel, oben rechts nur ein kleines Eck, unten rechts groß.
 const BLUMEN = [
-  [0, H, 560, false, false, 1], [0, 0, 500, false, true, 2], [B, H, 560, true, false, 3], [B, 0, 500, true, true, 1],
-  [1240, H, 300, false, false, 2], [3620, H, 260, false, false, 1], [4520, H, 300, true, false, 3],
-  [820, 0, 240, false, true, 3], [2560, 0, 200, false, true, 1], [4960, 0, 240, true, true, 2],
+  [0, 0, 660, 90, 1, false], [0, H, 380, 0, 3, false], [B, 0, 170, 180, 4, false], [B, H, 560, 270, 2, false],
+  [1120, H + 30, 330, -14, 2, true], [2230, H + 20, 170, 22, 4, true], [3700, H + 30, 250, -32, 1, true], [4780, H + 20, 210, 12, 3, true],
+  [640, -20, 210, 164, 4, true], [2540, -20, 150, 196, 3, true], [4300, -30, 290, 172, 2, true],
+  [-20, 610, 230, 74, 2, true], [B + 20, 330, 190, 256, 1, true],
 ]
 
 async function schleierBauen(tex, maske, basis) {
-  const [eis, ...blumen] = await Promise.all(['frost-eis', 'frost-blume1', 'frost-blume2', 'frost-blume3'].map((n) => laden(`${basis}${n}.webp`)))
+  const eisBilder = await Promise.all(['frost-eis', 'frost-eis2', 'frost-eis3', 'frost-eis4'].map((n) => laden(`${basis}${n}.webp`)))
+  const blumen = await Promise.all(['frost-blume1', 'frost-blume2', 'frost-blume3', 'frost-blume4'].map((n) => laden(`${basis}${n}.webp`)))
   const W = tex.width, HH = tex.height, S = W / B // Schleier in halber Auflösung
-  // Seeeis gekachelt und abwechselnd gespiegelt (keine Nähte)
+  // Seeeis: verschiedene Bilder und Ausschnitte nebeneinander, Übergänge weich überblendet – nichts gespiegelt
   const e = document.createElement('canvas'); e.width = W; e.height = HH; const eg = e.getContext('2d', { willReadFrequently: true })
-  const kb = 2100 * S, kh = (kb * eis.height) / eis.width
-  for (let iy = 0, y = 0; y < HH; iy++, y += kh) for (let ix = 0, x = 0; x < W; ix++, x += kb) {
-    eg.save(); eg.translate(x + (ix % 2 ? kb : 0), y + (iy % 2 ? kh : 0)); eg.scale(ix % 2 ? -1 : 1, iy % 2 ? -1 : 1); eg.drawImage(eis, 0, 0, kb, kh); eg.restore()
+  const kb = 1500 * S, kh = 800 * S, ub = 260 * S
+  const kachel = document.createElement('canvas'); kachel.width = Math.ceil(kb + ub); kachel.height = Math.ceil(kh + ub); const kg = kachel.getContext('2d')
+  const weich = (g, b, h, r) => { // Kachel ringsum ausblenden
+    g.globalCompositeOperation = 'destination-in'
+    const x = g.createLinearGradient(0, 0, b, 0); x.addColorStop(0, 'rgba(0,0,0,0)'); x.addColorStop(r / b, '#000'); x.addColorStop(1 - r / b, '#000'); x.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = x; g.fillRect(0, 0, b, h)
+    const y = g.createLinearGradient(0, 0, 0, h); y.addColorStop(0, 'rgba(0,0,0,0)'); y.addColorStop(r / h, '#000'); y.addColorStop(1 - r / h, '#000'); y.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = y; g.fillRect(0, 0, b, h)
+    g.globalCompositeOperation = 'source-over'
+  }
+  eg.globalCompositeOperation = 'lighter'
+  let n = 0
+  for (let y = -ub / 2; y < HH; y += kh) for (let x = -ub / 2; x < W; x += kb, n++) {
+    const bild = eisBilder[(n * 3 + Math.floor(hs(n, 4.2) * 4)) % 4], vz = hs(n, 9.1) > 0.5 ? Math.PI : 0 // anderes Bild je Kachel, teils auf dem Kopf
+    const qb = bild.width * (0.45 + 0.3 * hs(n, 1.3)), qh = (qb * kachel.height) / kachel.width, qx = hs(n, 2.7) * (bild.width - qb), qy = hs(n, 3.9) * Math.max(0, bild.height - qh)
+    kg.globalCompositeOperation = 'source-over'; kg.clearRect(0, 0, kachel.width, kachel.height)
+    kg.save(); kg.translate(kachel.width / 2, kachel.height / 2); kg.rotate(vz); kg.drawImage(bild, qx, qy, qb, qh, -kachel.width / 2, -kachel.height / 2, kachel.width, kachel.height); kg.restore()
+    weich(kg, kachel.width, kachel.height, ub * 0.9)
+    eg.drawImage(kachel, x, y)
   }
   const ed = eg.getImageData(0, 0, W, HH).data
-  // Eisblumen: Helligkeit wird zu Deckkraft, schwarzer Bildgrund ist wirklich durchsichtig; zum Bildrand weich auslaufend
+  // Eisblumen: Helligkeit wird zu Deckkraft, schwarzer Bildgrund ist wirklich durchsichtig. Der Rand läuft unregelmäßig
+  // aus (Rauschen), sonst wirkt eine Blume wie abgeschnitten (Rückmeldung 06.11.2026)
   const f = document.createElement('canvas'); f.width = W; f.height = HH; const fg = f.getContext('2d', { willReadFrequently: true })
   const N = 512
-  const freistellen = (bild, frei) => { // frei = mitten am Rand: auch links weich auslaufen (Ecken sitzen am Bildschirmrand)
+  const freistellen = (bild, frei, saat) => {
     const c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bild, 0, 0, N, N)
     const d = g.getImageData(0, 0, N, N), p = d.data
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-      const i = (y * N + x) * 4, l = (p[i] + p[i + 1] + p[i + 2]) / 765
-      const rand = glatt(0, 1, Math.min(N - 1 - x, y) / 70) * (frei ? glatt(20, 190, x) : 1) // rechts und oben im Bild läuft die Blume aus
-      p[i] = p[i + 1] = p[i + 2] = 255; p[i + 3] = Math.round(glatt(0.16, 0.7, l) * rand * 255)
+      const i = (y * N + x) * 4, l = (p[i] + p[i + 1] + p[i + 2]) / 765, kraus = 0.72 + 0.56 * fbm(x / 70 + saat, y / 70, 3)
+      // frei: rund um die Blumenmitte auslaufen; Ecke: vom Eckpunkt aus nach innen auslaufen
+      const r = frei ? Math.hypot(x - N * 0.42, y - N * 0.6) / (N * 0.46 * kraus) : Math.hypot(x, N - y) / (N * 0.98 * kraus)
+      p[i] = p[i + 1] = p[i + 2] = 255; p[i + 3] = Math.round(glatt(0.16, 0.7, l) * (1 - glatt(0.62, 1, r)) * 255)
     }
     g.putImageData(d, 0, 0); return c
   }
-  const ecke = blumen.map((b) => freistellen(b, false)), mitte = blumen.map((b) => freistellen(b, true))
-  BLUMEN.forEach(([x, y, gr, sx, sy, nr], i) => { fg.save(); fg.translate(x * S, y * S); fg.scale(sx ? -1 : 1, sy ? -1 : 1); fg.drawImage((i < 4 ? ecke : mitte)[nr - 1], 0, -gr * S, gr * S, gr * S); fg.restore() })
+  BLUMEN.forEach(([x, y, gr, dreh, nr, frei], i) => {
+    fg.save(); fg.translate(x * S, y * S); fg.rotate((dreh * Math.PI) / 180)
+    if (frei) fg.translate(-gr * S * 0.42, gr * S * 0.1) // freie Blumen um ihre Mitte, nicht um die Bildecke
+    fg.drawImage(freistellen(blumen[nr - 1], frei, i * 3.7), 0, -gr * S, gr * S, gr * S); fg.restore()
+  })
   const fd = fg.getImageData(0, 0, W, HH).data
   const tg = tex.getContext('2d'), td = tg.createImageData(W, HH)
   const mb = maske.width, mg = maske.getContext('2d'), md = mg.getImageData(0, 0, mb, maske.height).data, st = W / mb

@@ -20,11 +20,11 @@ describe('Werkstatt-Daten für die Morgen-Lage', () => {
       probleme: { amazon: ['Amazon-Problem: Bild fehlt'], selbsttestRot: true },
       lager: { namen: ['Tasse Emma', 'Kerzenständer Beton'] },
       verkauf: { bestellungen: 3, stueck: 4, umsatzCent: 12349 },
-      freigaben: 1,
+      freigaben: 1, offen: null
     })
   })
   it('ohne Verbindung oder mit Daten älter als eine Stunde: nichts (Loki erfindet nichts)', () => {
-    const leer = { aufgaben: null, probleme: null, lager: null, verkauf: null, freigaben: null }
+    const leer = { aufgaben: null, probleme: null, lager: null, verkauf: null, freigaben: null, offen: null }
     expect(ausWerkstatt(null, JETZT)).toEqual(leer)
     expect(ausWerkstatt({ ...LAGE, geholt: JETZT.getTime() - 61 * 60_000 }, JETZT)).toEqual(leer)
   })

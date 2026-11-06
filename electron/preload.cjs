@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     einrichten: (d) => ipcRenderer.invoke('kamera-einrichten', { adresse: String(d?.adresse ?? ''), benutzer: String(d?.benutzer ?? ''), passwort: String(d?.passwort ?? ''), name: String(d?.name ?? '') }),
     bild: () => ipcRenderer.invoke('kamera-bild'),
     entfernen: () => ipcRenderer.invoke('kamera-entfernen'),
+    /** Kamerabild im Wallpaper groß zeigen (0 links, 1 rechts) oder zurück (null) */
+    gross: (kanal) => ipcRenderer.invoke('kamera-gross', kanal == null ? null : Number(kanal)),
   },
   /** PV-Anlage FENECON (nur lesen): Passwort wird nur weitergereicht, verschlüsselt im Hauptprozess gespeichert, nie zurückgegeben */
   station: {
@@ -73,6 +75,7 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     vorbereiten: () => ipcRenderer.invoke('jarvis-vorbereiten'),
     sprechen: (a) => ipcRenderer.invoke('jarvis-sprechen', { text: String(a?.text ?? ''), piperText: String(a?.piperText ?? ''), tempo: Number(a?.tempo), stimme: a?.stimme === 'loki' ? 'loki' : 'piper' }),
     stimme: (an) => ipcRenderer.invoke('jarvis-stimme', !!an),
+    empfindlichkeit: (w) => ipcRenderer.invoke('jarvis-empfindlichkeit', Number(w)),
     gehoer: (a) => ipcRenderer.invoke('jarvis-gehoer', { an: !!a?.an, nurWorte: !!a?.nurWorte, art: a?.art === 'klein' ? 'klein' : 'turbo', worte: String(a?.worte ?? '').slice(0, 1000) }),
     zuhoeren: (an) => ipcRenderer.invoke('jarvis-zuhoeren', !!an),
     nutzerAktiv: () => ipcRenderer.send('jarvis-nutzer-aktiv'),

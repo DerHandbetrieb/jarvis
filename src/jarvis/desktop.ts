@@ -6,6 +6,8 @@ import { NEU_GRUPPEN, type Neuigkeit, type NeuGruppe } from './neuigkeiten'
 
 /** Lokis Stimme (Qwen3-TTS als eigenes Python-Programm): fehlt = nicht eingerichtet, fehler = abgestürzt/Laden misslungen */
 export type LokiZustand = 'aus' | 'laedt' | 'bereit' | 'fehlt' | 'fehler'
+export type MikrofonStufe = 'ruhig' | 'normal' | 'laut' | 'sehrlaut'
+export const MIKROFON_SCHWELLE: Record<MikrofonStufe, number> = { ruhig: 0.35, normal: 0.5, laut: 0.7, sehrlaut: 0.85 }
 export type JarvisStatus = { verfuegbar: boolean; modelle: Record<string, boolean>; bereit: boolean; zuhoeren: boolean; groesseMb: number; loki?: { zustand: LokiZustand; fehler: string }
   /** Lokis Gehör (Whisper turbo auf der Grafikkarte, 04.11.2026) – gleiche Zustände wie die Stimme */
   gehoer?: { zustand: LokiZustand; fehler: string; art: Hoeren } }
@@ -29,6 +31,7 @@ export type JarvisBruecke = {
   stimme: (an: boolean) => Promise<JarvisStatus | null>
   /** Lokis Gehör laden (im Hintergrund) oder beenden; worte = eigene Wörter für die Wortliste */
   gehoer?: (a: { an: boolean; art: Hoeren; worte: string; nurWorte?: boolean }) => Promise<JarvisStatus | null>
+  empfindlichkeit?: (wert: number) => Promise<JarvisStatus | null>
   zuhoeren: (an: boolean) => Promise<JarvisStatus | null>
   frage: (modell: string, nachrichten: { role: 'system' | 'user' | 'assistant'; content: string }[]) => Promise<{ text: string; fehler?: 'modell' | 'ollama' | 'fehlt'; tokens?: number; ladenS?: number } | null>
   /** Sprachmodell schon laden, sobald „Loki“ fällt (die Frage kommt gleich) */
@@ -78,6 +81,7 @@ export type WerkstattLage = {
   }
   freigaben: number
   selbsttest: { am: string; rot: number } | null
+  offeneBestellungen?: { anzahl: number; liste: { kanal: string; artikel: string[] }[] }
 }
 export const werkstattBruecke = (): WerkstattBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.werkstatt ?? null : null)
 
@@ -87,6 +91,7 @@ export type KameraBruecke = {
   status: () => Promise<KameraStatus | null>
   einrichten: (d: { adresse: string; benutzer: string; passwort: string; name: string }) => Promise<KameraStatus | null>
   bild: () => Promise<KameraStatus | null>
+  gross?: (kanal: number | null) => Promise<boolean | null>
   entfernen: () => Promise<KameraStatus | null>
 }
 export const kameraBruecke = (): KameraBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.kamera ?? null : null)
@@ -129,6 +134,8 @@ export type JarvisEinstellungen = {
   stimme: Stimme
   /** Spracherkennung: turbo (Grafikkarte, Standard) oder klein (Prozessor) */
   hoeren: Hoeren
+  /** Mikrofon: ruhig = hört auch Leises, laut = nur klare Sprache (Werkstatt-Lärm) */
+  mikrofonStufe: MikrofonStufe
   /** eigene Wörter, die L.O.K.I. besser verstehen soll (Produkt- und Namen), durch Komma oder Zeile getrennt */
   wortliste: string
   /** Neuigkeiten aus der Werkstatt von selbst ansagen (Wunsch Auftraggeber 04.11.2026) */
@@ -156,7 +163,7 @@ export type JarvisEinstellungen = {
 }
 
 const STANDARD: JarvisEinstellungen = {
-  an: false, anrede: 'Sir', humor: true, stimme: 'loki', hoeren: 'turbo', wortliste: '', neuigkeiten: true, neuGruppen: NEU_GRUPPEN.map((g) => g.schluessel), kameraMelden: true, tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
+  an: false, anrede: 'Sir', humor: true, stimme: 'loki', hoeren: 'turbo', mikrofonStufe: 'normal', wortliste: '', neuigkeiten: true, neuGruppen: NEU_GRUPPEN.map((g) => g.schluessel), kameraMelden: true, tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
 }
 const SCHLUESSEL = 'jarvis.einstellungen'
 const zuhoerer = new Set<() => void>()

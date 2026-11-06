@@ -1,4 +1,5 @@
 import { nachschub } from "./nachschub"
+import { amazonArtikel, ohneLangeNummern, PAUSE } from "./sprechtext"
 
 // Jarvis – Morgen-Lage (Etappe 1, 03.11.2026, Wunsch Auftraggeber): aus den App-Daten ein kurzer gesprochener Bericht
 // im britischen Stil (förmlich, „Sir“, trockenes Understatement, Seitenhiebe nach den Sachsätzen und ab und zu ein Spruch ohne Arbeitsbezug, z. B. über Emma).
@@ -24,6 +25,8 @@ export type LageEingabe = {
   aufgaben?: { anzahl: number; wichtigste: string[]; neu: number } | null
   probleme?: { amazon: string[]; selbsttestRot: boolean } | null
   lager?: { namen: string[] } | null
+  /** noch nicht versendete Bestellungen: Kanal und Artikel („2 mal Tasse“) */
+  offen?: { anzahl: number; liste: { kanal: string; artikel: string[] }[] } | null
   verkauf?: { bestellungen: number; stueck: number; umsatzCent: number } | null
   freigaben?: number | null
   /** Spitzen und Sprüche auswählen (dienst.ts: benutzte nach hinten, rotation.ts); ohne = nach Tag (Tests) */
@@ -186,45 +189,70 @@ export function morgenLage(e: LageEingabe): string[] {
   if (h < 11) hieb(h < 6 ? SPITZEN.frueh : h < 9 ? SPITZEN.morgens : SPITZEN.spaet)
   if (b.has('wetter') && e.wetter) { const w = wetterSatz(e.wetter); if (w) s.push(w) }
 
+  // Kapitel statt Aufzählung (Wunsch Auftraggeber 06.11.2026): Jedes Thema hat einen Einleitungssatz, dazwischen eine Pause
+  const kapitel = () => { if (s[s.length - 1] !== PAUSE) s.push(PAUSE) }
+  const ORDNUNG = ['Erstens', 'Zweitens', 'Drittens']
+  const klar = (t: string) => ohneLangeNummern(t)
+
   if (b.has('aufgaben') && e.aufgaben) {
+    kapitel()
     const a = e.aufgaben
-    if (!a.anzahl) s.push('Auf Ihrer Liste steht nichts Dringendes. Ich bin mir nicht sicher, ob ich das beunruhigend finden soll.')
+    if (!a.anzahl) s.push('Unter Abarbeiten liegt nichts Dringendes. Ich bin mir nicht sicher, ob ich das beunruhigend finden soll.')
     else {
-      s.push(`Auf Ihrer Liste ${mehrzahl(a.anzahl, 'steht', 'stehen')} ${zahl(a.anzahl)} ${mehrzahl(a.anzahl, 'Aufgabe', 'Aufgaben')}${a.neu ? `, ${zahl(a.neu)} davon ${mehrzahl(a.neu, 'ist', 'sind')} seit gestern neu` : ''}.`)
-      if (a.wichtigste.length) s.push(`Ganz oben: ${a.wichtigste.slice(0, 3).join('; ')}.`)
+      s.push(`Kommen wir zum Abarbeiten: ${a.anzahl === 1 ? 'Eine Karte ist' : `${zahl(a.anzahl)} Karten sind`} offen${a.neu ? `, ${zahl(a.neu)} davon ${mehrzahl(a.neu, 'ist', 'sind')} neu` : ''}.`)
+      const obenan = a.wichtigste.map(klar).filter(Boolean).slice(0, 3) // bleibt von einem Titel nichts übrig (nur Nummer), fällt er weg
+      obenan.forEach((w, i) => s.push(obenan.length > 1 ? `${ORDNUNG[i]}: ${w}.` : `Ganz oben: ${w}.`))
       hieb(a.anzahl >= 8 ? SPITZEN.vieleAufgaben : SPITZEN.wenigeAufgaben)
     }
   }
 
-  if (b.has('probleme') && e.probleme) {
-    const p = e.probleme
-    if (p.selbsttestRot) s.push('Der nächtliche Selbsttest hat Störungen gefunden. Die Einzelheiten liegen auf einer Karte bereit.')
-    if (p.amazon.length) s.push(`Amazon meldet Probleme bei ${p.amazon.length === 1 ? p.amazon[0] : `${zahl(p.amazon.length, false)} Produkten: ${p.amazon.slice(0, 3).join(', ')}`}.`)
-    if (p.amazon.length) hieb(SPITZEN.probleme)
-    if (!p.selbsttestRot && !p.amazon.length) s.push('In den Shops ist alles ruhig. Verdächtig ruhig, aber ruhig.')
+  if (b.has('verkauf') && e.offen && e.offen.anzahl) {
+    kapitel()
+    const o = e.offen
+    s.push(`Zu den offenen Bestellungen: ${o.anzahl === 1 ? 'Eine Bestellung wartet' : `${zahl(o.anzahl)} Bestellungen warten`} auf den Versand.`)
+    for (const x of o.liste.slice(0, 4)) { const artikel = x.artikel.map(klar).filter(Boolean); s.push(`${x.kanal}: ${artikel.length ? artikel.join(', ') : 'ohne Artikelangabe'}.`) }
+    if (o.anzahl > 4) s.push(`Dazu ${o.anzahl - 4 === 1 ? 'eine weitere' : `${zahl(o.anzahl - 4)} weitere`}.`)
   }
 
   if (b.has('lager') && e.lager && e.lager.namen.length) {
+    kapitel()
     const n = e.lager.namen
-    s.push(`Knapp ${mehrzahl(n.length, 'wird', 'werden')}: ${n.slice(0, 3).join(', ')}${n.length > 3 ? ` und ${zahl(n.length - 3, false)} weitere` : ''}.`)
+    s.push(`Zum Nachproduzieren haben wir ${n.length === 1 ? 'folgenden Artikel' : 'folgende Artikel'}.`)
+    for (const x of n.map(klar).filter(Boolean).slice(0, 6)) s.push(`${x}.`)
+    if (n.length > 6) s.push(`Und ${zahl(n.length - 6, false)} weitere.`)
     hieb(SPITZEN.lager)
   }
 
+  if (b.has('probleme') && e.probleme) {
+    kapitel()
+    const p = e.probleme
+    if (p.amazon.length) {
+      s.push(p.amazon.length === 1 ? 'Bei Amazon ist ein Fall offen.' : `Bei Amazon sind ${zahl(p.amazon.length, false)} Fälle offen.`)
+      for (const t of p.amazon.slice(0, 3)) { const name = amazonArtikel(t); s.push(name ? `Es geht um ${name}.` : 'Um welchen Artikel es geht, steht nicht auf der Karte.') }
+      hieb(SPITZEN.probleme)
+    }
+    if (p.selbsttestRot) s.push('Der nächtliche Selbsttest hat Störungen gefunden. Die Einzelheiten liegen auf einer Karte bereit.')
+    if (!p.selbsttestRot && !p.amazon.length) s.push('In den Shops ist alles ruhig. Verdächtig ruhig, aber ruhig.')
+  }
+
   if (b.has('verkauf') && e.verkauf) {
+    kapitel()
     const v = e.verkauf
     if (!v.bestellungen) s.push('Gestern wurde nichts verkauft. Ich nehme an, die Kundschaft sammelt Kräfte.')
     else {
-      s.push(`Gestern ${mehrzahl(v.bestellungen, 'kam', 'kamen')} ${zahl(v.bestellungen)} ${mehrzahl(v.bestellungen, 'Bestellung', 'Bestellungen')} mit ${v.stueck === 1 ? 'einem Artikel' : `${zahl(v.stueck, false)} Artikeln`}, zusammen etwa ${euro(v.umsatzCent)}.`)
+      s.push(`Zum gestrigen Tag: ${mehrzahl(v.bestellungen, 'Es kam', 'Es kamen')} ${zahl(v.bestellungen)} ${mehrzahl(v.bestellungen, 'Bestellung', 'Bestellungen')} mit ${v.stueck === 1 ? 'einem Artikel' : `${zahl(v.stueck, false)} Artikeln`} für ${euro(v.umsatzCent)}.`)
       // „wenig“ nur, wenn auch der Umsatz klein ist (unter 150 Euro)
       hieb(v.bestellungen < 5 && v.umsatzCent < 15000 ? SPITZEN.wenigVerkauft : SPITZEN.gutVerkauft)
     }
   }
 
   if (b.has('freigaben') && e.freigaben) {
-    s.push(`Unter Abarbeiten ${mehrzahl(e.freigaben, 'wartet', 'warten')} ${zahl(e.freigaben, false)} ${mehrzahl(e.freigaben, 'Werbe-Vorschlag', 'Werbe-Vorschläge')} auf Ihre Freigabe.`)
+    kapitel()
+    s.push(`Zu den Freigaben: Es ${mehrzahl(e.freigaben, 'wartet', 'warten')} ${zahl(e.freigaben, false)} ${mehrzahl(e.freigaben, 'Werbe-Vorschlag', 'Werbe-Vorschläge')} auf Sie.`)
     hieb(SPITZEN.freigaben)
   }
 
+  kapitel()
   // ungefähr jeden zweiten Tag zusätzlich ein Spruch ohne Arbeitsbezug, an einem Tag immer derselbe
   if (e.humor && t % 2 === 0) s.push(anrede(e.waehler ? e.waehler('sprueche', SPRUECHE) : SPRUECHE[(t / 2) % SPRUECHE.length]))
   s.push(e.humor ? anrede(e.waehler ? e.waehler('schluss', SPITZEN.schluss) : spitze(SPITZEN.schluss, t)) : 'Das wäre alles. Ich bin hier, falls Sie mich brauchen.')

@@ -85,6 +85,7 @@ export type Befehl =
   | { art: 'oeffnen'; pfad: string; name: string }
   | { art: 'stopp' }
   | { art: 'still' }
+  | { art: 'kamera'; kanal: number | null }
   | { art: 'frage'; text: string }
 
 /** Seiten, die per Sprache geöffnet werden können */
@@ -111,6 +112,9 @@ export function befehl(rest: string): Befehl {
   if (/^(stopp|stop|halt|ruhe|danke das reicht|schon gut)$/.test(t)) return { art: 'stopp' }
   if (/^(sei still|nicht zuhoeren|hoer auf zuzuhoeren|mikrofon aus|pause)$/.test(t)) return { art: 'still' }
   if (/\b(lage|morgenlage|bericht|zusammenfassung|was steht an|was gibt es neues)\b/.test(t)) return { art: 'lage' }
+  // Kamera groß im Wallpaper: „Loki, zeig den Carport“, „Kamera weg“ (links = Objektiv 1, rechts = Objektiv 2)
+  if (/\b(kamera|carport|bild)\b.*\b(weg|klein|schliessen)\b|\b(mach|schliess|schliesse)\b.*\b(kamera|carport)\b.*\b(zu|aus|klein|weg)\b/.test(t)) return { art: 'kamera', kanal: null }
+  if (/\b(zeig|zeige|zeigt)\b.*\b(kamera|carport|einfahrt|hof)\b|\b(kamera|carport)\b.*\bgross\b|\b(mach|hol)\b.*\b(kamera|carport)\b.*\b(gross|her)\b/.test(t)) return { art: 'kamera', kanal: /\b(rechts|rechte|rechten|zweite|zwei)\b/.test(t) ? 1 : 0 }
   if (/\b(oeffne|oeffnet|zeig|zeige|zeigt|geh zu|gehe zu|wechsel zu|wechsle zu|oeffnen)\b/.test(t)) {
     const s = SEITEN.find((x) => x.muster.test(t))
     if (s) return { art: 'oeffnen', pfad: s.pfad, name: s.name }

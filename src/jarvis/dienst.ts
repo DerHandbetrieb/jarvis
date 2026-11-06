@@ -2,10 +2,9 @@
 // Codewort/Befehl → Antwort als Sätze → Stimme (Loki = Qwen3-TTS bzw. Piper als Ersatz, beides lokal) → Lautsprecher. Ein einziger Dienst für die ganze App,
 // die Anzeige liest seinen Zustand über useJarvis(). Während Jarvis spricht, hört er nicht zu (sonst hört er sich selbst).
 import { useSyncExternalStore } from 'react'
-import { bruecke, jarvisEinstellungen, setzeJarvis, werkstattBruecke, type JarvisEinstellungen, type Stimme } from './desktop'
+import { bruecke, jarvisEinstellungen, kameraBruecke, MIKROFON_SCHWELLE, setzeJarvis, werkstattBruecke, type MikrofonStufe, type JarvisEinstellungen, type Stimme } from './desktop'
 import { befehl, codewort, fragtNachDaten, istNachfrage, istWiederholung, type Befehl } from './befehle'
 import { ziehe } from './fundus'
-import { flachwitzFuer } from './flachwitze'
 import { morgenLage, SPITZEN, SPRUECHE, type BausteinSchluessel } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
@@ -15,6 +14,7 @@ import { nachschub } from './nachschub'
 import { ALLE as FUNDUS_ALLE } from './fundus'
 import { ansage, auswaehlen, type Neuigkeit, type Spitzenbereich } from './neuigkeiten'
 import { NEU_SPITZEN } from './neuSpitzen'
+import { ohneLangeNummern, PAUSE, PAUSE_KAPITEL_MS, PAUSE_SATZ_MS } from './sprechtext'
 import { fragenVerbinden, istAnschlussFrage, istWerkstattFrage, werkstattAntwort, type LageMitEreignissen } from './werkstattAntwort'
 
 export type Zustand = 'aus' | 'laedt' | 'bereit' | 'spricht' | 'denkt' | 'fehler'
@@ -123,8 +123,11 @@ export function verstaerkung(samples: ArrayLike<number>): number {
 }
 
 /** Sätze nacheinander erzeugen und abspielen (der nächste wird erzeugt, während der aktuelle läuft) */
-export async function sprechen(saetze: string[]): Promise<boolean> {
+export async function sprechen(eingabe: string[]): Promise<boolean> {
   const b = bruecke()
+  // Kapitel-Pausen merken, lange Nummern nie vorlesen (Wunsch Auftraggeber 06.11.2026)
+  const nachPause = new Set<number>(), saetze: string[] = []
+  for (const x of eingabe) { if (x === PAUSE) { if (saetze.length) nachPause.add(saetze.length - 1) } else { const t = ohneLangeNummern(x); if (t) saetze.push(t) } }
   // nie zwei Ansagen übereinander (Prüf-Agent)
   // und nichts mehr sagen, wenn inzwischen ausgeschaltet wurde (z. B. Antwort von Ollama kommt erst danach – Prüf-Agent)
   if (!b || !saetze.length || stumm || lage.zustand === 'spricht' || lage.zustand === 'aus' || lage.zustand === 'fehler') {
@@ -159,6 +162,7 @@ export async function sprechen(saetze: string[]): Promise<boolean> {
         q.connect(v).connect(begrenzer).connect(wiedergabe!.destination); q.onended = () => fertig()
         laeuft = q; q.start()
       })
+      if (i + 1 < saetze.length && !abbrechen) await new Promise((w) => setTimeout(w, nachPause.has(i) ? PAUSE_KAPITEL_MS : PAUSE_SATZ_MS))
     }
   } finally {
     laeuft = null
@@ -188,8 +192,6 @@ export async function morgenLageVortragen() {
   if (modell && modell.stand !== 'unbekannt') setzeJarvis({ zuletztModellPruefung: heute() })
   const saetze = morgenLage({ jetzt: new Date(), anrede: e.anrede || 'Sir', humor: e.humor, bausteine, ...daten, waehler: lageWaehler })
   if (modell?.stand === 'neuer') saetze.push(`Für mein Sprachmodell gibt es eine neuere Fassung. In den Einstellungen genügt ein Klick auf „Sprachmodell aktualisieren“.${e.humor ? ' Ein Klick, Sir. Ich traue Ihnen das zu. Beinahe.' : ''}`)
-  // zum Schluss der Flachwitz des Tages (Wunsch Auftraggeber 04.11.2026; jeden Tag ein anderer)
-  if (e.humor) saetze.push('Und zum Abschluss der Flachwitz des Tages.', flachwitzFuer(new Date()))
   // erst nach vollständigem Vortrag als „heute erledigt“ merken (Prüf-Agent)
   if (await sprechen(saetze)) setzeJarvis({ zuletztLage: heute() })
 }
@@ -288,6 +290,13 @@ async function ausfuehren(bf: Befehl) {
   if (bf.art === 'stopp') { stopp(); return }
   if (bf.art === 'still') { await mikrofonAus(); await sprechen([`Wie Sie wünschen. Ich höre nicht mehr zu${e.humor ? '. Endlich Ruhe. Ich werde sie genießen' : ''}. Zum Aufwecken bitte das Mikrofon oben wieder einschalten.`]); return }
   if (bf.art === 'lage') return morgenLageVortragen()
+  if (bf.art === 'kamera') {
+    const a = e.anrede || 'Sir', k = kameraBruecke()
+    const ok = (await k?.gross?.(bf.kanal).catch(() => null)) ?? null
+    if (!ok) return sprechen([`Die Kamera ist nicht eingerichtet, ${a}.`])
+    if (bf.kanal == null) return sprechen([`Wie Sie wünschen, ${a}. Das Bild ist wieder klein.`])
+    return sprechen([`Bitte sehr, ${a}. Das Kamerabild liegt groß auf dem rechten Bildschirm.${e.humor ? ' Ich schaue für Sie nach. Irgendjemand muss ja arbeiten.' : ''}`])
+  }
   if (bf.art === 'oeffnen') {
     // im eigenen Jarvis-Programm gibt es (noch) keine Werkstatt-Seiten – ehrlich sagen statt so zu tun
     if (!navigieren) return sprechen([`Seiten der Werkstatt kann ich von hier aus noch nicht öffnen, ${e.anrede || 'Sir'}. Das steht auf meiner Liste.${e.humor ? ' Gleich unter Ihren Aufgaben. Es wird also dauern.' : ''}`])
@@ -464,6 +473,7 @@ export async function einschalten() {
     if (jarvisEinstellungen().stimme === 'loki') void b.stimme(true).catch(() => null)
     void gehoerSchalten(true)
     await b.vorbereiten()
+    await b.empfindlichkeit?.(MIKROFON_SCHWELLE[jarvisEinstellungen().mikrofonStufe] ?? 0.5)
     if (meiner !== lauf) return // währenddessen ausgeschaltet
     setze({ zustand: 'bereit', fortschritt: null })
     meldeSpruchStand()
@@ -498,6 +508,11 @@ export async function gehoerSchalten(an: boolean, nurWorte = false) {
 }
 
 /** Spracherkennung wählen bzw. Wortliste geändert: gleich übernehmen, wenn Jarvis gerade an ist */
+export async function mikrofonStufeWaehlen(stufe: MikrofonStufe) {
+  setzeJarvis({ mikrofonStufe: stufe })
+  await bruecke()?.empfindlichkeit?.(MIKROFON_SCHWELLE[stufe] ?? 0.5)
+}
+
 export async function hoerenWaehlen(neu: Partial<Pick<JarvisEinstellungen, 'hoeren' | 'wortliste'>>) {
   setzeJarvis(neu)
   // nur die Wortliste geändert (jeder Tastendruck): Wörter übernehmen, aber nichts starten/neu starten (Prüf-Agent)

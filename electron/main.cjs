@@ -454,10 +454,14 @@ if (!app.requestSingleInstanceLock()) {
     }
     if (!schluesselLaden()) { const t = setInterval(() => { if (schluesselLaden()) clearInterval(t) }, 5000) }
     // dieselben Daten wie das Wallpaper – auch fürs Start-Intro (Fenster über dem Wallpaper, endet bildgleich, 05.11.2026)
+    let kameraZuruf = null // „Loki, zeig den Carport“: { kanal, bis }
+    let alarmBildAus = 0 // „Kamera weg“ gilt auch für den laufenden Alarm
+    const kameraGross = () => (kameraAlarm > alarmBildAus && Date.now() - kameraAlarm < 30_000 ? 0 : kameraZuruf && Date.now() < kameraZuruf.bis ? kameraZuruf.kanal : null)
+    ipcMain.handle('kamera-gross', (e, k) => { if (!vonFenster(e)) return null; if (!kamera.status().eingerichtet) return false; kameraZuruf = k == null ? null : { kanal: k === 1 ? 1 : 0, bis: Date.now() + 60_000 }; if (k == null) alarmBildAus = Date.now(); return true })
     const hudDatenJetzt = () => {
       const l = werkstatt.lage()
       const k = kamera.status()
-      return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null } : null, loki: { ...trayZustand } }
+      return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null, gross: kameraGross() } : null, loki: { ...trayZustand } }
     }
     ipcMain.handle('sequenz-hud', (e) => (sequenzFenster && !sequenzFenster.isDestroyed() && e.sender === sequenzFenster.webContents ? hudDatenJetzt() : null))
     const hudServer = erstelleHudServer({

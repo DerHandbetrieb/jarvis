@@ -130,3 +130,17 @@ export function tafelnStellen(st, art, p) {
     })
   }
 }
+
+/** Kamerabild groß auf dem rechten Bildschirm (Interview 05.11.2026: bei Person, sonst auf Zuruf); die Schräge bleibt.
+ *  kanal 0/1 oder null = zurück. Weich über CSS, kostet je Bild nichts. */
+export function kameraGross(st, kanal) {
+  if (st.grossKanal === (kanal ?? null)) return
+  st.grossKanal = kanal ?? null
+  for (const [id, k] of [['kamera1', 0], ['kamera2', 1]]) {
+    const f = st.felder[id]; if (!f) continue
+    const c = f.c, gross = k === kanal
+    c.style.transition = 'transform 0.7s cubic-bezier(.2,.8,.2,1)'; c.style.transformOrigin = '0 0'; c.style.zIndex = gross ? '5' : ''
+    const q = TAFEL.breite / f.b
+    c.style.transform = gross ? `translate3d(${-parseFloat(c.style.left)}px, ${-parseFloat(c.style.top)}px, 2px) scale(${q})` : ''
+  }
+}

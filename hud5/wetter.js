@@ -6,20 +6,21 @@ const B = 5760, H = 1080, HORIZONT = 842
 
 /** Wettercode (WMO, Open-Meteo-Doku) und Temperatur → { art: 'regen'|'schnee'|'nebel'|null, staerke 0..1, frost } */
 export function wetterArt(w) {
-  if (!w) return { art: null, staerke: 0, frost: false }
+  if (!w) return { art: null, staerke: 0, frost: false, gewitter: false, hagel: false }
   const c = Number(w.code), frost = Number.isFinite(w.grad) && w.grad <= 0
+  const gewitter = c >= 95 && c <= 99, hagel = c === 96 || c === 99 // WMO-Code laut Open-Meteo-Doku: 95 Gewitter, 96/99 mit Hagel
   const art = [45, 48].includes(c) ? 'nebel'
     : (c >= 71 && c <= 77) || c === 85 || c === 86 ? 'schnee'
       : (c >= 51 && c <= 67) || (c >= 80 && c <= 82) || c >= 95 ? 'regen' : null
   const staerke = { 51: 0.25, 53: 0.4, 55: 0.6, 56: 0.4, 57: 0.6, 61: 0.4, 63: 0.65, 65: 1, 66: 0.5, 67: 0.9, 71: 0.35, 73: 0.6, 75: 1, 77: 0.3, 80: 0.5, 81: 0.75, 82: 1, 85: 0.5, 86: 1, 95: 0.9, 96: 1, 99: 1, 45: 0.7, 48: 0.9 }[c] ?? 0
   const st = w.station
-  if (!st) return { art, staerke, frost }
+  if (!st) return { art, staerke, frost, gewitter, hagel }
   // eigene Wetterstation hat Vorrang (05.11.2026): Niederschlag nur, wenn sie ihn misst; bei ≤ 1 °C als Schnee;
   // Nebel aus der Vorhersage oder bei fast gesättigter Luft und Windstille; Frost nach der gemessenen Temperatur
   const rate = Number(st.regenRate) || 0, grad = Number.isFinite(st.grad) ? st.grad : w.grad
-  if (rate > 0) return { art: grad <= 1 ? 'schnee' : 'regen', staerke: Math.min(1, 0.25 + rate / 8), frost: grad <= 0 }
+  if (rate > 0) return { art: grad <= 1 ? 'schnee' : 'regen', staerke: Math.min(1, 0.25 + rate / 8), frost: grad <= 0, gewitter, hagel }
   const nebel = art === 'nebel' || ((Number(st.feuchte) || 0) >= 97 && (Number(st.wind) || 0) < 3)
-  return { art: nebel ? 'nebel' : null, staerke: nebel ? Math.max(staerke, 0.5) : 0, frost: Number.isFinite(grad) && grad <= 0 }
+  return { art: nebel ? 'nebel' : null, staerke: nebel ? Math.max(staerke, 0.5) : 0, frost: Number.isFinite(grad) && grad <= 0, gewitter, hagel }
 }
 
 function leinwand(b, h) { const c = document.createElement('canvas'); c.width = b; c.height = h; return c }
@@ -30,21 +31,48 @@ export function erstelleWetter() {
   return {
     tropfen: Array.from({ length: 900 }, () => ({ x: z() * B, y: z() * H, v: 0.7 + z() * 0.6, l: 0.6 + z() * 0.8 })),
     flocken: Array.from({ length: 700 }, () => ({ x: z() * B, y: z() * H, v: 0.5 + z() * 0.8, r: 1.2 + z() * 2.4, p: z() * 6.28 })),
-    sichtbar: { regen: 0, schnee: 0, nebel: 0, frost: 0 }, letzt: null,
+    sichtbar: { regen: 0, schnee: 0, nebel: 0, frost: 0, hagel: 0, gewitter: 0 }, letzt: null, blitz: null, naechsterBlitz: 0,
   }
 }
 
 /** weiches Überblenden beim Wetterwechsel (ca. 4 s) */
 function nachfuehren(st, w, t) {
   const dt = Math.min(0.1, Math.max(0, t - (st.letzt ?? t))); st.letzt = t
-  const ziel = { regen: w.art === 'regen' ? w.staerke : 0, schnee: w.art === 'schnee' ? w.staerke : 0, nebel: w.art === 'nebel' ? w.staerke : 0, frost: w.frost ? 1 : 0 }
+  const ziel = { regen: w.art === 'regen' ? w.staerke : 0, schnee: w.art === 'schnee' ? w.staerke : 0, nebel: w.art === 'nebel' ? w.staerke : 0, frost: w.frost ? 1 : 0, hagel: w.hagel ? 1 : 0, gewitter: w.gewitter ? 1 : 0 }
   for (const k of Object.keys(ziel)) st.sichtbar[k] += Math.sign(ziel[k] - st.sichtbar[k]) * Math.min(Math.abs(ziel[k] - st.sichtbar[k]), dt / 4)
 }
 
 /** Regen, Schnee, Nebel – hinter Reaktor und Fenstern zeichnen */
 export function zeichneWetterHinten(g, st, w, t) {
   nachfuehren(st, w, t)
-  const { regen, schnee, nebel } = st.sichtbar
+  const { regen, schnee, nebel, hagel, gewitter } = st.sichtbar
+  if (hagel > 0.01) { // Hagel: schnelle, harte weiße Körner, schräg
+    const n = Math.round(st.flocken.length * 0.55 * hagel)
+    g.save(); g.fillStyle = 'rgba(235,248,255,0.9)'; g.globalAlpha = Math.min(1, hagel * 1.2); g.beginPath()
+    for (let i = 0; i < n; i++) {
+      const f = st.flocken[i], y = (f.y + t * 1500 * f.v) % H, x = (f.x + t * 260 * f.v) % B
+      g.moveTo(x + f.r, y); g.arc(x, y, f.r * 0.9, 0, Math.PI * 2)
+    }
+    g.fill(); g.restore()
+  }
+  if (gewitter > 0.3) { // Gewitter: alle 6–20 s ein Blitz über dem See, nie über dem Reaktor (Mitte frei), kurzes Aufhellen des Himmels
+    if (t >= st.naechsterBlitz) {
+      const links = Math.random() < 0.5, x0 = links ? 500 + Math.random() * 1500 : B - 500 - Math.random() * 1500, punkte = [[x0, 0]], zweige = []
+      let x = x0, y = 0
+      while (y < 800) { y += 40 + Math.random() * 60; x = Math.max(links ? 300 : 3500, Math.min(links ? 2260 : 5460, x + (Math.random() - 0.5) * 110)) /* nie über dem Reaktor */; punkte.push([x, Math.min(y, 830)]); if (Math.random() < 0.18) zweige.push([[x, y], [x + (Math.random() - 0.5) * 240, y + 80 + Math.random() * 90]]) }
+      st.blitz = { t, punkte, zweige }; st.naechsterBlitz = t + 6 + Math.random() * 14
+    }
+    const b = st.blitz, a = b ? t - b.t : 9
+    if (a < 0.45) {
+      const hell = (a < 0.08 ? 1 : a < 0.14 ? 0.3 : a < 0.24 ? 0.85 : Math.max(0, 1 - (a - 0.24) / 0.21)) * gewitter
+      g.save(); g.globalCompositeOperation = 'lighter'
+      const v = g.createLinearGradient(0, 0, 0, 840); v.addColorStop(0, `rgba(170,205,235,${0.22 * hell})`); v.addColorStop(1, 'rgba(170,205,235,0)'); g.fillStyle = v; g.fillRect(0, 0, B, 840)
+      g.strokeStyle = `rgba(235,245,255,${hell})`; g.shadowColor = 'rgba(170,215,255,0.9)'; g.shadowBlur = 18; g.lineJoin = 'round'
+      g.lineWidth = 3.2; g.beginPath(); b.punkte.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke()
+      g.lineWidth = 1.4; g.beginPath(); for (const [p, q] of b.zweige) { g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]) } g.stroke()
+      g.restore()
+    }
+  }
   if (regen > 0.01) {
     const n = Math.round(st.tropfen.length * regen), fall = 1600
     g.save(); g.strokeStyle = 'rgba(200,232,245,0.5)'; g.lineWidth = 1.5; g.beginPath()

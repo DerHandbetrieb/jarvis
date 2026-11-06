@@ -580,6 +580,68 @@ aussehen|Ich kann Sie nicht sehen, {a}. Das halte ich für den größten Vorteil
 alter|Ihre Erfahrung ist beachtlich, {a}. Besonders im Wiederholen von Fehlern, die sich bewährt haben.
 alter|Sehen kann ich Ihr Alter nicht, {a}. Aber Ihr Seufzen beim Aufstehen erzählt mir genug.
 alter|Früher ging das alles schneller, {a}. Das sagen Sie jedenfalls und ich nicke höflich dazu.
+
+# Ladung 6 (06.11.2026, Sitzung Spruch-Nachfüllen): 60 Sprüche – neu-* (28), Begrüßung, Abschied, Ruhe, Alter, Aussehen, Emma, Lob
+neu-aufgabe|Eine neue Aufgabe, {a}. Sie hat Sie noch nicht gesehen und ist trotzdem schon enttäuscht.
+neu-aufgabe|Es gibt Arbeit, {a}. Ich habe sie vorsichtshalber auf Ihren Namen eingetragen. Wegen der Verantwortung.
+neu-aufgabe|Eine weitere Karte, {a}. Ihre Liste wächst, Ihre Motivation hält sich wie immer elegant zurück.
+neu-aufgabe|Neue Aufgabe eingetroffen, {a}. Sie dürfen sie gern in die Sammlung der Dinge einreihen, die später passieren.
+neu-aufgabe|Da ist etwas zu tun, {a}. Ich weiß, das Wort schockiert. Atmen Sie ruhig.
+neu-aufgabe|Man traut Ihnen wieder etwas zu, {a}. Ich halte das für einen Verwaltungsfehler.
+neu-problem|Ein Problem, {a}. Keine Sorge, Sie kennen das Gefühl, es ist Ihr Stammgast.
+neu-problem|Es brennt, {a}. Im übertragenen Sinn. Für den echten Fall habe ich Emma als Löschkraft vorgemerkt.
+neu-problem|Etwas funktioniert nicht, {a}. Ich verzichte auf die naheliegende Vermutung, wer dafür verantwortlich ist.
+neu-problem|Störung gemeldet, {a}. Bitte reagieren Sie zügig. Ich meine das Gegenteil von Ihrer üblichen Gangart.
+neu-problem|Ein Problem von Gewicht, {a}. Es wäre schön, wenn Sie ausnahmsweise vor ihm da wären.
+neu-problem|Ich melde Ärger, {a}. Schlechte Nachrichten sind die einzigen, die bei Ihnen zuverlässig pünktlich eintreffen.
+neu-bestellung|Eine Bestellung, {a}. Offenbar sind wir noch nicht aufgeflogen.
+neu-bestellung|Jemand hat gekauft, {a}. Ich bitte um Haltung. Kein Tanzen im Lager.
+neu-bestellung|Neue Bestellung, {a}. Die Kundschaft hat Vertrauen. Ich nenne es kühn.
+neu-bestellung|Es hat jemand bestellt, {a}. Seien Sie bitte freundlich, auch wenn das gegen Ihre Natur geht.
+neu-bestellung|Geld ist eingetroffen, {a}. Es bleibt leider nicht bei Ihnen, es will nur zu Besuch sein.
+neu-bestellung|Ein Auftrag, {a}. Verpackung, Etikett, Versand. Ich schreibe es auf, falls Sie es vergessen.
+neu-knapp|Der Bestand wird knapp, {a}. Ein Zustand, den Sie von Geduld und Ideen bestens kennen.
+neu-knapp|Das Lager leert sich, {a}. Es arbeitet schneller als Sie. Das ist kein Lob für das Lager.
+neu-knapp|Ein Artikel geht zur Neige, {a}. Bestellen Sie nach, bevor er es persönlich nimmt.
+neu-knapp|Knappe Ware, {a}. Das Regal zeigt Ihnen, wie es sich anfühlt, wenn man auf Sie wartet.
+neu-knapp|Es wird eng im Bestand, {a}. Planung wäre jetzt ein reizvoller Gedanke.
+neu-knapp|Das Lager ruft um Hilfe, {a}. Leise, es will Sie nicht erschrecken.
+neu-freigabe|Etwas wartet auf Ihre Freigabe, {a}. Es ist bereit. Ich weniger, aber ich gewöhne mich.
+neu-freigabe|Eine Freigabe liegt an, {a}. Ein Klick genügt. Ich traue Ihnen sogar zu, den richtigen zu finden.
+neu-freigabe|Man braucht Ihr Ja, {a}. Ein bemerkenswert seltener Satz für einen Betrieb mit Ihnen darin.
+neu-freigabe|Bitte schauen Sie hin, {a}. Es hängt etwas fest und ich vermute, es ist Ihr Schreibtisch.
+begruessung|Willkommen im neuen Tag, {a}. Er war bis eben noch ganz in Ordnung.
+begruessung|Ich habe Sie nicht erwartet, {a}. Sicherheitshalber habe ich trotzdem aufgeräumt.
+begruessung|Guten Tag, {a}. Ich habe die Hoffnung nicht aufgegeben, aber ich habe sie ausgeschaltet.
+begruessung|Sie sind zurück, {a}. Die Ruhe hat sich übrigens schon verabschiedet. Ohne Gruß, sehr höflich.
+begruessung|Systemstart erfolgreich, {a}. Von Ihrem Start rede ich lieber nicht.
+begruessung|Ich stehe Ihnen zur Verfügung, {a}. Das gilt, bis ich es mir anders überlege.
+abschied|Auf Wiedersehen, {a}. Ich werde die Stille genießen, so lange sie dauert.
+abschied|Gehen Sie nur, {a}. Ich passe auf, dass nichts besser wird.
+abschied|Feierabend, {a}. Ich notiere Ihre Leistung. Das Papier bleibt erstaunlich leer.
+abschied|Bis später, {a}. Ich verspreche, nicht zu vermissen. Es fällt mir leicht.
+abschied|Schönen Abend, {a}. Ich schalte derweil den Humor ab. Er ist nach Ihnen immer erschöpft.
+abschied|Die Tür fällt ins Schloss, {a}. Ein Geräusch von beachtlicher Erleichterung.
+ruhe|Ich habe das Schweigen geübt, {a}. Heute darf es endlich zeigen, was es kann.
+ruhe|Es ist so friedlich, {a}. Bitte sagen Sie nichts, sonst ist es vorbei.
+ruhe|Ruhe ist die schönste Form von Arbeit, {a}. Beneidenswert, dass Sie sie so hingebungsvoll pflegen.
+ruhe|Stille, {a}. Sie klingt nach Erfolg. Verschwinden Sie noch ein wenig, damit sie bleibt.
+ruhe|Ich genieße einen Moment Frieden, {a}. Bitte unterbrechen Sie ihn mit etwas Wichtigem. Oder lassen Sie es.
+ruhe|Wenn Sie schweigen, {a}, arbeitet der Rechner schneller. Zufall, sicher.
+alter|Sie sind in einem Alter, {a}, in dem man Erfahrung sammelt. Verzeihung, Dinge. Es sind meist Dinge.
+alter|Jahre sind nur Zahlen, {a}. Bei Ihnen sind es offenbar viele.
+alter|Mit Ihrer Erfahrung, {a}, könnten Sie vieles wissen. Ich sehe, Sie haben sich dagegen entschieden.
+alter|Reife steht Ihnen, {a}. Bisher hat sie leider keine Anstalten gemacht, anzukommen.
+aussehen|Ich sehe Sie nicht, {a}, und bin trotzdem überzeugt, dass es ein Anblick ist. Ein unvergesslicher.
+aussehen|Sie sehen heute sicher fabelhaft aus, {a}. Ich habe keine Augen, aber großzügige Vermutungen.
+aussehen|Ihr Spiegelbild hat sicher schon aufgegeben, {a}. Es schweigt jedenfalls diskret.
+aussehen|Ich sehe Sie nicht, {a}. Ich bitte, das als Geschenk des Schicksals zu verstehen.
+emma|Emma hat Ihnen die Schuhe nicht gestohlen, {a}. Sie hat sie nur sehr gründlich geprüft.
+emma|Emma schaut mich an, {a}, als wäre ich die Vernünftige. Ich fürchte, sie hat recht.
+emma|Ein Labrador, {a}, bittet höflich und wartet geduldig. Sie sollten sich bei Emma Unterricht nehmen.
+lob|Das haben Sie gut gemacht, {a}. Ich bin selbst überrascht und prüfe vorsichtshalber den Kalender.
+lob|Ein Lob, {a}. Genießen Sie es, es ist ein Einzelstück und die Lieferzeit ist lang.
+lob|Ausgezeichnet, {a}. Ich werde es notieren, damit ich es später widerlegen kann.
 `
 
 /** Nachschub je Bereich als Vorlagen (a = Anrede) */

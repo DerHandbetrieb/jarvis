@@ -11,15 +11,17 @@ import { werkstattBruecke, type WerkstattLage } from './desktop'
 import { istFreigabeSammelkarte } from './neuigkeiten'
 
 const WETTER_WORT = { klar: 'klarer Himmel', wolkig: 'bewölkt', regen: 'Regen', gewitter: 'Gewitter' } as const
+/** „2× Tasse“ → „2 mal Tasse“ */
+const artikelGesprochen = (a: string) => a.replace(/^1× /, '').replace(/^(\d+)× /, '$1 mal ')
 const HOECHSTENS_ALT = 60 * 60_000
 
 const sicher = async <T,>(f: () => Promise<T>): Promise<T | null> => { try { return await f() } catch { return null } }
 const mitZeitgrenze = <T,>(p: Promise<T>, ms = 20_000): Promise<T> => Promise.race([p, new Promise<T>((_, nein) => setTimeout(() => nein(new Error('Zeitüberschreitung')), ms))])
 
-type WerkstattTeil = Pick<LageEingabe, 'aufgaben' | 'probleme' | 'lager' | 'verkauf' | 'freigaben'>
+type WerkstattTeil = Pick<LageEingabe, 'aufgaben' | 'probleme' | 'lager' | 'verkauf' | 'freigaben' | 'offen'>
 /** Antwort der Serverfunktion in die Bausteine der Morgen-Lage umrechnen (getestet) */
 export function ausWerkstatt(l: WerkstattLage | null, jetzt: Date): WerkstattTeil {
-  if (!l || !(jetzt.getTime() - l.geholt < HOECHSTENS_ALT)) return { aufgaben: null, probleme: null, lager: null, verkauf: null, freigaben: null }
+  if (!l || !(jetzt.getTime() - l.geholt < HOECHSTENS_ALT)) return { aufgaben: null, probleme: null, lager: null, verkauf: null, freigaben: null, offen: null }
   // Selbsttest zählt nur, wenn er aus den letzten 24 Stunden stammt
   const testRot = !!l.selbsttest && l.selbsttest.rot > 0 && jetzt.getTime() - new Date(l.selbsttest.am).getTime() < 24 * 3_600_000
   return {
@@ -29,6 +31,7 @@ export function ausWerkstatt(l: WerkstattLage | null, jetzt: Date): WerkstattTei
     lager: { namen: l.lagerKnapp.map((k) => (k.variante ? `${k.name} ${k.variante}` : k.name)) },
     verkauf: { bestellungen: l.verkauf.gestern.bestellungen, stueck: l.verkauf.gestern.stueck, umsatzCent: l.verkauf.gestern.umsatzCent },
     freigaben: l.freigaben,
+    offen: l.offeneBestellungen ? { anzahl: Number(l.offeneBestellungen.anzahl) || 0, liste: (l.offeneBestellungen.liste ?? []).map((b) => ({ kanal: b.kanal, artikel: (b.artikel ?? []).map(artikelGesprochen) })) } : null,
   }
 }
 
