@@ -17,7 +17,7 @@ const nurMitte = !location.search.includes('alle') && innerWidth / innerHeight <
 const VERSATZ = nurMitte ? 1920 : 0
 c.width = nurMitte ? 1920 : B; c.height = H
 
-const WETTER = { klar: 'KLAR', wolkig: 'BEWÖLKT', regen: 'REGEN', gewitter: 'GEWITTER' }
+const WETTER = { klar: 'SONNIG', heiter: 'HEITER', wolkig: 'BEWÖLKT', regen: 'REGEN', schnee: 'SCHNEE', nebel: 'NEBEL', gewitter: 'GEWITTER' }
 const wetterText = (w) => (w?.code != null ? WETTER[wetterAusCode(w.code, w.wolken ?? 0)] ?? '' : '')
 let antwort = null, daten = ausHud(null, new Date(), sequenzDaten, wetterText)
 let pausiert = false, lauf = 0 // lauf: Nummer der Zeichenschleife – nach Pause nie zwei gleichzeitig (Prüf-Agent)
@@ -109,7 +109,7 @@ function schleife(ms, meine = lauf) {
   requestAnimationFrame((n) => schleife(n, meine))
   const t = ms / 1000, loki = antwort?.loki ?? null
   const tonJetzt = performance.now() - letzterTon < 2000 ? ton : null
-  zeichneSzene(g, szene, t, { wetter: antwort?.wetter ?? null, versatz: VERSATZ, loki: reaktorZustand(loki), pegel: 0.6 + 0.4 * Math.abs(Math.sin(t * 7)), ton: tonJetzt }) // Reaktor pulsiert im Beat
+  zeichneSzene(g, szene, t, { wetter: antwort?.wetter ?? null, eis: antwort?.eis, versatz: VERSATZ, loki: reaktorZustand(loki), pegel: 0.6 + 0.4 * Math.abs(Math.sin(t * 7)), ton: tonJetzt }) // Reaktor pulsiert im Beat
   const fv = szene.wetter?.sichtbar?.frost ?? 0; if (fv > 0 && !frost) frost = frostEbene(); if (frost) { frostStellen(frost, fv); frostGrad(frost, antwort?.wetter?.grad) }
   kameraGross(tafeln, antwort?.kamera?.gross ?? null)
   zeichneTafeln(tafeln, { ...daten, tonStatus: tonStatus(), ton: performance.now() - letzterTon < 2000 ? ton : null, kamBilder: [liveBild(0), liveBild(1)] }, t)

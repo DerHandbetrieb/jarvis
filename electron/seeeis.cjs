@@ -1,5 +1,5 @@
 // Zugefrorener See im Dauer-HUD (06.11.2026, Wunsch Auftraggeber): friert erst, wenn es mehrere Tage durchgehend Minusgrade
-// hatte. Maßstab ist die Tageshöchsttemperatur (Open-Meteo, daily temperature_2m_max mit past_days): liegt sie unter 0 °C,
+// hatte. Maßstab ist die Tageshöchsttemperatur (aus dem Tagebuch der eigenen Station, wettertage.cjs): liegt sie unter 0 °C,
 // war der ganze Tag Frost. Tauen geht langsamer los als Frieren, damit ein milder Mittag das Eis nicht wegnimmt.
 const FROST_UNTER = 0, TAUWETTER_AB = 2, HOECHSTENS = 4
 

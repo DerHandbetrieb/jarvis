@@ -1,26 +1,25 @@
 // Wetter in der Szene (05.11.2026, Wunsch Auftraggeber): regnet es draußen, regnet es im Bild; Schnee, Nebel, Frost an den
-// Bildschirmrändern. Alles hinter Reaktor und Fenstern – die bleiben immer klar. Quelle heute Open-Meteo (Wettercode nach
-// WMO, über L.O.K.I.), später die eigene Wetterstation des Auftraggebers (Ecowitt) – dann nur `wetterArt` anpassen.
+// Bildschirmrändern. Alles hinter Reaktor und Fenstern – die bleiben immer klar. Quelle ist ausnahmslos die eigene Wetterstation
+// (Ecowitt, electron/himmel.cjs). Gewitter und Hagel kann sie nicht erkennen, diese Effekte ruhen darum seit 06.11.2026.
 // Dazu ziehen Nebelschwaden ganz langsam durch Berge und Wälder (immer, unabhängig vom Wetter).
 const B = 5760, H = 1080, HORIZONT = 842
 
-/** Wettercode (WMO, Open-Meteo-Doku) und Temperatur → { art: 'regen'|'schnee'|'nebel'|null, staerke 0..1, frost } */
+/** Wettercode (WMO) und Temperatur → { art: 'regen'|'schnee'|'nebel'|null, staerke 0..1, frost } */
 export function wetterArt(w) {
   if (!w) return { art: null, staerke: 0, frost: false, gewitter: false, hagel: false }
   const c = Number(w.code), frost = Number.isFinite(w.grad) && w.grad <= 0
-  const gewitter = c >= 95 && c <= 99, hagel = c === 96 || c === 99 // WMO-Code laut Open-Meteo-Doku: 95 Gewitter, 96/99 mit Hagel
+  const gewitter = c >= 95 && c <= 99, hagel = c === 96 || c === 99 // WMO-Code: 95 Gewitter, 96/99 mit Hagel; die Station liefert sie nicht, die Effekte ruhen
   const art = [45, 48].includes(c) ? 'nebel'
     : (c >= 71 && c <= 77) || c === 85 || c === 86 ? 'schnee'
       : (c >= 51 && c <= 67) || (c >= 80 && c <= 82) || c >= 95 ? 'regen' : null
   const staerke = { 51: 0.25, 53: 0.4, 55: 0.6, 56: 0.4, 57: 0.6, 61: 0.4, 63: 0.65, 65: 1, 66: 0.5, 67: 0.9, 71: 0.35, 73: 0.6, 75: 1, 77: 0.3, 80: 0.5, 81: 0.75, 82: 1, 85: 0.5, 86: 1, 95: 0.9, 96: 1, 99: 1, 45: 0.7, 48: 0.9 }[c] ?? 0
   const st = w.station
   if (!st) return { art, staerke, frost, gewitter, hagel }
-  // eigene Wetterstation hat Vorrang (05.11.2026): Niederschlag nur, wenn sie ihn misst; bei ≤ 1 °C als Schnee;
-  // Nebel aus der Vorhersage oder bei fast gesättigter Luft und Windstille; Frost nach der gemessenen Temperatur
+  // Niederschlag nur, wenn die Station ihn misst; bei ≤ 1 °C als Schnee; Nebel lässt sich nicht messen und wird nicht geschätzt;
+  // Frost nach der gemessenen Temperatur
   const rate = Number(st.regenRate) || 0, grad = Number.isFinite(st.grad) ? st.grad : w.grad
   if (rate > 0) return { art: grad <= 1 ? 'schnee' : 'regen', staerke: Math.min(1, 0.25 + rate / 8), frost: grad <= 0, gewitter, hagel }
-  const nebel = art === 'nebel' || ((Number(st.feuchte) || 0) >= 97 && (Number(st.wind) || 0) < 3)
-  return { art: nebel ? 'nebel' : null, staerke: nebel ? Math.max(staerke, 0.5) : 0, frost: Number.isFinite(grad) && grad <= 0, gewitter, hagel }
+  return { art: art === 'nebel' ? 'nebel' : null, staerke: art === 'nebel' ? staerke : 0, frost: Number.isFinite(grad) && grad <= 0, gewitter, hagel }
 }
 
 function leinwand(b, h) { const c = document.createElement('canvas'); c.width = b; c.height = h; return c }

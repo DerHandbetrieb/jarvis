@@ -18,7 +18,8 @@ const { erstellePv } = require('./pv.cjs')
 const { erstelleWetterstation } = require('./wetterstation.cjs')
 const { ueberwachen } = require('./vollbild.cjs')
 const whatsappHinweis = require('./whatsapphinweis.cjs')
-const { eisStufe } = require('./seeeis.cjs')
+const { erstelleWettertage } = require('./wettertage.cjs')
+const { wetterAusStation } = require('./himmel.cjs')
 const { erstelleNeuigkeiten } = require('./neuigkeiten.cjs')
 const { erstelleKamerawache } = require('./kamerawache.cjs')
 const { Readable } = require('node:stream')
@@ -421,6 +422,8 @@ if (!app.requestSingleInstanceLock()) {
     app.on('will-quit', () => station.stoppen())
     stationAnzeige = () => station.anzeige()
     ipcMain.handle('station-status', (e) => (vonFenster(e) ? station.status() : null))
+    // Wetter für Lokis Sätze, allein aus der Station (himmel.cjs)
+    ipcMain.handle('station-wetter', (e) => (vonFenster(e) ? wetterAusStation(station.anzeige()) : null))
     ipcMain.handle('station-einrichten', async (e, d) => (vonFenster(e) ? station.einrichten({ appKey: d?.appKey, apiKey: d?.apiKey, mac: d?.mac }) : null))
     ipcMain.handle('station-entfernen', (e) => (vonFenster(e) ? station.entfernen() : null))
     // Kamera-Wache (04.11.2026): linkes Objektiv, nur Personen (Interview). Meldungen laufen über dieselbe Warteschlange
@@ -443,16 +446,11 @@ if (!app.requestSingleInstanceLock()) {
     app.on('will-quit', () => kamerawache.stoppen())
 
     // Dauer-HUD (Web-Wallpaper in Wallpaper Engine): Gegenstelle nur auf 127.0.0.1 mit Zugriffsschlüssel. Liefert die
-    // zwischengespeicherte Werkstatt-Lage (höchstens 1 Stunde alt) und das Wetter (Open-Meteo, alle 15 Minuten).
-    let hudWetter = null
-    const wetterHolen = async () => {
-      try {
-        const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=49.057&longitude=9.899&current=temperature_2m,weather_code,cloud_cover&daily=temperature_2m_max&past_days=14&forecast_days=1&timezone=Europe%2FBerlin', { signal: AbortSignal.timeout(15_000) })
-        const j = r.ok ? await r.json() : null, c = j?.current
-        if (c) hudWetter = { ort: 'Obersontheim', grad: c.temperature_2m ?? null, code: c.weather_code ?? null, wolken: c.cloud_cover ?? 0, eis: eisStufe(j?.daily?.temperature_2m_max), geholt: Date.now() }
-      } catch { /* nächster Versuch in 15 Minuten */ }
-    }
-    void wetterHolen(); setInterval(() => void wetterHolen(), 15 * 60_000)
+    // zwischengespeicherte Werkstatt-Lage (höchstens 1 Stunde alt) und das Wetter der eigenen Station.
+    // Wetter nur von der eigenen Station (himmel.cjs); Tageswerte fürs See-Eis schreibt L.O.K.I. selbst auf (wettertage.cjs)
+    const wettertage = erstelleWettertage({ datei: path.join(app.getPath('userData'), 'wetter-tage.json'), fs })
+    setInterval(() => { const w = wetterAusStation(stationAnzeige()); if (w) wettertage.erfassen(w.grad) }, 60_000)
+    const hudWetter = () => { const w = wetterAusStation(stationAnzeige()); return w ? { ort: 'Obersontheim', ...w } : null }
     // Schlüssel fürs Wallpaper (05.11.2026): kein Zufallsschlüssel mehr, wenn die Datei nicht lesbar ist – sonst weist L.O.K.I.
     // das Wallpaper ab (403, keine Live-Werte). Stattdessen alle 5 s neu versuchen; Ergebnis/Grund steht in kamera.log.
     const hudDatei = path.join(app.getPath('userData'), 'hud-schluessel')
@@ -468,7 +466,7 @@ if (!app.requestSingleInstanceLock()) {
     const hudDatenJetzt = () => {
       const l = werkstatt.lage()
       const k = kamera.status()
-      return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null, alarmArt: kameraAlarmArt, gross: kameraGross() } : null, loki: { ...trayZustand, whatsapp: whatsappNeu } }
+      return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter(), eis: wettertage.eis(), station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null, alarmArt: kameraAlarmArt, gross: kameraGross() } : null, loki: { ...trayZustand, whatsapp: whatsappNeu } }
     }
     ipcMain.handle('sequenz-hud', (e) => (sequenzFenster && !sequenzFenster.isDestroyed() && e.sender === sequenzFenster.webContents ? hudDatenJetzt() : null))
     const hudServer = erstelleHudServer({

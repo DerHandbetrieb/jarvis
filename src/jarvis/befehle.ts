@@ -126,11 +126,6 @@ export function befehl(rest: string): Befehl {
   return { art: 'frage', text: rest.trim() }
 }
 
-/** Fragt der Satz nach Werkstatt-Daten oder Wetter? (dann bekommt das Sprachmodell die Daten mit) */
-export function fragtNachDaten(text: string): boolean {
-  return /wetter|regen|temperatur|grad|kalt|warm|aufgabe|todo|karte|lager|bestand|knapp|verkauf|verkauft|umsatz|bestellung|shop|etsy|amazon|freigabe|selbsttest|problem|zahlen|statistik|lage|neues|heute|gestern/.test(vereinfachen(text))
-}
-
 /**
  * Wiederholt eine neue Antwort eine frühere? (Rückmeldung Auftraggeber 04.11.2026: Loki gab im Gespräch oft wortgleich
  * seine vorige Antwort.) Vergleich über Dreiwort-Folgen: Steckt mehr als ein Drittel der neuen Folgen schon in einer

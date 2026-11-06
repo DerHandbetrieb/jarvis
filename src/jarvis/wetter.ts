@@ -1,31 +1,15 @@
-// Wetter für die Morgen-Lage (übernommen aus der Werkstatt-App: src/lib/wetterort.ts und src/wikinger/wetterlage.ts).
-// Daten kostenlos von Open-Meteo, ohne Konto und ohne Schlüssel. Ort je Gerät (localStorage „wetter.ort“), Start Obersontheim.
+// Wetterart für Lokis Sätze und das Dauer-HUD. Das Wetter selbst kommt seit 06.11.2026 ausnahmslos von der eigenen Station
+// (electron/himmel.cjs), kein Wetterdienst mehr.
 
-export type Ort = 'oehringen' | 'obersontheim'
-
-export const ORTE: Record<Ort, { name: string; breite: number; laenge: number }> = {
-  oehringen: { name: 'Öhringen', breite: 49.2, laenge: 9.5 },
-  obersontheim: { name: 'Obersontheim', breite: 49.057, laenge: 9.899 },
-}
-
-export type WetterAntwort = { current?: { temperature_2m?: number; weather_code?: number; cloud_cover?: number } }
-
-export function wetterOrt(): Ort {
-  try { if (localStorage.getItem('wetter.ort') === 'oehringen') return 'oehringen' } catch { /* Startwert */ }
-  return 'obersontheim' // Wohnort des Auftraggebers (Korrektur 05.11.2026: Öhringen ist der Kollege)
-}
-
-export async function holeWetter(o: Ort): Promise<WetterAntwort> {
-  const p = ORTE[o]
-  const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.breite}&longitude=${p.laenge}&current=temperature_2m,weather_code,cloud_cover&timezone=Europe%2FBerlin`)
-  if (!r.ok) throw new Error(`Wetter: Fehler ${r.status}`)
-  return r.json() as Promise<WetterAntwort>
-}
-
-/** WMO-Wettercode (Open-Meteo) → grobe Wetterart */
-export function wetterAusCode(code: number, wolken = 0): 'klar' | 'wolkig' | 'regen' | 'gewitter' {
+/** WMO-Wettercode (aus den Stationswerten abgeleitet) → grobe Wetterart */
+export function wetterAusCode(code: number, wolken = 0): 'klar' | 'heiter' | 'wolkig' | 'regen' | 'schnee' | 'nebel' | 'gewitter' {
   if (code >= 95) return 'gewitter'
-  if ((code >= 51 && code <= 67) || (code >= 71 && code <= 77) || (code >= 80 && code <= 86)) return 'regen'
-  if (code === 2 || code === 3 || code === 45 || code === 48 || wolken >= 70) return 'wolkig'
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'schnee'
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 84)) return 'regen'
+  if (code === 45 || code === 48) return 'nebel'
+  if (code === 2) return 'heiter'
+  if (code === 3 || wolken >= 70) return 'wolkig'
   return 'klar'
 }
+
+export const WETTER_WORT = { klar: 'Sonnenschein', heiter: 'heiter', wolkig: 'bewölkt', regen: 'Regen', schnee: 'Schnee', nebel: 'Nebel', gewitter: 'Gewitter' } as const

@@ -22,10 +22,10 @@ describe('Wettereffekte nach der Wetterstation', () => {
   it('Frost nach der gemessenen Temperatur', () => {
     expect(wetterArt({ code: 2, grad: -3, station: { grad: -3, regenRate: 0 } }).frost).toBe(true)
   })
-  it('Nebel bei gesättigter Luft und Windstille', () => {
-    expect(wetterArt({ code: 2, grad: 4, station: { grad: 4, regenRate: 0, feuchte: 98, wind: 1 } }).art).toBe('nebel')
+  it('Nebel wird nicht aus Feuchte und Wind geschätzt', () => {
+    expect(wetterArt({ code: 2, grad: 4, station: { grad: 4, regenRate: 0, feuchte: 98, wind: 1 } }).art).toBeNull()
   })
-  it('ohne Station gilt weiter die Vorhersage', () => {
+  it('ohne Stationswerte zählt der übergebene Code', () => {
     expect(wetterArt({ code: 63, grad: 9 }).art).toBe('regen')
   })
 })

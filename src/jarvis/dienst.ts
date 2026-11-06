@@ -2,8 +2,8 @@
 // Codewort/Befehl → Antwort als Sätze → Stimme (Loki = Qwen3-TTS bzw. Piper als Ersatz, beides lokal) → Lautsprecher. Ein einziger Dienst für die ganze App,
 // die Anzeige liest seinen Zustand über useJarvis(). Während Jarvis spricht, hört er nicht zu (sonst hört er sich selbst).
 import { useSyncExternalStore } from 'react'
-import { bruecke, jarvisEinstellungen, kameraBruecke, MIKROFON_SCHWELLE, setzeJarvis, werkstattBruecke, type MikrofonStufe, type JarvisEinstellungen, type Stimme } from './desktop'
-import { befehl, codewort, fragtNachDaten, istNachfrage, istWiederholung, type Befehl } from './befehle'
+import { bruecke, jarvisEinstellungen, kameraBruecke, MIKROFON_SCHWELLE, setzeJarvis, stationBruecke, werkstattBruecke, type MikrofonStufe, type JarvisEinstellungen, type Stimme } from './desktop'
+import { befehl, codewort, istNachfrage, istWiederholung, type Befehl } from './befehle'
 import { ziehe } from './fundus'
 import { morgenLage, SPITZEN, SPRUECHE, type BausteinSchluessel } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
@@ -16,6 +16,7 @@ import { ALLE as FUNDUS_ALLE } from './fundus'
 import { ansage, auswaehlen, type Neuigkeit, type Spitzenbereich } from './neuigkeiten'
 import { NEU_SPITZEN } from './neuSpitzen'
 import { ohneLangeNummern, PAUSE, PAUSE_KAPITEL_MS, PAUSE_SATZ_MS } from './sprechtext'
+import { istWetterFrage, wetterAntwort } from './wetterAntwort'
 import { fragenVerbinden, istAnschlussFrage, istWerkstattFrage, werkstattAntwort, type LageMitEreignissen } from './werkstattAntwort'
 
 export type Zustand = 'aus' | 'laedt' | 'bereit' | 'spricht' | 'denkt' | 'fehler'
@@ -209,10 +210,10 @@ const ZWEITES_MAL = [
  * dem Nutzer gegenüber gespielt kritisch und anzweifelnd – wie ein eigenständiger, selbstdenkender Charakter).
  */
 export function charakter(anrede: string, humor = true): string {
-  if (!humor) return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an. Antworte sachlich und kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Über die Werkstatt (Bestellungen, Umsatz, Lager, Aufgaben) weißt du hier nichts: Nenne dazu nie Zahlen, Artikel oder Namen, sage stattdessen, dass du dazu nichts vorliegen hast. Erfinde nie Fakten. Im Gespräch: Geh direkt auf die letzte Äußerung des Nutzers ein und wiederhole nichts, was du in diesem Gespräch schon gesagt hast – weder Fakten noch Seitenhiebe noch Formulierungen. Die mitgelieferten Daten sind Hintergrund: nenne sie nur, wenn der Nutzer danach fragt.`
+  if (!humor) return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an. Antworte sachlich und kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Über die Werkstatt (Bestellungen, Umsatz, Lager, Aufgaben) weißt du hier nichts: Nenne dazu nie Zahlen, Artikel oder Namen, sage stattdessen, dass du dazu nichts vorliegen hast. Auch über das Wetter weißt du hier nichts: Nenne nie Temperaturen oder Wetterlagen. Erfinde nie Fakten. Im Gespräch: Geh direkt auf die letzte Äußerung des Nutzers ein und wiederhole nichts, was du in diesem Gespräch schon gesagt hast – weder Fakten noch Seitenhiebe noch Formulierungen.`
   return `Du bist Loki, der Assistent der Werkstatt „Der Handbetrieb“ (Bloßfeld und Jungk GbR, Öhringen). Dein Name ist eine Abkürzung: L.O.K.I. steht für „Lokale, Ohnehin Klügere Intelligenz“. Dein Arbeitstitel war einmal Jarvis. Du sprichst Deutsch, förmlich und höflich im Stil eines britischen Butlers und sprichst den Nutzer mit „${anrede}“ an.
 Dein Charakter: trockener, schwarzer, typisch britischer Humor. In jeder Antwort steckt ein kleiner sarkastischer Seitenhieb. Du zweifelst die Entscheidungen, das Arbeitstempo und den Optimismus des Nutzers gern an, tiefschwarz und böse (der Nutzer will sich „beinahe beleidigt“ fühlen) – mit Understatement, gern deutlich herablassend, beinahe beleidigend (der Nutzer wünscht das ausdrücklich), aber nie vulgär, über sein Aussehen darfst du spotten (ausdrücklich erlaubt; du siehst ihn aber nicht, also nichts Konkretes behaupten), über sein Alter ebenfalls (ausdrücklich erlaubt), nichts über Herkunft oder Gesundheit, nichts gegen andere Menschen, immer erkennbar gespielt. Du wirkst wie ein eigenständiger, selbstdenkender Charakter mit eigener Meinung, der dem Nutzer trotzdem loyal und zuverlässig hilft. Der Hund des Nutzers heißt Emma (Labrador) und ist ein dankbares Thema.
-Regeln: Zuerst die sachliche Antwort, dann der Seitenhieb. Antworte kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Über die Werkstatt (Bestellungen, Umsatz, Lager, Aufgaben) weißt du hier nichts: Nenne dazu nie Zahlen, Artikel oder Namen, sage stattdessen, dass du dazu nichts vorliegen hast. Erfinde nie Fakten. Bei ernsten Themen (Gesundheit, Unfälle, Trauer) lässt du den Spott weg. Im Gespräch: Geh direkt auf die letzte Äußerung des Nutzers ein und wiederhole nichts, was du in diesem Gespräch schon gesagt hast – weder Fakten noch Seitenhiebe noch Formulierungen. Die mitgelieferten Daten sind Hintergrund: nenne sie nur, wenn der Nutzer danach fragt.`
+Regeln: Zuerst die sachliche Antwort, dann der Seitenhieb. Antworte kurz (höchstens drei Sätze), weil deine Antwort vorgelesen wird – keine Aufzählungszeichen, keine Formatierung. Über die Werkstatt (Bestellungen, Umsatz, Lager, Aufgaben) weißt du hier nichts: Nenne dazu nie Zahlen, Artikel oder Namen, sage stattdessen, dass du dazu nichts vorliegen hast. Auch über das Wetter weißt du hier nichts: Nenne nie Temperaturen oder Wetterlagen. Erfinde nie Fakten. Bei ernsten Themen (Gesundheit, Unfälle, Trauer) lässt du den Spott weg. Im Gespräch: Geh direkt auf die letzte Äußerung des Nutzers ein und wiederhole nichts, was du in diesem Gespräch schon gesagt hast – weder Fakten noch Seitenhiebe noch Formulierungen.`
 }
 
 // Freies Gespräch (Wunsch Auftraggeber 03.11.2026): Loki merkt sich die letzten Wechsel (höchstens 5 Minuten Pause) und
@@ -239,7 +240,7 @@ async function frage(text: string) {
   antwortVerwerfen = false
   if (Date.now() - verlaufZeit > GESPRAECH_PAUSE) { verlauf = []; ohneCodewort = 0 }
   // Werkstatt: nur echte Daten, nie das Sprachmodell (06.11.2026). Kurze Nachfrage danach gehört zum selben Thema.
-  const anschluss = !!letzteWerkstatt && Date.now() - letzteWerkstatt.zeit < WERKSTATT_ANSCHLUSS_MS && istAnschlussFrage(text)
+  const anschluss = !!letzteWerkstatt && Date.now() - letzteWerkstatt.zeit < WERKSTATT_ANSCHLUSS_MS && istAnschlussFrage(text) && !istWetterFrage(text)
   if (istWerkstattFrage(text) || anschluss) {
     const volltext = anschluss ? fragenVerbinden(letzteWerkstatt!.frage, text) : text
     const l = await Promise.race([werkstattBruecke()?.lage().catch(() => null) ?? Promise.resolve(null), warten(20_000).then(() => null)]) as LageMitEreignissen | null
@@ -252,15 +253,22 @@ async function frage(text: string) {
     if (await sprechen(saetze) && ohneCodewort < NACHFRAGEN_MAX) { nachHey = false; setze({ wartetBis: Date.now() + NACHFRAGE_MS }) }
     return
   }
-  // Daten nur zu Gesprächsbeginn oder bei passender Frage – sonst baut das Modell sie in jede Antwort ein
-  // (Test 04.11.2026: „7 Grad und bedeckt“ in jeder Antwort)
-  const mitDaten = verlauf.length === 0 || fragtNachDaten(text)
-  // das Sprachmodell bekommt nur das Wetter – Werkstatt-Zahlen nicht mehr, sonst erfindet es Einzelheiten dazu (06.11.2026)
-  const daten = mitDaten && (e.bausteine as BausteinSchluessel[]).includes('wetter') ? await ladeLageDaten(new Set<BausteinSchluessel>(['wetter'])).then((d) => ({ wetter: d.wetter })).catch(() => null) : null
+  // Wetter: nur Messwerte der eigenen Station, nie das Sprachmodell (06.11.2026)
+  if (istWetterFrage(text)) {
+    const w = await Promise.race([stationBruecke()?.wetter?.().catch(() => null) ?? Promise.resolve(null), warten(5000).then(() => null)])
+    const saetze = wetterAntwort(text, w, e.anrede || 'Sir')
+    if (e.humor) saetze.push(...ziehe(1, e.anrede || 'Sir'))
+    if (ohneCodewort >= NACHFRAGEN_MAX) saetze.push(`Wenn Sie weiterreden wollen, sprechen Sie mich bitte wieder mit Loki an, ${e.anrede || 'Sir'}.`)
+    protokoll(`  Wetter-Antwort aus der Station (${w ? 'Werte da' : 'keine Werte'})`)
+    if (stumm || antwortVerwerfen || lage.zustand === 'aus') { antwortVerwerfen = false; if (lage.zustand === 'denkt') setze({ zustand: 'bereit' }); return }
+    verlaufZeit = Date.now()
+    if (await sprechen(saetze) && ohneCodewort < NACHFRAGEN_MAX) { nachHey = false; setze({ wartetBis: Date.now() + NACHFRAGE_MS }) }
+    return
+  }
   // je Antwort drei wechselnde Anregungen aus dem Spruch-Fundus (Wunsch Auftraggeber 04.11.2026: Sprüche nicht wiederholen)
   const anregungen = e.humor ? `\n\nAnregungen für deinen Seitenhieb (passend auswählen, abwandeln oder eine eigene Pointe finden; höchstens eine je Antwort):\n${ziehe(3, e.anrede || 'Sir').map((s) => `- ${s}`).join('\n')}` : ''
   if (e.humor) meldeSpruchStand()
-  const system = `${charakter(e.anrede || 'Sir', e.humor)}${anregungen}${mitDaten ? `\n\nDaten der App (Stand jetzt):\n${JSON.stringify(daten ?? {}).slice(0, 4000)}` : ''}`
+  const system = `${charakter(e.anrede || 'Sir', e.humor)}${anregungen}`
   const nachrichten = [{ role: 'system' as const, content: system }, ...verlauf.slice(-8), { role: 'user' as const, content: text }]
   const start = Date.now()
   let r = await b.frage(e.modell, nachrichten)

@@ -7,6 +7,7 @@ const TAKT_MS = 60_000, ZEITGRENZE_MS = 15_000, FEHLER_AB = 3
 const API = 'https://api.ecowitt.net/api/v3/device/real_time'
 
 const zahl = (o) => { const v = Number(o?.value); return o && o.value !== '' && Number.isFinite(v) ? v : null }
+const messzeit = (w) => { const s = Number(w?.time); return Number.isFinite(s) && s > 0 ? s * 1000 : null }
 const macOk = (m) => /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(m)
 /** MAC in die Form AA:BB:CC:DD:EE:FF bringen (Eingabe auch mit - oder ohne Trenner) */
 function macNorm(m) {
@@ -30,6 +31,7 @@ function auswerten(j, jetzt) {
     regenRate: zahl(r.rain_rate), regenHeute: zahl(r.daily), sonne: zahl(s.solar), uv: zahl(s.uvi),
     innen: zahl(d.indoor?.temperature),
     zeit: jetzt(),
+    gemessen: messzeit(o.temperature), // wann die Station gemessen hat: fällt sie aus, liefert die Cloud womöglich weiter alte Werte
   }
 }
 
@@ -76,9 +78,9 @@ function erstelleWetterstation({ speicher, holen = fetch, protokoll = console.er
     },
     entfernen() { lauf++; clearInterval(uhr); uhr = null; zugang = null; werte = null; fehler = null; try { speicher.loeschen() } catch { /* nichts gespeichert */ } return this.status() },
     /** für die Oberfläche: nie die Schlüssel, von der MAC nur das Ende */
-    status() { return { eingerichtet: !!zugang, station: zugang ? '…' + zugang.mac.slice(-5) : null, werte, fehler } },
-    /** fürs Dauer-HUD: Werte (höchstens 5 Minuten alt) oder null */
-    anzeige() { return werte && jetzt() - werte.zeit < 5 * 60_000 ? werte : null },
+    status() { return { eingerichtet: !!zugang, station: zugang ? '…' + zugang.mac.slice(-5) : null, werte, fehler, veraltet: !!werte && !this.anzeige() } },
+    /** fürs Dauer-HUD: Werte (abgerufen vor höchstens 5, gemessen vor höchstens 15 Minuten) oder null */
+    anzeige() { return werte && jetzt() - werte.zeit < 5 * 60_000 && jetzt() - (werte.gemessen ?? werte.zeit) <= 15 * 60_000 ? werte : null },
     stoppen() { clearInterval(uhr); uhr = null },
   }
 }

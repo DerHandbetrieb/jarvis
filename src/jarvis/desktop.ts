@@ -107,9 +107,11 @@ export type PvBruecke = {
 }
 /** Wetterstation Ecowitt (05.11.2026): Schlüssel werden nur weitergereicht, verschlüsselt im Hauptprozess gespeichert */
 export type StationWerte = { grad: number | null; feuchte: number | null; wind: number | null; boe: number | null; druck: number | null; regenHeute: number | null; zeit: number }
-export type StationStatus = { eingerichtet: boolean; station: string | null; werte: StationWerte | null; fehler: string | null }
+export type StationStatus = { eingerichtet: boolean; station: string | null; werte: StationWerte | null; fehler: string | null; veraltet?: boolean }
 export type StationBruecke = {
   status: () => Promise<StationStatus | null>
+  /** Wetter allein aus der Station (electron/himmel.cjs); code null = Himmel nicht messbar, null = keine frischen Daten */
+  wetter?: () => Promise<{ grad: number; code?: number | null; wolken?: number | null; feuchte?: number | null; wind?: number | null; boe?: number | null; druck?: number | null; regenRate?: number | null; regenHeute?: number | null } | null>
   einrichten: (d: { appKey: string; apiKey: string; mac: string }) => Promise<StationStatus | null>
   entfernen: () => Promise<StationStatus | null>
 }

@@ -117,7 +117,9 @@ export function wetterSymbol(g, art, h) {
     for (let i = 0; i < 8; i++) { const w = (i * Math.PI) / 4 + 0.2; g.moveTo(dx + Math.cos(w) * s * 0.62 * k, dy + Math.sin(w) * s * 0.62 * k); g.lineTo(dx + Math.cos(w) * s * 0.92 * k, dy + Math.sin(w) * s * 0.92 * k) }
   }
   const mond = (dx, dy, k) => { const r = s * 0.55 * k; g.moveTo(dx + r * Math.cos(-1.2), dy + r * Math.sin(-1.2)); g.arc(dx, dy, r, -1.2, Math.PI * 1.45); g.arc(dx + r * 0.55, dy - r * 0.35, r * 0.8, Math.PI * 1.25, -0.55, true) }
-  if (art === 'mond') mond(0, 0, 1)
+  if (art === 'trocken') { g.moveTo(0, -s * 0.75); g.bezierCurveTo(s * 0.7, -s * 0.05, s * 0.55, s * 0.7, 0, s * 0.7); g.bezierCurveTo(-s * 0.55, s * 0.7, -s * 0.7, -s * 0.05, 0, -s * 0.75); g.moveTo(-s * 0.7, s * 0.7); g.lineTo(s * 0.7, -s * 0.5) } // Tropfen, durchgestrichen
+  else if (art === 'keine') { g.moveTo(-s * 0.6, 0); g.lineTo(s * 0.6, 0) }
+  else if (art === 'mond') mond(0, 0, 1)
   else if (art === 'mond-wolke') { mond(-s * 0.35, -s * 0.3, 0.75); wolke(s * 0.15, s * 0.25, 0.8) }
   else if (art === 'sonne') sonne(0, 0, 1)
   else if (art === 'sonne-wolke') { sonne(-s * 0.35, -s * 0.3, 0.75); wolke(s * 0.15, s * 0.25, 0.8) }
@@ -129,12 +131,14 @@ export function wetterSymbol(g, art, h) {
   g.stroke(); g.restore()
 }
 
-/** WMO-Wettercode (Open-Meteo) → Symbol und kurzes Wort */
+/** WMO-Wettercode (aus den Stationswerten, electron/himmel.cjs) → Symbol und kurzes Wort */
 /** nacht: true, wenn keine Sonne scheint (Station misst kaum Licht bzw. nach Sonnenuntergang) – dann Mond statt Sonne
  *  (Rückmeldung Auftraggeber 05.11.2026: abends stand „sonnig“ im Ring) */
 export function wetterArt(code, nacht = false) {
+  if (code === undefined) return ['keine', 'KEINE DATEN'] // Station liefert nichts: nichts behaupten
+  if (code === null) return ['trocken', 'TROCKEN'] // Himmel nicht messbar (06.11.2026): nachts weiß die Station nur, dass es nicht regnet
   const c = Number(code)
-  if (c === 0) return nacht ? ['mond', 'KLAR'] : ['sonne', 'SONNIG']
+  if (c <= 1) return nacht ? ['mond', 'KLAR'] : ['sonne', 'SONNIG']
   if (c <= 2) return nacht ? ['mond-wolke', 'WOLKIG'] : ['sonne-wolke', 'HEITER']
   if (c === 3) return ['wolke', 'BEWÖLKT']
   if (c === 45 || c === 48) return ['nebel', 'NEBEL']

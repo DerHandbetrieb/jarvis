@@ -11,6 +11,15 @@ describe('Wetterstation Ecowitt', () => {
   it('wertet die Cloud-Antwort aus', () => {
     expect(auswerten(BEISPIEL, () => 1)).toMatchObject({ grad: 9.4, feuchte: 81, wind: 7.2, boe: 12.6, richtung: 230, druck: 1013.2, regenHeute: 1.2 })
   })
+  it('merkt die Messzeit der Station, nicht nur die Abrufzeit', async () => {
+    const mit = JSON.parse(JSON.stringify(BEISPIEL)); mit.data.outdoor.temperature.time = '1793968000'
+    expect(auswerten(mit, () => 1).gemessen).toBe(1793968000000)
+    expect(auswerten(BEISPIEL, () => 1).gemessen).toBeNull()
+    let t = 1793968000000 + 20 * 60_000
+    const st = erstelleWetterstation({ speicher: speicher(), holen: antwort(mit), protokoll: () => {}, jetzt: () => t })
+    await st.einrichten({ appKey: 'a', apiKey: 'b', mac: 'aabbccddeeff' }); st.stoppen()
+    expect(st.anzeige()).toBeNull()
+  })
   it('meldet abgelehnte Schlüssel verständlich und speichert nichts', async () => {
     const sp = speicher()
     const st = erstelleWetterstation({ speicher: sp, holen: antwort({ code: 40010, msg: 'Illegal Application_Key Parameter' }), protokoll: () => {} })

@@ -114,7 +114,7 @@ function infoRing(r, hoehe, variante, a, opt = {}) {
   const rand = hoehe * 3, gr = Math.ceil(2 * (r + rand))
   const dreh = leinwand(gr * FEIN, gr * FEIN), fest = leinwand(gr * FEIN, gr * FEIN)
   const name = ['LOKALE', 'OHNEHIN', 'KLÜGERE', 'INTELLIGENZ'].map((t) => ({ text: t, farbe: 'cyan' }))
-  const [symbol, wort] = wetterWort(a.wetter?.code ?? 3, istNacht(a.wetter)), grad = Number.isFinite(a.wetter?.grad) ? `${Math.round(a.wetter.grad)} °C` : '– °C'
+  const [symbol, wort] = wetterWort(a.wetter?.code, istNacht(a.wetter)), grad = Number.isFinite(a.wetter?.grad) ? `${Math.round(a.wetter.grad)} °C` : '– °C'
   const angaben = [
     { text: a.uhr, farbe: 'gold', gross: variante === 'info-d' ? 1.45 : 1.15 },
     { text: `${a.tag} ${a.datum}`, farbe: 'cyan' },
@@ -395,7 +395,7 @@ function uhrJetzt() {
 /** Ring-Angaben bei neuem Tag oder neuem Wetter neu beschriften (die Uhrzeit läuft separat in jedem Bild) */
 function ringAktualisieren(s, wetter) {
   if (!s.infoVariante) return
-  const a = { ...zeitAngaben(), wetter }, kennung = JSON.stringify([s.infoVariante === 'info-x' ? '' : a.uhr, a.datum, wetter?.code, Math.round(wetter?.grad ?? -99), istNacht(wetter)])
+  const a = { ...zeitAngaben(), wetter }, kennung = JSON.stringify([s.infoVariante === 'info-x' ? '' : a.uhr, a.datum, wetter?.code === undefined ? 'keine' : wetter.code, Math.round(wetter?.grad ?? -99), istNacht(wetter)])
   if (kennung === s.ringKennung) return
   s.ringKennung = kennung
   const { dreh, fest, uhr } = infoRing(s.geo.ringMitte.r, 30, s.infoVariante, a, s.ringOpt)
@@ -1255,7 +1255,7 @@ export function zeichneSzene(g, s, t, opt = {}) {
   if (mit('wasser')) wasser(g, s, t, an.reaktor, an.grund, s.wetter?.sichtbar?.eis ?? 0)
   // Wetter hinter Reaktor und Fenstern: Regen, Schnee, Nebel nach dem echten Wetter (opt.wetter = { code, grad })
   s.wetter = s.wetter ?? erstelleWetter()
-  const w = { ...wetterArt(opt.wetter), eis: opt.wetter?.eis ?? 0 }
+  const w = { ...wetterArt(opt.wetter), eis: opt.eis ?? opt.wetter?.eis ?? 0 } // opt.eis: vom Wetter getrennt, damit der See bei kurzem Stationsausfall nicht taut
   if (mit('wetter')) zeichneWetterHinten(g, s.wetter, w, t)
   // pulsierende Wellenringe auf Wunsch des Auftraggebers wieder entfernt (05.11.2026: „gefallen mir gar nicht“)
   if (mit('rand')) randZeichnen(g, s, an.grund * an.rand, an.randWeg ?? 0) // Verlauf ins Dunkle + Steinrand außen

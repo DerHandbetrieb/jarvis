@@ -27,6 +27,7 @@ export default function StationVerbindung() {
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-emerald-700">Verbunden: Station {s.station}</span>
           {w && <span className="text-neutral-600">{z(w.grad, '°C')} · {z(w.feuchte, '%')} · Wind {z(w.wind, 'km/h')} · {z(w.druck, 'hPa')} · Regen heute {z(w.regenHeute, 'mm')}</span>}
+          {s.veraltet && <span className="text-amber-700">Keine frischen Werte: L.O.K.I. nennt solange kein Wetter.</span>}
           <button type="button" className="rounded-lg border border-neutral-300 px-3 py-1.5" disabled={laeuft} onClick={() => void tun(b.entfernen)}>Trennen</button>
         </div>
       ) : (

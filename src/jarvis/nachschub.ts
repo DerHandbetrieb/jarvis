@@ -206,7 +206,7 @@ begruessung|Ich bin gespannt auf Ihre Anfangshandlung, {a}. Wie bei einem Traile
 begruessung|Alle Programme warten, {a}. Sie sind das Warten auf Sie bereits gewohnt.
 begruessung|Ich habe gelüftet, {a}. Es roch nach unerledigten Aufgaben, und die sind hartnäckig.
 begruessung|Jetzt geht es los, {a}. Bitte schnallen Sie sich an. Besser noch, schnallen Sie sich fest.
-begruessung|Die Sonne scheint, {a}. Zumindest sagt das der Wetterdienst. Ich besitze keinen Fensterblick.
+begruessung|Ich besitze keinen Fensterblick, {a}. Eine Wetterstation genügt mir. Sie irrt sich ohnehin seltener als Sie.
 begruessung|Ich habe gut geschlafen, {a}. Wie auch immer das bei mir funktioniert. Die Antwort ist: ohne Sie.
 begruessung|Ich stehe zu Ihrer Verfügung, {a}. Das klingt nach Hingabe, ist aber reine Programmierung.
 begruessung|Ihr Stuhl ist noch warm, {a}. Entweder von Ihnen oder von der Heizung. Ich wette auf die Heizung.

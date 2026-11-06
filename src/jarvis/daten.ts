@@ -5,12 +5,11 @@
 // Loki-Kontos im Hauptprozess (electron/werkstatt.cjs). Ohne Verbindung oder mit veralteten Daten (älter als eine
 // Stunde) liefern diese Bausteine „null“ und die Morgen-Lage lässt sie weg – Loki erfindet nichts.
 // Entscheidung Auftraggeber: Loki darf alles laut sagen, auch den Umsatz in Euro.
-import { holeWetter, wetterAusCode, wetterOrt } from './wetter'
+import { wetterAusCode, WETTER_WORT } from './wetter'
 import type { BausteinSchluessel, LageEingabe } from './morgenlage'
-import { werkstattBruecke, type WerkstattLage } from './desktop'
+import { stationBruecke, werkstattBruecke, type WerkstattLage } from './desktop'
 import { istFreigabeSammelkarte } from './neuigkeiten'
 
-const WETTER_WORT = { klar: 'klarer Himmel', wolkig: 'bewölkt', regen: 'Regen', gewitter: 'Gewitter' } as const
 /** „2× Tasse“ → „2 mal Tasse“ */
 const artikelGesprochen = (a: string) => a.replace(/^1× /, '').replace(/^(\d+)× /, '$1 mal ')
 const HOECHSTENS_ALT = 60 * 60_000
@@ -41,15 +40,15 @@ export async function ladeLageDaten(bausteine: Set<BausteinSchluessel>): Promise
   const brauchtWerkstatt = WERKSTATT_BAUSTEINE.some((b) => bausteine.has(b))
   // höchstens 20 Sekunden warten – die Morgen-Lage darf nie an einer hängenden Verbindung hängen bleiben
   const [wetter, werkstatt] = await Promise.all([
-    bausteine.has('wetter') ? sicher(() => mitZeitgrenze(holeWetter(wetterOrt()))) : Promise.resolve(null),
+    // ausnahmslos die eigene Station (06.11.2026): ohne frische Werte entfällt der Wettersatz
+    bausteine.has('wetter') ? sicher(async () => (await mitZeitgrenze(stationBruecke()?.wetter?.() ?? Promise.resolve(null))) ?? null) : Promise.resolve(null),
     brauchtWerkstatt ? sicher(async () => (await mitZeitgrenze(werkstattBruecke()?.lage() ?? Promise.resolve(null))) ?? null) : Promise.resolve(null),
   ])
-  const c = wetter?.current
   // fehlt in der Antwort etwas (andere Fassung der Serverfunktion), entfallen nur die Werkstatt-Sätze
   let werkstattTeil: WerkstattTeil
   try { werkstattTeil = ausWerkstatt(werkstatt, new Date()) } catch { werkstattTeil = ausWerkstatt(null, new Date()) }
   return {
     ...werkstattTeil,
-    wetter: c ? { grad: c.temperature_2m ?? null, text: c.weather_code != null ? WETTER_WORT[wetterAusCode(c.weather_code, c.cloud_cover ?? 0)] : null } : null,
+    wetter: wetter ? { grad: wetter.grad, text: wetter.code != null ? WETTER_WORT[wetterAusCode(wetter.code, wetter.wolken ?? 0)] : null } : null,
   }
 }

@@ -4,8 +4,8 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
 /**
- * Schutzregel (Content-Security-Policy) für die fertige Oberfläche: nur eigene Dateien laden und nur mit
- * Open-Meteo (Wetter, kostenlos, ohne Konto) sprechen. Supabase kommt erst mit der eigenen Anmeldung dazu.
+ * Schutzregel (Content-Security-Policy) für die fertige Oberfläche: nur eigene Dateien laden, keine Verbindungen nach außen.
+ * Wetter, Werkstatt und Kamera laufen über den Hauptprozess.
  * Nur beim Bauen aktiv, weil der Entwicklungsserver eigene Skripte einschleust.
  */
 function sicherheitsRegel(): Plugin {
@@ -15,7 +15,7 @@ function sicherheitsRegel(): Plugin {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    "connect-src 'self' https://api.open-meteo.com",
+    "connect-src 'self'",
     "media-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

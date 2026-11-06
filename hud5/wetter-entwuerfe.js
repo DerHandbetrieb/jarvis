@@ -1,5 +1,5 @@
 // Vier Entwürfe fürs Wetterfeld (05.11.2026, Wunsch Auftraggeber): mit Symbolen statt Textzeilen, große, auf einen Blick
-// lesbare Werte, Fläche genutzt, nicht vollgeklatscht. Werte aus der eigenen Station (Ecowitt), Himmel von Open-Meteo.
+// lesbare Werte, Fläche genutzt, nicht vollgeklatscht. Alle Werte aus der eigenen Station (Ecowitt).
 import { wetterSymbol, wetterArt, istNacht } from './ringschrift.js'
 const CYAN = '#5ff6ff', HELL = '#e8fdff', BLASS = 'rgba(165,230,240,0.62)', GOLD = '#f2b04a', LINIE = 'rgba(95,246,255,0.14)'
 const SCHRIFT = 'Bahnschrift, "Segoe UI", Arial, sans-serif'
@@ -39,7 +39,7 @@ export function symbolW(g, art, x, y, gr, farbe = CYAN) {
   g.restore()
 }
 
-const himmel = (w) => wetterArt(w?.code ?? 3, istNacht(w))
+const himmel = (w) => wetterArt(w?.code, istNacht(w))
 export const WETTER_ENTWURF = {
   /** A · Kacheln: sechs gleich große Felder, je Symbol oben, Wert groß darunter */
   a(g, b, h, w) {

@@ -230,7 +230,7 @@ function energie(g, b, h, pv, t) {
   PV_VARIANTE.d(g, b, h, pv, t ?? 0, 3, false)
 }
 /** Wetter (Wahl Auftraggeber 05.11.2026: Entwurf B) – Temperatur groß mit Himmel-Symbol, darunter Feuchte, Wind, Böen,
- *  Regen als Symbol-Reihe; Werte aus der eigenen Station, Himmel von Open-Meteo, nachts Mond statt Sonne */
+ *  Regen als Symbol-Reihe; alle Werte aus der eigenen Station */
 function wetter(g, b, h, w, t = 0) {
   if (!w || !Number.isFinite(w.grad)) { kopf(g, 'WETTER · OBERSONTHEIM', '', b); text(g, 'Keine Wetterdaten', 16, 70, 14, BLASS); return }
   WETTER_ENTWURF.b(g, b, h, { ...w, station: w.station ?? {} }, t)
@@ -335,19 +335,20 @@ export function ausHud(antwort, jetzt, sequenzDaten, wetterText) {
   const roh = antwort?.werkstatt ?? null
   const lage = roh ?? BEISPIEL_LAGE(jetzt)
   const d = sequenzDaten({ ...lage, geholt: roh ? lage.geholt : jetzt.getTime() }, jetzt)
+  const w = antwort?.wetter
+  // alles aus der Wetterstation (Ecowitt), Himmel seit 06.11.2026 in electron/himmel.cjs daraus abgeleitet
+  const wetterDaten = (() => { const st = antwort?.station; const grad = Number.isFinite(st?.grad) ? st.grad : w?.grad; if (!Number.isFinite(grad)) return null
+      return { ort: w?.ort ?? 'Obersontheim', grad, code: w?.code, wolken: w?.wolken, text: w ? wetterText?.(w) ?? '' : '', station: st ? { feuchte: st.feuchte, wind: st.wind, boe: st.boe, richtung: st.richtung, druck: st.druck, regenHeute: st.regenHeute, regenRate: st.regenRate, gefuehlt: st.gefuehlt, sonne: st.sonne } : null } })()
   // echte, aber veraltete/unvollständige Daten: keine Zahlen zeigen, die wie aktuelle aussehen (Prüf-Agent)
-  if (roh && !d) return { beispiel: false, veraltet: true, werkstatt: {}, wetter: null, kamera: antwort?.kamera ?? null, pv: antwort?.pv ?? null, loki: antwort?.loki ?? null, uhr: jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) }
+  if (roh && !d) return { beispiel: false, veraltet: true, werkstatt: {}, wetter: wetterDaten, kamera: antwort?.kamera ?? null, pv: antwort?.pv ?? null, loki: antwort?.loki ?? null, uhr: jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) }
   const tage = (lage.verkauf?.tage ?? []).map((t) => ({ tag: `${String(t.tag).slice(8, 10)}.${String(t.tag).slice(5, 7)}`, umsatz: (Number(t.umsatzCent) || 0) / 100, bestellungen: Number(t.bestellungen) || 0, stueck: Number(t.stueck) || 0 }))
   // letzter Tag der Liste ist heute (Serverfunktion zählt bis heute, deutsche Zeit) – nur nehmen, wenn das Datum stimmt
   const heuteTag = jetzt.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }), letzter = (lage.verkauf?.tage ?? []).at(-1)
   const heute = letzter && String(letzter.tag).slice(0, 10) === heuteTag ? tage.at(-1) : { umsatz: 0, bestellungen: 0, stueck: 0 }
-  const w = antwort?.wetter
   return {
     beispiel: !roh,
     werkstatt: { ...d, stand: roh ? d.stand : null, tage, heute, offeneBestellungen: lage.offeneBestellungen ?? null }, // Beispiel: ohne „Stand“
-    // Wetterstation (Ecowitt) hat Vorrang für die Messwerte; Himmel/Bewölkung weiter von Open-Meteo (05.11.2026)
-    wetter: (() => { const st = antwort?.station; const grad = Number.isFinite(st?.grad) ? st.grad : w?.grad; if (!Number.isFinite(grad)) return null
-      return { ort: w?.ort ?? 'Obersontheim', grad, code: w?.code, wolken: w?.wolken, text: w ? wetterText?.(w) ?? '' : '', station: st ? { feuchte: st.feuchte, wind: st.wind, boe: st.boe, richtung: st.richtung, druck: st.druck, regenHeute: st.regenHeute, regenRate: st.regenRate, gefuehlt: st.gefuehlt, sonne: st.sonne } : null } })(),
+    wetter: wetterDaten,
     kamera: antwort?.kamera ?? null,
     pv: antwort?.pv ?? null,
     loki: antwort?.loki ?? null,
