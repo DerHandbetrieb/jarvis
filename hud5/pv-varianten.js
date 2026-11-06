@@ -62,12 +62,13 @@ export const PV_VARIANTE = {
         text(g, kwz(wert), x, 136, 30, farbe, 'center'); text(g, name, x, 153, 12, BLASS, 'center'); if (zusatz) text(g, zusatz, x, 167, 11, farbe, 'center')
         if (i) { g.strokeStyle = LINIE; g.beginPath(); g.moveTo(Math.round(14 + sb * i) + 0.5, 44); g.lineTo(Math.round(14 + sb * i) + 0.5, 170); g.stroke() }
       })
-      const k = [b / 2, 196]
+      const k = [b / 2, 212] // mehr Luft für den Energiefluss (Rückmeldung 06.11.2026)
       g.strokeStyle = 'rgba(95,246,255,0.5)'; g.lineWidth = 1.4; g.beginPath(); g.arc(k[0], k[1], 11, 0, Math.PI * 2); g.stroke()
       punkte(g, [xs[0], 174], k, w.pv, GR, t); punkte(g, k, [xs[1], 174], w.haus, HELL, t); punkte(g, k, [xs[2], 174], -w.akku, w.laedt ? GR : CYAN, t); punkte(g, [xs[3], 174], k, w.bezug - w.verkauf, w.bezug > 20 ? ROT : GR, t)
       punkte(g, [k[0] + 11, k[1]], [b - 118, k[1]], 0, AUS, t); auto(g, b - 96, k[1], 30, AUS, 0.05); text(g, 'AUTO –', b - 74, k[1] + 4, 11, AUS, 'left')
-      if (pv?.tag) { g.drawImage(tagAufPuffer(b - 44, h - 236, pv.tag), 22, 224); if (pv.tag.beispiel) text(g, 'BEISPIEL', b - 24, 236, 10, '#f2b04a', 'right') }
-      else if (pv) text(g, 'TAGESVERLAUF WIRD GELADEN', b / 2, 300, 12, BLASS, 'center')
+      const tagY = 244, tagB = b - 44, tagH = h - tagY - 10
+      if (pv?.tag) { g.drawImage(tagAufPuffer(tagB, tagH, pv.tag, g.getTransform().a), 22, tagY, tagB, tagH); if (pv.tag.beispiel) text(g, 'BEISPIEL', b / 2, tagY + 10, 10, '#f2b04a', 'right') }
+      else if (pv) text(g, 'TAGESVERLAUF WIRD GELADEN', b / 2, tagY + 50, 12, BLASS, 'center')
       return
     }
     spalten.forEach(([art, name, wert, farbe, zusatz], i) => {

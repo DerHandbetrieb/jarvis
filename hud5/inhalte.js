@@ -253,8 +253,10 @@ function system(g, b, h, d) {
     knoten(g, x, my, 20, GOLD); x += 18
     text(g, 'L.O.K.I.', x, my + 5, 14, CYAN, 'left', 600); x += fein('L.O.K.I.', 14, 600) + 18
     knoten(g, x, my, 20, GOLD); x += 12
-    const uhrB = fein(d.uhr ?? '', 34, 600) + 16, breiten = zeilen.map(([n, wert]) => 30 + Math.max(fein(n, 10, 400), fein(wert, 13, 600)))
-    const rest = b - uhrB - 24 - x - breiten.reduce((a, c) => a + c, 0), luecke = Math.max(10, Math.min(30, rest / (zeilen.length + 1)))
+    // Uhr mit Sekunden und Datum in Zahlen (Wunsch 06.11.2026); Breite aus fester Vorlage, damit nichts mit den Ziffern wandert
+    const j = new Date(), zwei = (n) => String(n).padStart(2, '0'), uhr = `${zwei(j.getHours())}:${zwei(j.getMinutes())}:${zwei(j.getSeconds())}`, datum = `${zwei(j.getDate())}.${zwei(j.getMonth() + 1)}.${j.getFullYear()}`
+    const uhrB = fein('00:00:00', 30, 600) + 8 + fein('00.00.0000', 15, 500) + 28, breiten = zeilen.map(([n, wert]) => 30 + Math.max(fein(n, 10, 400), fein(wert, 13, 600)))
+    const rest = b - uhrB - 24 - x - breiten.reduce((a, c) => a + c, 0), luecke = Math.max(6, Math.min(30, rest / (zeilen.length + 1)))
     zeilen.forEach(([n, wert, farbe], i) => {
       trenner(x + luecke / 2); x += luecke
       if (n === 'WHATSAPP' && wa > 0) { g.fillStyle = 'rgba(242,176,74,0.16)'; g.fillRect(x - 6, 7, breiten[i] + 12, h - 14); g.strokeStyle = GOLD; g.lineWidth = 1; g.strokeRect(x - 5.5, 7.5, breiten[i] + 11, h - 15) } // neue Nachricht: fällt schon im Augenwinkel auf
@@ -263,7 +265,8 @@ function system(g, b, h, d) {
       x += breiten[i]
     })
     trenner(b - uhrB - 18)
-    g.save(); g.shadowColor = GOLD; g.shadowBlur = 8; text(g, d.uhr ?? '', b - 18, my + 12, 34, GOLD, 'right', 600); g.restore()
+    g.save(); g.shadowColor = GOLD; g.shadowBlur = 8; text(g, uhr, b - 18, my + 11, 30, GOLD, 'right', 600); g.restore()
+    text(g, datum, b - 18 - fein('00:00:00', 30, 600) - 14, my + 6, 15, BLASS, 'right', 500)
     return
   }
   kopf(g, 'SYSTEM · L.O.K.I.', d.uhr ?? '', b)

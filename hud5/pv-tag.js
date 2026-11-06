@@ -47,17 +47,20 @@ function kurveMitSummen(g, x, y, b, h, tag, anteil) {
   // Lücken mit dem letzten Wert füllen, sonst erscheinen sie als falscher Einbruch auf 0 W
   let vorher = { pv: 0, haus: 0, netz: 0 }
   const roh = tag.punkte, letzter = roh.reduce((l, p, i) => (p ? i : l), 0), n = Math.min(roh.length, letzter + 1), punkte = roh.map((p) => { vorher = p ?? vorher; return vorher }), bis = punkte.slice(0, n)
-  const br = 150, bk = b - br - 14, hu = h - 16, max = Math.max(1000, ...bis.map((p) => Math.max(p.pv, p.haus))), ende = Math.max(95, punkte.length - 1)
+  const oben = 16, br = 150, bk = b - br - 14, hu = h - 16 - oben, max = Math.max(1000, ...bis.map((p) => Math.max(p.pv, p.haus))), ende = Math.max(95, punkte.length - 1)
+  // Beschriftung bekommt eine eigene Zeile über dem Graphen (war abgeschnitten, Rückmeldung 06.11.2026)
+  legende(g, x + 4, y + 10, [['ERZEUGUNG', GR], ['VERBRAUCH', HELL]])
+  y += oben
   achse(g, x, y, bk, hu)
   const px = (i) => x + (bk * i) / ende, py = (w) => y + hu - (hu * w) / max / 1.08
   flaeche(g, punkte, n, px, (p) => py(p.pv), y + hu, GR)
   leuchtend(g, GR, 1.5, () => linie(g, punkte, n, px, (p) => py(p.pv)))
   leuchtend(g, HELL, 1.3, () => linie(g, punkte, n, px, (p) => py(p.haus)))
   jetztStrich(g, x, y, bk, hu, anteil)
-  legende(g, x + 4, y + 8, [['ERZEUGUNG', GR], ['VERBRAUCH', HELL]])
+  y -= oben
   const xr = x + bk + 14
   g.strokeStyle = LINIE; g.lineWidth = 1; g.beginPath(); g.moveTo(xr - 7.5, y); g.lineTo(xr - 7.5, y + h); g.stroke()
-  const zeile = (i, name, wert, f) => { const zy = y + 12 + i * 33; text(g, name, xr, zy, 10, BLASS); text(g, wert, xr, zy + 16, 16, f, 'left', 600) }
+  const zeile = (i, name, wert, f) => { const zy = y + 18 + i * ((h - 22) / 4); text(g, name, xr, zy, 10, BLASS); text(g, wert, x + b, zy, 14, f, 'right', 600) } // eine Zeile je Wert: der Graph ist flacher
   const su = tag.summen ?? { erzeugt: summe(bis, (p) => p.pv), verbraucht: summe(bis, (p) => p.haus), bezug: summe(bis, (p) => p.netz), verkauf: summe(bis, (p) => -p.netz) }
   zeile(0, 'ERZEUGT', kwh(su.erzeugt), GR)
   zeile(1, 'VERBRAUCHT', kwh(su.verbraucht), HELL)
@@ -66,12 +69,14 @@ function kurveMitSummen(g, x, y, b, h, tag, anteil) {
 }
 
 let puffer = null, kennung = ''
-export function tagAufPuffer(b, h, tag) {
-  const j = new Date(), anteil = (j.getHours() * 60 + j.getMinutes()) / 1440, k = `${tag.zeit}|${b}|${h}|${j.getHours()}:${j.getMinutes()}`
+/** m: Maßstab der Ziel-Leinwand. Ohne ihn wäre der Puffer gröber als das Feld und der Graph unscharf (Rückmeldung 06.11.2026) */
+export function tagAufPuffer(b, h, tag, m = 1) {
+  const j = new Date(), anteil = (j.getHours() * 60 + j.getMinutes()) / 1440, k = `${tag.zeit}|${b}|${h}|${m}|${j.getHours()}:${j.getMinutes()}`
   if (k === kennung && puffer) return puffer
   kennung = k
-  if (!puffer || puffer.width !== b || puffer.height !== h) { puffer = document.createElement('canvas'); puffer.width = b; puffer.height = h }
-  const g = puffer.getContext('2d'); g.clearRect(0, 0, b, h)
+  const pb = Math.ceil(b * m), ph = Math.ceil(h * m)
+  if (!puffer || puffer.width !== pb || puffer.height !== ph) { puffer = document.createElement('canvas'); puffer.width = pb; puffer.height = ph }
+  const g = puffer.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, pb, ph); g.setTransform(m, 0, 0, m, 0, 0)
   kurveMitSummen(g, 0, 0, b, h, tag, anteil)
   return puffer
 }

@@ -109,7 +109,9 @@ export function zeichneTafeln(st, daten, t) {
   const kennung = JSON.stringify([daten.werkstatt, daten.wetter, daten.kamera?.name ?? null, daten.loki, daten.uhr, daten.beispiel, daten.veraltet])
   const alles = kennung !== st.kennung
   st.kennung = kennung
-  for (const [id, f] of Object.entries(st.felder)) { if (alles || BEWEGT.has(id)) feldZeichnen(f, id, daten, t); spiegelWellen(f, t) }
+  const sekunde = Math.floor(Date.now() / 1000), neueSekunde = sekunde !== st.sekunde // Uhr mit Sekunden im System-Streifen
+  st.sekunde = sekunde
+  for (const [id, f] of Object.entries(st.felder)) { if (alles || BEWEGT.has(id) || (neueSekunde && id === 'system')) feldZeichnen(f, id, daten, t); spiegelWellen(f, t) }
   if (st.grossBild && (st.grossKanal != null || st.grossBild.style.opacity !== '0')) ZEICHNER[st.grossZeigt === 1 ? 'kamera2' : 'kamera1'](st.grossG, GROSS.b, GROSS.h, daten, t)
 }
 

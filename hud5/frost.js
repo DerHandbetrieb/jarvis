@@ -12,9 +12,10 @@ function wert(x, y) { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix,
 function fbm(x, y, o = 4) { let s = 0, a = 0.5; for (let i = 0; i < o; i++) { s += a * wert(x, y); x = x * 2.03 + 11.3; y = y * 2.03 + 7.1; a *= 0.5 } return s }
 const glatt = (a, b, x) => { const v = Math.max(0, Math.min(1, (x - a) / (b - a))); return v * v * (3 - 2 * v) }
 
-// Der Rand wächst mit der Kälte (Wunsch Auftraggeber 06.11.2026): wenig bei 0 °C, voll bei −8 °C und kälter
-const WAERMSTE_TIEFE = 0.45, KAELTESTE_TIEFE = 1.4
-export const frostFaktor = (grad) => WAERMSTE_TIEFE + (KAELTESTE_TIEFE - WAERMSTE_TIEFE) * Math.max(0, Math.min(1, -grad / 8))
+// Der Rand wächst mit der Kälte (Wunsch Auftraggeber 06.11.2026): bei −1 °C nur Ansätze, bei −2,7 °C noch schmal, voll bei
+// −8 °C und kälter. Darum keine gerade Linie, sondern erst langsam, dann schneller.
+export const frostStufe = (grad) => Math.max(0, Math.min(1, -grad / 8)) ** 1.6
+export const frostFaktor = (grad) => 0.12 + 1.28 * frostStufe(grad)
 /** feste Zufallsanteile eines Szenenpunkts (einmal rechnen; ändert sich nur der Faktor, geht das Neuzeichnen schnell) */
 function punkt(x, y) {
   const ecke = (cx, cy, st) => st * Math.exp(-Math.hypot(x - cx, y - cy) / 340)
@@ -95,7 +96,7 @@ function blumenZeichnen(lage, fertig, stufe) {
   const g = lage.getContext('2d'), S = lage.width / B
   g.clearRect(0, 0, lage.width, lage.height)
   BLUMEN.forEach(([x, y, gr, dreh, , frei], i) => {
-    const sichtbar = frei ? glatt(((i - 4) / 9) * 0.85, ((i - 4) / 9) * 0.85 + 0.12, stufe) : 1, gross = gr * S * (frei ? 1 : 0.5 + 0.6 * stufe)
+    const schwelle = 0.2 + ((i - 4) / 9) * 0.7, sichtbar = frei ? glatt(schwelle, schwelle + 0.1, stufe) : 1, gross = gr * S * (frei ? 1 : 0.12 + 0.63 * stufe)
     if (sichtbar <= 0.01) return
     g.save(); g.globalAlpha = 0.95 * sichtbar; g.translate(x * S, y * S); g.rotate((dreh * Math.PI) / 180)
     if (frei) g.translate(-gross * 0.42, gross * 0.1) // freie Blumen um ihre Mitte, nicht um die Bildecke
@@ -127,7 +128,7 @@ export function erstelleFrost(huelle, versatz = 0, basis = './ebenen/') {
   passen(); addEventListener('resize', passen)
   schleierBauen(tex, basis).then((blumen) => {
     fr.zeichnen = (grad) => {
-      const f = frostFaktor(grad), stufe = Math.max(0, Math.min(1, -grad / 8))
+      const f = frostFaktor(grad), stufe = frostStufe(grad)
       blumenZeichnen(lage, blumen, stufe)
       const md = mg.createImageData(m.width, m.height)
       for (let y = 0, i = 0; y < m.height; y++) for (let x = 0; x < m.width; x++, i++) { md.data[i * 4] = md.data[i * 4 + 1] = md.data[i * 4 + 2] = 255; md.data[i * 4 + 3] = Math.round(dichteAus(x * S, y * S, feld[i], f) * 255) }
@@ -151,10 +152,10 @@ export function frostStellen(fr, staerke) {
   fr.stand = v; fr.flaeche.style.opacity = String(v); fr.flaeche.style.display = v > 0 ? '' : 'none'
 }
 
-/** Temperatur nachführen; neu gezeichnet erst ab 0,75 Grad Unterschied, damit der Rand bei schwankenden Werten nicht zuckt */
+/** Temperatur nachführen; neu gezeichnet erst ab 0,5 Grad Unterschied, damit der Rand bei schwankenden Werten nicht zuckt */
 export function frostGrad(fr, grad) {
   if (!Number.isFinite(grad)) return
   fr.gradZiel = grad
-  if (!fr.bereit || (fr.gradStand != null && Math.abs(grad - fr.gradStand) < 0.75)) return
+  if (!fr.bereit || (fr.gradStand != null && Math.abs(grad - fr.gradStand) < 0.5)) return
   fr.gradStand = grad; fr.zeichnen(grad)
 }
