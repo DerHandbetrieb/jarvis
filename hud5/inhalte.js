@@ -9,6 +9,7 @@
 const B = 5760, H = 1080
 import { PV_VARIANTE } from './pv-varianten.js'
 import { WETTER_ENTWURF } from './wetter-entwuerfe.js'
+import { leistenSymbol, knoten } from './pv-zeichen.js'
 const CYAN = '#5ff6ff', GOLD = '#f2b04a', ROT = '#ff5a4a', HELL = '#e8fdff', BLASS = 'rgba(165,230,240,0.62)'
 const SCHRIFT = 'Bahnschrift, "Segoe UI", Arial, sans-serif'
 
@@ -234,6 +235,7 @@ function wetter(g, b, h, w, t = 0) {
   if (!w || !Number.isFinite(w.grad)) { kopf(g, 'WETTER · ÖHRINGEN', '', b); text(g, 'Keine Wetterdaten', 16, 70, 14, BLASS); return }
   WETTER_ENTWURF.b(g, b, h, { ...w, station: w.station ?? {} }, t)
 }
+const SYSTEM_SYMBOL = { 'L.O.K.I.': 'stimme', MIKROFON: 'mikrofon', WERKSTATT: 'zahnrad', KAMERA: 'kamera', SELBSTTEST: 'schild', WHATSAPP: 'whatsapp' }
 function system(g, b, h, d) {
   const z = d.loki?.zustand ?? 'aus', wa = d.loki?.whatsapp
   const zeilen = [
@@ -244,15 +246,22 @@ function system(g, b, h, d) {
     ['SELBSTTEST', d.selbsttest ?? '–', d.selbsttestRot ? ROT : CYAN],
     ['WHATSAPP', wa == null ? '–' : wa > 0 ? `${wa} NEU` : 'NICHTS NEUES', wa > 0 ? GOLD : BLASS],
   ]
-  if (h < 120) { // schmaler Streifen (rechter Bildschirm, 05.11.2026): alles in einer Zeile
-    text(g, 'SYSTEM · L.O.K.I.', 16, h / 2 + 5, 13, CYAN, 'left', 600)
-    const x0 = 190, sp = (b - x0 - 90) / zeilen.length
+  if (h < 120) { // schmaler Streifen (rechter Bildschirm): alles in einer Zeile, je Angabe ein Linien-Symbol (Wunsch 06.11.2026)
+    const my = h / 2, fein = (t, gr, gew) => { g.font = `${gew} ${gr}px ${SCHRIFT}`; return g.measureText(t).width }
+    let x = 16
+    text(g, 'SYSTEM', x, my + 5, 13, CYAN, 'left', 600); x += fein('SYSTEM', 13, 600) + 20
+    knoten(g, x, my, 20, GOLD); x += 18
+    text(g, 'L.O.K.I.', x, my + 5, 13, CYAN, 'left', 600); x += fein('L.O.K.I.', 13, 600) + 18
+    knoten(g, x, my, 20, GOLD); x += 28
+    const uhrB = fein(d.uhr ?? '', 15, 600) + 34, breiten = zeilen.map(([n, wert]) => 30 + Math.max(fein(n, 10, 400), fein(wert, 13, 600)))
+    const luecke = Math.max(6, (b - uhrB - x - breiten.reduce((a, c) => a + c, 0)) / zeilen.length)
     zeilen.forEach(([n, wert, farbe], i) => {
-      const x = x0 + i * sp
-      if (n === 'WHATSAPP' && wa > 0) { g.fillStyle = 'rgba(242,176,74,0.16)'; g.fillRect(x - 10, 7, sp - 8, h - 14); g.strokeStyle = GOLD; g.lineWidth = 1; g.strokeRect(x - 9.5, 7.5, sp - 9, h - 15) } // neue Nachricht: fällt schon im Augenwinkel auf
-      text(g, n, x, h / 2 - 4, 10, BLASS); text(g, wert, x, h / 2 + 13, 13, farbe, 'left', 600)
+      if (n === 'WHATSAPP' && wa > 0) { g.fillStyle = 'rgba(242,176,74,0.16)'; g.fillRect(x - 6, 7, breiten[i] + 12, h - 14); g.strokeStyle = GOLD; g.lineWidth = 1; g.strokeRect(x - 5.5, 7.5, breiten[i] + 11, h - 15) } // neue Nachricht: fällt schon im Augenwinkel auf
+      leistenSymbol(g, SYSTEM_SYMBOL[n], x + 11, my, 22, farbe)
+      text(g, n, x + 30, my - 4, 10, BLASS); text(g, wert, x + 30, my + 13, 13, farbe, 'left', 600)
+      x += breiten[i] + luecke
     })
-    text(g, d.uhr ?? '', b - 16, h / 2 + 6, 15, GOLD, 'right', 600)
+    text(g, d.uhr ?? '', b - 16, my + 6, 15, GOLD, 'right', 600)
     return
   }
   kopf(g, 'SYSTEM · L.O.K.I.', d.uhr ?? '', b)
