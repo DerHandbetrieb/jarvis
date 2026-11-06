@@ -73,7 +73,9 @@ const OLLAMA_OPTIONEN = { temperature: 0.7, top_p: 0.8, top_k: 20, min_p: 0, pre
 const OLLAMA_HALTEN = '3m' // danach gibt Ollama den Grafikspeicher frei (Wunsch Auftraggeber 04.11.2026)
 /** feste Wörter, die Whisper als Hinweis bekommt (Namen und Befehle, die sonst oft falsch ankommen) – eigene aus den Einstellungen dazu */
 // Reihenfolge mit Absicht: „Loki“ steht nicht direkt vor einem Befehlswort – ein Echo der Liste ergäbe sonst „Loki, Lage“ (Prüf-Agent)
-const GRUNDWORTE = 'Neuigkeiten, Etsy, Amazon, Loki, Freigaben, Werbung, Abarbeiten, Auswertung, Marketing, Lager, Selbsttest, Emma, Öhringen, Carport, Kerzenständer, Lage'
+// Befehlswörter gehören dazu (06.11.2026): Kurze Befehle haben kaum Satzzusammenhang, „Zeig“ kam als „Zeuge“ an. Nicht in
+// natürlicher Reihenfolge schreiben: ist_wortliste() verwirft drei Listenwörter hintereinander als Einbildung.
+const GRUNDWORTE = 'Zeig, Neuigkeiten, Kamera, Etsy, Amazon, Loki, Bestellungen, Freigaben, Werbung, Abarbeiten, Carport, Auswertung, Umsatz, Marketing, Lager, Selbsttest, Emma, Obersontheim, Kerzenständer, Nachproduzieren, Lage'
 let hoerArt = 'turbo' // turbo = Grafikkarte, klein = Whisper small auf dem Prozessor
 let worte = GRUNDWORTE
 /** längste Wartezeit je Satz: gemessen 0,11 s im Mittel – großzügig 8 s + 0,5 s je Sekunde Ton (Grafikkarte kann gerade

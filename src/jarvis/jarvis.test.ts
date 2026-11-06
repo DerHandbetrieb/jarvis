@@ -313,6 +313,7 @@ describe('Kamera auf Zuruf', () => {
     expect(befehl('zeig die rechte Kamera')).toEqual({ art: 'kamera', kanal: 1 })
     expect(befehl('Kamera wieder weg')).toEqual({ art: 'kamera', kanal: null })
     expect(befehl('wie hoch ist die Einfahrt')).toEqual({ art: 'frage', text: 'wie hoch ist die Einfahrt' })
+    for (const v of ['Zeuge Carport', 'Zeigekamera, Carport', 'zeigt den Carport', 'Zeigen Sie die Kamera', 'Carport', 'die Kamera bitte']) expect(befehl(v)).toEqual({ art: 'kamera', kanal: 0 })
     expect(befehl('Was kostet eine Kamera aus dem Baumarkt')).toMatchObject({ art: 'frage' })
     expect(befehl('Wie komme ich zum Hof zu Fuß')).toMatchObject({ art: 'frage' })
   })
