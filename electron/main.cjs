@@ -17,6 +17,7 @@ const { erstelleTonAbgriff } = require('./tonabgriff.cjs')
 const { erstellePv } = require('./pv.cjs')
 const { erstelleWetterstation } = require('./wetterstation.cjs')
 const { ueberwachen } = require('./vollbild.cjs')
+const whatsappHinweis = require('./whatsapphinweis.cjs')
 const { erstelleNeuigkeiten } = require('./neuigkeiten.cjs')
 const { erstelleKamerawache } = require('./kamerawache.cjs')
 const { Readable } = require('node:stream')
@@ -36,6 +37,7 @@ function kameraLog(...teile) {
 }
 const HUD_PORT = 47820 // fest, damit das Wallpaper Loki findet (nur 127.0.0.1)
 const hud = { schluessel: null }
+let whatsappNeu = null // Anzahl der WhatsApp-Mitteilungen in Windows (null = nicht lesbar), siehe whatsapphinweis.cjs
 /** nur, was das Dauer-HUD anzeigt (Auswahlliste) – von den Amazon-Problemen nur die Anzahl, kein Freitext (Prüf-Agent) */
 function hudAuswahl(l) {
   const zahl = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
@@ -295,6 +297,8 @@ if (!app.requestSingleInstanceLock()) {
     const anwesenheit = { ruhe: 0, gemessen: 0, spiel: false }
     const vollbildAus = ueberwachen((an) => { if (an && sequenzFenster && !sequenzFenster.isDestroyed()) return; anwesenheit.spiel = an; void jarvis.spielLaeuft(an) }, { beiRuhe: (s) => { anwesenheit.ruhe = s; anwesenheit.gemessen = Date.now(); jarvis.ruheMelden(s) } })
     app.on('will-quit', () => vollbildAus())
+    const whatsappAus = whatsappHinweis.ueberwachen((n) => { whatsappNeu = n })
+    app.on('will-quit', () => whatsappAus())
 
     const vonFenster = (e) => e.sender === hauptfenster.webContents && istAppAdresse(e.senderFrame?.url ?? '')
     ipcMain.handle('jarvis-anwesenheit', (e) => (vonFenster(e) ? { ruhe: Date.now() - anwesenheit.gemessen > 30_000 ? 1e6 : anwesenheit.ruhe, spiel: anwesenheit.spiel } : null))
@@ -461,7 +465,7 @@ if (!app.requestSingleInstanceLock()) {
     const hudDatenJetzt = () => {
       const l = werkstatt.lage()
       const k = kamera.status()
-      return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null, gross: kameraGross() } : null, loki: { ...trayZustand } }
+      return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter, station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null, gross: kameraGross() } : null, loki: { ...trayZustand, whatsapp: whatsappNeu } }
     }
     ipcMain.handle('sequenz-hud', (e) => (sequenzFenster && !sequenzFenster.isDestroyed() && e.sender === sequenzFenster.webContents ? hudDatenJetzt() : null))
     const hudServer = erstelleHudServer({

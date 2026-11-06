@@ -235,19 +235,21 @@ function wetter(g, b, h, w, t = 0) {
   WETTER_ENTWURF.b(g, b, h, { ...w, station: w.station ?? {} }, t)
 }
 function system(g, b, h, d) {
-  const z = d.loki?.zustand ?? 'aus'
+  const z = d.loki?.zustand ?? 'aus', wa = d.loki?.whatsapp
   const zeilen = [
     ['L.O.K.I.', { bereit: 'HÖRT ZU', spricht: 'SPRICHT', denkt: 'DENKT NACH', laedt: 'LÄDT', aus: 'AUS', fehler: 'STÖRUNG' }[z] ?? z.toUpperCase(), z === 'fehler' ? ROT : CYAN],
     ['MIKROFON', d.loki?.mikrofon ? 'AN' : 'AUS', d.loki?.mikrofon ? CYAN : GOLD],
     ['WERKSTATT', d.verbunden ? `VERBUNDEN · ${d.stand ?? ''}` : 'NICHT VERBUNDEN', d.verbunden ? CYAN : GOLD],
     ['KAMERA', d.kamera ? 'BEREIT' : 'NICHT EINGERICHTET', d.kamera ? CYAN : BLASS],
     ['SELBSTTEST', d.selbsttest ?? '–', d.selbsttestRot ? ROT : CYAN],
+    ['WHATSAPP', wa == null ? '–' : wa > 0 ? `${wa} NEU` : 'NICHTS NEUES', wa > 0 ? GOLD : BLASS],
   ]
   if (h < 120) { // schmaler Streifen (rechter Bildschirm, 05.11.2026): alles in einer Zeile
     text(g, 'SYSTEM · L.O.K.I.', 16, h / 2 + 5, 13, CYAN, 'left', 600)
     const x0 = 190, sp = (b - x0 - 90) / zeilen.length
     zeilen.forEach(([n, wert, farbe], i) => {
       const x = x0 + i * sp
+      if (n === 'WHATSAPP' && wa > 0) { g.fillStyle = 'rgba(242,176,74,0.16)'; g.fillRect(x - 10, 7, sp - 8, h - 14); g.strokeStyle = GOLD; g.lineWidth = 1; g.strokeRect(x - 9.5, 7.5, sp - 9, h - 15) } // neue Nachricht: fällt schon im Augenwinkel auf
       text(g, n, x, h / 2 - 4, 10, BLASS); text(g, wert, x, h / 2 + 13, 13, farbe, 'left', 600)
     })
     text(g, d.uhr ?? '', b - 16, h / 2 + 6, 15, GOLD, 'right', 600)

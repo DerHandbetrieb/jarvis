@@ -73,7 +73,7 @@ c.addEventListener('click', async (ev) => {
   klickNr++
   try {
     const r = await fetch(`http://127.0.0.1:${zugang.port}/stumm`, { method: 'POST', headers: kopf(), signal: AbortSignal.timeout(5000) })
-    if (r.ok && antwort) { antwort = { ...antwort, loki: await r.json() }; daten = ausHud(antwort, new Date(), sequenzDaten, wetterText) }
+    if (r.ok && antwort) { antwort = { ...antwort, loki: { ...antwort.loki, ...(await r.json()) } }; daten = ausHud(antwort, new Date(), sequenzDaten, wetterText) }
   } catch { /* L.O.K.I. läuft nicht */ }
   setTimeout(() => void holen(), 1500)
 })
