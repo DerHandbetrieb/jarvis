@@ -460,9 +460,8 @@ if (!app.requestSingleInstanceLock()) {
         autoMitteilung.show()
       } catch (f) { kameraLog('Autos: Mitteilung fehlgeschlagen', f?.message ?? f) }
     }
-    // Rechtes Objektiv (07.11.2026, Rückmeldung Auftraggeber: Postauto auf der rechten Hofseite nicht gemeldet): eigene
-    // Wache für Autos (Personen bleiben laut Interview links). Ein Auto, das durch beide Bildhälften fährt, wird nur einmal
-    // angesagt: nach einer Auto-Meldung gilt 2 Minuten lang auch für das andere Objektiv Ruhe.
+    // Nur das linke Objektiv (Kanal 0) zeigt den Hof; das rechte zeigt nur den Garten (Korrektur Auftraggeber 07.11.2026) –
+    // darum keine Wache rechts. kameraEreignis(kanal) bleibt allgemein (Fotos/Alarmbild vom auslösenden Objektiv).
     let kameraAlarmKanal = 0, autoGemeldetZeit = -Infinity
     const kameraEreignis = (kanal) => (e) => {
       const seite = kanal === 1 ? 'rechts' : 'links', name = kanal === 1 ? 'rechtes Objektiv' : 'linkes Objektiv'
@@ -485,14 +484,9 @@ if (!app.requestSingleInstanceLock()) {
       einreihen({ art: e.art, seite })
     }
     const kamerawache = erstelleKamerawache({ abfragen: () => kamera.aiStand(0), protokoll: kameraLog, beimEreignis: kameraEreignis(0) })
-    // rechts nur Autos; versetzt um 1 s, damit die Kamera nie zwei Anfragen gleichzeitig bekommt
-    const kamerawacheRechts = erstelleKamerawache({ name: 'rechtes Objektiv, nur Autos', abfragen: async () => ({ person: false, auto: (await kamera.aiStand(1)).auto }), protokoll: kameraLog, beimEreignis: kameraEreignis(1) })
-    const wacheAbgleichen = () => {
-      if (kamera.status().eingerichtet) { kamerawache.starten(); if (!kamerawacheRechts.laeuft()) setTimeout(() => { if (kamera.status().eingerichtet) kamerawacheRechts.starten() }, 1000) }
-      else { kamerawache.stoppen(); kamerawacheRechts.stoppen() }
-    }
+    const wacheAbgleichen = () => { if (kamera.status().eingerichtet) kamerawache.starten(); else kamerawache.stoppen() }
     setTimeout(wacheAbgleichen, 5000); setInterval(wacheAbgleichen, 30_000)
-    app.on('will-quit', () => { kamerawache.stoppen(); kamerawacheRechts.stoppen() })
+    app.on('will-quit', () => kamerawache.stoppen())
 
     // Dauer-HUD (Web-Wallpaper in Wallpaper Engine): Gegenstelle nur auf 127.0.0.1 mit Zugriffsschlüssel. Liefert die
     // zwischengespeicherte Werkstatt-Lage (höchstens 1 Stunde alt) und das Wetter der eigenen Station.
