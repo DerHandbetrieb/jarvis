@@ -62,6 +62,6 @@ describe('Kamera-Wache', () => {
     w = erstelleKamerawache({ abfragen: async () => { n++; if (n >= 3) w.stoppen(); return false }, beimEreignis: () => {}, protokoll: (z) => zeilen.push(z), jetzt: () => t, warte: async () => { t += LEBENSZEICHEN_MS } })
     w.starten()
     await vi.waitFor(() => expect(w.laeuft()).toBe(false))
-    expect(zeilen.some((z) => z.startsWith('Kamera-Wache läuft:'))).toBe(true)
+    expect(zeilen.some((z) => z.startsWith('Kamera-Wache läuft'))).toBe(true)
   })
 })

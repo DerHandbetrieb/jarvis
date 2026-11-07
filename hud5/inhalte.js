@@ -391,7 +391,7 @@ export function zeichneInhalte(g, st, daten, t, versatz = 0) {
   const alarm = daten.kamera?.alarm ? daten.kamera.alarmArt ?? 'person' : null
   for (const [k, id, name] of [[0, 'kamera1', 'CAM 01 · LINKS'], [1, 'kamera2', 'CAM 02 · RECHTS']]) {
     const p = st.fl[id], cg = p.c.getContext('2d')
-    kamera(cg, p.c.width, p.c.height, daten.kamBilder?.[k] ?? null, name, alarm && k === 0, t); verzerren(g, p.c, p.innen)
+    kamera(cg, p.c.width, p.c.height, daten.kamBilder?.[k] ?? null, name, alarm && k === (daten.kamera?.alarmKanal ?? 0), t); verzerren(g, p.c, p.innen)
   }
   g.restore()
 }
@@ -450,8 +450,8 @@ export const ZEICHNER = {
   ton: (g, b, h, d, t) => tonwellen(g, b, h, d.ton, t, d.loki, d.tonStatus, d.medien),
   aufgaben: (g, b, h, d) => abarbeiten(g, b, h, d.werkstatt ?? {}),
   bestellungen: (g, b, h, d) => bestellungen(g, b, h, d.werkstatt ?? {}),
-  kamera1: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[0] ?? null, 'CAM 01 · LINKS', d.kamera?.alarm ? d.kamera.alarmArt ?? 'person' : null, t),
-  kamera2: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[1] ?? null, 'CAM 02 · RECHTS', false, t),
+  kamera1: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[0] ?? null, 'CAM 01 · LINKS', d.kamera?.alarm && (d.kamera.alarmKanal ?? 0) === 0 ? d.kamera.alarmArt ?? 'person' : null, t),
+  kamera2: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[1] ?? null, 'CAM 02 · RECHTS', d.kamera?.alarm && d.kamera.alarmKanal === 1 ? d.kamera.alarmArt ?? 'person' : null, t),
   energie: (g, b, h, d, t) => energie(g, b, h, d.pv, t),
   wetter: (g, b, h, d, t) => wetter(g, b, h, d.wetter, t),
   system: (g, b, h, d) => system(g, b, h, { ...(d.werkstatt ?? {}), loki: d.loki, verbunden: !d.beispiel && !d.veraltet, kamera: d.kamera, uhr: d.uhr }),

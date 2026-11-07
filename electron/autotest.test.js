@@ -51,4 +51,10 @@ describe('Auto-Test', () => {
   it('Dateiname mit Datum und Nummer', () => {
     expect(dateiname(new Date(2026, 10, 7, 14, 3, 22).getTime(), 2)).toBe('2026-11-07_14-03-22_2.jpg')
   })
+  it('nimmt die Fotos vom Objektiv, das das Auto erkannt hat', async () => {
+    const kanaele = []
+    const t = erstelleAutotest({ ordner: 'x', bild: async (k) => { kanaele.push(k); return Buffer.from([0xff, 0xd8, 1, 2]) }, fs: speicherFs(), warte: async () => {} })
+    await t.autoGemeldet(1_000, 1)
+    expect(kanaele).toEqual([1, 1, 1])
+  })
 })

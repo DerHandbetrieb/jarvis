@@ -436,7 +436,7 @@ if (!app.requestSingleInstanceLock()) {
     let kameraAlarm = 0, kameraAlarmArt = 'person'
     // Machbarkeitstest Auto-Erkennung (07.11.2026, Freigabe Auftraggeber): bei Auto-Meldung drei Standbilder ablegen, befristet
     const autoOrdner = path.join(app.getPath('userData'), 'auto-test')
-    const autotest = erstelleAutotest({ ordner: autoOrdner, bild: () => kamera.bild(), protokoll: kameraLog })
+    const autotest = erstelleAutotest({ ordner: autoOrdner, bild: (kanal) => kamera.standbild(kanal), protokoll: kameraLog })
     // Autos benennen (07.11.2026): Besuche aus den Testbildern, Namen in auto-test/namen.json; Erinnerung per Windows-Mitteilung
     const autobesuche = erstelleAutobesuche({ ordner: autoOrdner })
     const autosGeaendert = () => { if (!hauptfenster.isDestroyed()) hauptfenster.webContents.send('autos-aenderung') }
@@ -460,54 +460,39 @@ if (!app.requestSingleInstanceLock()) {
         autoMitteilung.show()
       } catch (f) { kameraLog('Autos: Mitteilung fehlgeschlagen', f?.message ?? f) }
     }
-    let rechtsRunde = 0, rechtsLaeuft = false, rechtsFehler = 0, rechtsPauseBis = 0
-    const rechtsVorher = { person: false, auto: false }, rechtsZuletzt = {}
-    const kamerawache = erstelleKamerawache({
-      // rechtes Objektiv nur fürs Protokoll, jede zweite Runde (07.11.2026: Postauto nicht gemeldet – stand es vielleicht
-      // nur im rechten Bild?); angesagt wird weiter nur links. Läuft nebenher ohne Warten, damit es den Takt links nie
-      // bremst; nach Fehlern eigene Pause (1 min, doppelt bis 10 min), eine Protokollzeile je Fehlerphase (Prüf-Agent).
-      abfragen: async () => {
-        if (++rechtsRunde % 2 === 0 && !rechtsLaeuft && Date.now() >= rechtsPauseBis) {
-          rechtsLaeuft = true
-          kamera.aiStand(1).then((r) => {
-            if (rechtsFehler) kameraLog(`Kamera-Wache rechts: wieder erreichbar nach ${rechtsFehler} Fehlversuch(en)`)
-            rechtsFehler = 0
-            for (const art of ['person', 'auto']) {
-              if (r?.[art] && !rechtsVorher[art] && Date.now() - (rechtsZuletzt[art] ?? 0) >= 30_000) {
-                rechtsZuletzt[art] = Date.now()
-                kameraLog(`Kamera-Wache: ${art === 'auto' ? 'Auto' : 'Person'} am rechten Objektiv (nur Protokoll, nicht angesagt)`)
-              }
-              rechtsVorher[art] = !!r?.[art]
-            }
-          }, (f) => {
-            if (!rechtsFehler) kameraLog(`Kamera-Wache rechts: Abfrage fehlgeschlagen (${String(f?.message ?? f).slice(0, 120)})`)
-            rechtsPauseBis = Date.now() + Math.min(600_000, 60_000 * 2 ** rechtsFehler++)
-          }).finally(() => { rechtsLaeuft = false })
-        }
-        return kamera.aiStand(0)
-      },
-      protokoll: kameraLog,
-      beimEreignis: (e) => {
-        // Person hat Vorrang: kommt im selben Moment ein Auto dazu, bleibt die Aufschrift bei der Person
-        if (e.art === 'person' || kameraAlarmArt !== 'person' || e.zeit - kameraAlarm > 25_000) kameraAlarmArt = e.art
-        kameraAlarm = e.zeit
-        kameraLog(`Kamera-Wache: ${e.art === 'auto' ? 'Auto' : 'Person'} erkannt (linkes Objektiv)`)
-        // Personen höchstens 2 Stunden aufheben (sonst nach einer Nacht lauter „jemand war da“, Prüf-Agent)
-        const einreihen = (n) => { neuPuffer = [...neuPuffer.filter((x) => !['person', 'auto'].includes(x.n.art) || e.zeit - x.zeit < 2 * 3600_000), { n, zeit: e.zeit }].slice(-200) }
-        // Auto während der Testwoche: erst nach dem Ablegen der Fotos einreihen (wenige Sekunden), damit Loki „fotografiert“ nur sagt, wenn es stimmt
-        if (e.art === 'auto' && autotest.erlaubt()) {
-          void autotest.autoGemeldet(e.zeit).then((n) => {
-            einreihen(n > 0 ? { art: 'auto', seite: 'links', foto: true } : { art: 'auto', seite: 'links' })
-            if (n > 0) { autosGeaendert(); autoErinnern() }
-          })
-          return
-        }
-        einreihen({ art: e.art, seite: 'links' })
-      },
-    })
-    const wacheAbgleichen = () => { if (kamera.status().eingerichtet) kamerawache.starten(); else kamerawache.stoppen() }
+    // Rechtes Objektiv (07.11.2026, Rückmeldung Auftraggeber: Postauto auf der rechten Hofseite nicht gemeldet): eigene
+    // Wache für Autos (Personen bleiben laut Interview links). Ein Auto, das durch beide Bildhälften fährt, wird nur einmal
+    // angesagt: nach einer Auto-Meldung gilt 2 Minuten lang auch für das andere Objektiv Ruhe.
+    let kameraAlarmKanal = 0, autoGemeldetZeit = -Infinity
+    const kameraEreignis = (kanal) => (e) => {
+      const seite = kanal === 1 ? 'rechts' : 'links', name = kanal === 1 ? 'rechtes Objektiv' : 'linkes Objektiv'
+      if (e.art === 'auto' && e.zeit - autoGemeldetZeit < 120_000) { kameraLog(`Kamera-Wache: Auto erkannt (${name}) – eben schon gemeldet, nicht angesagt`); return }
+      if (e.art === 'auto') autoGemeldetZeit = e.zeit
+      // Person hat Vorrang: kommt im selben Moment ein Auto dazu, bleibt die Aufschrift (und das Bild) bei der Person
+      if (e.art === 'person' || kameraAlarmArt !== 'person' || e.zeit - kameraAlarm > 25_000) { kameraAlarmArt = e.art; kameraAlarmKanal = kanal }
+      kameraAlarm = e.zeit
+      kameraLog(`Kamera-Wache: ${e.art === 'auto' ? 'Auto' : 'Person'} erkannt (${name})`)
+      // Personen höchstens 2 Stunden aufheben (sonst nach einer Nacht lauter „jemand war da“, Prüf-Agent)
+      const einreihen = (n) => { neuPuffer = [...neuPuffer.filter((x) => !['person', 'auto'].includes(x.n.art) || e.zeit - x.zeit < 2 * 3600_000), { n, zeit: e.zeit }].slice(-200) }
+      // Auto während der Testwoche: erst nach dem Ablegen der Fotos (vom selben Objektiv) einreihen, damit Loki „fotografiert“ nur sagt, wenn es stimmt
+      if (e.art === 'auto' && autotest.erlaubt()) {
+        void autotest.autoGemeldet(e.zeit, kanal).then((n) => {
+          einreihen(n > 0 ? { art: 'auto', seite, foto: true } : { art: 'auto', seite })
+          if (n > 0) { autosGeaendert(); autoErinnern() }
+        })
+        return
+      }
+      einreihen({ art: e.art, seite })
+    }
+    const kamerawache = erstelleKamerawache({ abfragen: () => kamera.aiStand(0), protokoll: kameraLog, beimEreignis: kameraEreignis(0) })
+    // rechts nur Autos; versetzt um 1 s, damit die Kamera nie zwei Anfragen gleichzeitig bekommt
+    const kamerawacheRechts = erstelleKamerawache({ name: 'rechtes Objektiv, nur Autos', abfragen: async () => ({ person: false, auto: (await kamera.aiStand(1)).auto }), protokoll: kameraLog, beimEreignis: kameraEreignis(1) })
+    const wacheAbgleichen = () => {
+      if (kamera.status().eingerichtet) { kamerawache.starten(); if (!kamerawacheRechts.laeuft()) setTimeout(() => { if (kamera.status().eingerichtet) kamerawacheRechts.starten() }, 1000) }
+      else { kamerawache.stoppen(); kamerawacheRechts.stoppen() }
+    }
     setTimeout(wacheAbgleichen, 5000); setInterval(wacheAbgleichen, 30_000)
-    app.on('will-quit', () => kamerawache.stoppen())
+    app.on('will-quit', () => { kamerawache.stoppen(); kamerawacheRechts.stoppen() })
 
     // Dauer-HUD (Web-Wallpaper in Wallpaper Engine): Gegenstelle nur auf 127.0.0.1 mit Zugriffsschlüssel. Liefert die
     // zwischengespeicherte Werkstatt-Lage (höchstens 1 Stunde alt) und das Wetter der eigenen Station.
@@ -525,12 +510,12 @@ if (!app.requestSingleInstanceLock()) {
     // dieselben Daten wie das Wallpaper – auch fürs Start-Intro (Fenster über dem Wallpaper, endet bildgleich, 05.11.2026)
     let kameraZuruf = null // „Loki, zeig den Carport“: { kanal, bis }
     let alarmBildAus = 0 // „Kamera weg“ gilt auch für den laufenden Alarm
-    const kameraGross = () => (kameraAlarm > alarmBildAus && Date.now() - kameraAlarm < 30_000 ? 0 : kameraZuruf && Date.now() < kameraZuruf.bis ? kameraZuruf.kanal : null)
+    const kameraGross = () => (kameraAlarm > alarmBildAus && Date.now() - kameraAlarm < 30_000 ? kameraAlarmKanal : kameraZuruf && Date.now() < kameraZuruf.bis ? kameraZuruf.kanal : null)
     ipcMain.handle('kamera-gross', (e, k) => { if (!vonFenster(e)) return null; if (!kamera.status().eingerichtet) return false; kameraZuruf = k == null ? null : { kanal: k === 1 ? 1 : 0, bis: Date.now() + 60_000 }; if (k == null) alarmBildAus = Date.now(); return true })
     const hudDatenJetzt = () => {
       const l = werkstatt.lage()
       const k = kamera.status()
-      return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter(), eis: wettertage.eis(), station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null, alarmArt: kameraAlarmArt, gross: kameraGross() } : null, loki: { ...trayZustand, whatsapp: whatsappNeu } }
+      return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter(), eis: wettertage.eis(), station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null, alarmArt: kameraAlarmArt, alarmKanal: kameraAlarmKanal, gross: kameraGross() } : null, loki: { ...trayZustand, whatsapp: whatsappNeu } }
     }
     ipcMain.handle('sequenz-hud', (e) => (sequenzFenster && !sequenzFenster.isDestroyed() && e.sender === sequenzFenster.webContents ? hudDatenJetzt() : null))
     // Medientasten fürs Audiofeld (07.11.2026): Pause/Weiter, vor, zurück – L.O.K.I. drückt die Windows-Medientaste

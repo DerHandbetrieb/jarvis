@@ -15,7 +15,7 @@ function dateiname(zeit, nr) {
 }
 
 /**
- * @param {{ ordner: string, bild: () => Promise<Buffer | null>, fs?: typeof import('node:fs'), jetzt?: () => number,
+ * @param {{ ordner: string, bild: (kanal: number) => Promise<Buffer | null>, fs?: typeof import('node:fs'), jetzt?: () => number,
  *   warte?: (ms: number) => Promise<void>, protokoll?: (...a: any[]) => void }} o
  */
 function erstelleAutotest({ ordner, bild, fs = require('node:fs'), jetzt = () => Date.now(), warte = (ms) => new Promise((r) => setTimeout(r, ms)), protokoll = () => {} }) {
@@ -36,7 +36,7 @@ function erstelleAutotest({ ordner, bild, fs = require('node:fs'), jetzt = () =>
   }
 
   /** bei einer Auto-Meldung: drei Bilder ablegen (läuft schon eine Serie, wird nichts doppelt aufgenommen) */
-  async function autoGemeldet(zeit = jetzt()) {
+  async function autoGemeldet(zeit = jetzt(), kanal = 0) {
     if (laeuft || !erlaubt()) return 0
     laeuft = true
     let gespeichert = 0
@@ -46,7 +46,7 @@ function erstelleAutotest({ ordner, bild, fs = require('node:fs'), jetzt = () =>
       for (let nr = 1; nr <= JE_EREIGNIS; nr++) {
         if (nr > 1) await warte(ABSTAND_MS)
         if (anzahl() >= MAX_BILDER) break
-        const daten = await bild().catch(() => null)
+        const daten = await bild(kanal).catch(() => null)
         if (!daten) continue
         fs.writeFileSync(path.join(ordner, dateiname(zeit, nr)), daten)
         gespeichert++

@@ -98,7 +98,7 @@ function erstelleKamera({ speicher, holen = holeHttps, oeffneStromFn = oeffneStr
   let zustand = { eingerichtet: false, name: '', adresse: '', fehler: '', stand: null }
   const oeffentlich = () => ({ ...zustand }) // nie Benutzer/Passwort
 
-  const snapUrl = (k, t) => `https://${k.adresse}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=${crypto.randomBytes(6).toString('hex')}&token=${encodeURIComponent(t)}`
+  const snapUrl = (k, t, kanal = 0) => `https://${k.adresse}/cgi-bin/api.cgi?cmd=Snap&channel=${kanal === 1 ? 1 : 0}&rs=${crypto.randomBytes(6).toString('hex')}&token=${encodeURIComponent(t)}`
   /** Fehlerantwort der Kamera lesen: { rspCode, detail } oder null */
   function kameraFehler(text) {
     try { const e = JSON.parse(text)?.[0]?.error; return e ? { rspCode: Number(e.rspCode), detail: String(e.detail ?? '').slice(0, 60) } : null } catch { return null }
@@ -157,10 +157,10 @@ function erstelleKamera({ speicher, holen = holeHttps, oeffneStromFn = oeffneStr
 
   /** Bild holen: Token des Kontos wiederverwenden (die Kamera erlaubt nur wenige gleichzeitige Anmeldungen),
    *  nur bei -6 („please login first“) verwerfen und einmal neu anmelden */
-  async function abrufen(k, erwartet) {
+  async function abrufen(k, erwartet, kanal = 0) {
     for (let versuch = 0; versuch < 2; versuch++) {
       const t = await sitzungHolen(k, erwartet)
-      const r = await holen(snapUrl(k, t.wert), { erwartet: t.fingerabdruck })
+      const r = await holen(snapUrl(k, t.wert, kanal), { erwartet: t.fingerabdruck })
       const istJpeg = r.status === 200 && r.daten.length > 3 && r.daten[0] === 0xff && r.daten[1] === 0xd8
       if (istJpeg) return { ...r, fingerabdruck: t.fingerabdruck }
       const e = kameraFehler(r.daten.toString('utf8', 0, Math.min(400, r.daten.length)))
@@ -316,8 +316,14 @@ function erstelleKamera({ speicher, holen = holeHttps, oeffneStromFn = oeffneStr
     zustand = { eingerichtet: false, name: '', adresse: '', fehler: '', stand: null }
     return oeffentlich()
   }
+  /** Standbild eines bestimmten Objektivs ohne Zwischenspeicher (07.11.2026: Auto-Fotos auch rechts) → Buffer oder null */
+  async function standbild(kanal = 0) {
+    const k = konto
+    if (!k) return null
+    try { return (await abrufen(k, k.fingerabdruck, kanal)).daten } catch { return null }
+  }
   const personErkannt = async (kanal = 0) => (await aiStand(kanal)).person
-  return { status: oeffentlich, einrichten, bild, live, liveSchliessen, personErkannt, aiStand, laden, entfernen }
+  return { status: oeffentlich, einrichten, bild, standbild, live, liveSchliessen, personErkannt, aiStand, laden, entfernen }
 }
 
 module.exports = { erstelleKamera, istHeimnetz, holeHttps, oeffneStrom }
