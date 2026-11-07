@@ -22,6 +22,7 @@ const { erstelleWettertage } = require('./wettertage.cjs')
 const { wetterAusStation } = require('./himmel.cjs')
 const { erstelleNeuigkeiten } = require('./neuigkeiten.cjs')
 const { erstelleKamerawache } = require('./kamerawache.cjs')
+const { erstelleAutotest } = require('./autotest.cjs')
 const { Readable } = require('node:stream')
 let kameraLive = null // Live-Bild fürs Dauer-HUD (04.11.2026)
 const { findeWallpaperEngine, einrichten, zugangAbgleichen } = require('./wallpaper.cjs')
@@ -429,6 +430,8 @@ if (!app.requestSingleInstanceLock()) {
     // Kamera-Wache (04.11.2026): linkes Objektiv, nur Personen (Interview). Meldungen laufen über dieselbe Warteschlange
     // wie die Werkstatt-Neuigkeiten – dort gelten „nur wenn er am PC ist“, nie dazwischenreden, Verpasstes gesammelt.
     let kameraAlarm = 0, kameraAlarmArt = 'person'
+    // Machbarkeitstest Auto-Erkennung (07.11.2026, Freigabe Auftraggeber): bei Auto-Meldung drei Standbilder ablegen, befristet
+    const autotest = erstelleAutotest({ ordner: path.join(app.getPath('userData'), 'auto-test'), bild: () => kamera.bild(), protokoll: kameraLog })
     const kamerawache = erstelleKamerawache({
       abfragen: () => kamera.aiStand(0),
       protokoll: kameraLog,
@@ -437,6 +440,7 @@ if (!app.requestSingleInstanceLock()) {
         if (e.art === 'person' || kameraAlarmArt !== 'person' || e.zeit - kameraAlarm > 25_000) kameraAlarmArt = e.art
         kameraAlarm = e.zeit
         kameraLog(`Kamera-Wache: ${e.art === 'auto' ? 'Auto' : 'Person'} erkannt (linkes Objektiv)`)
+        if (e.art === 'auto') void autotest.autoGemeldet(e.zeit)
         // Personen höchstens 2 Stunden aufheben (sonst nach einer Nacht lauter „jemand war da“, Prüf-Agent)
         neuPuffer = [...neuPuffer.filter((x) => !['person', 'auto'].includes(x.n.art) || e.zeit - x.zeit < 2 * 3600_000), { n: { art: e.art, seite: 'links' }, zeit: e.zeit }].slice(-200)
       },
