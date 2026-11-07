@@ -6,7 +6,9 @@
 // Abfragen kann Reolink-Kameras überlasten) – alles ins Kamera-Protokoll. Ohne Electron-Abhängigkeit (kamerawache.test.js).
 // Seit 06.11.2026 (Wunsch Auftraggeber) genauso für Autos: abfragen liefert { person, auto }, jede Art hat ihre eigene Ruhezeit.
 
-const TAKT_MS = 2000, RUHE_MS = 120_000, PAUSE_MS = 10_000, PAUSE_MAX_MS = 5 * 60_000
+// 07.11.2026 (Rückmeldung „Postauto war da, nichts gesagt“): jede Erkennung kommt ins Protokoll, auch innerhalb der
+// Ruhezeit, dazu stündlich ein Lebenszeichen – so lässt sich später unterscheiden: Kamera hat nichts erkannt / Wache stand.
+const TAKT_MS = 2000, RUHE_MS = 120_000, PAUSE_MS = 10_000, PAUSE_MAX_MS = 5 * 60_000, LEBENSZEICHEN_MS = 3600_000
 
 /**
  * @param {{ abfragen: () => Promise<boolean | { person: boolean, auto: boolean }>, beimEreignis: (e: { art: 'person' | 'auto', zeit: number }) => void,
@@ -25,14 +27,23 @@ function erstelleKamerawache({ abfragen, beimEreignis, protokoll = () => {}, jet
     const t = jetzt(), w = typeof wert === 'object' && wert ? wert : { person: !!wert, auto: false }
     for (const art of ARTEN) {
       const da = !!w[art]
-      if (da && !vorher[art] && t - zuletztGesehen[art] >= RUHE_MS) { stand.ereignisse++; beimEreignis({ art, zeit: t }) }
+      if (da && !vorher[art]) {
+        if (t - zuletztGesehen[art] >= RUHE_MS) { stand.ereignisse++; beimEreignis({ art, zeit: t }) }
+        else if (t - (ruheLog[art] ?? -Infinity) >= 30_000) { ruheLog[art] = t; protokoll(`Kamera-Wache: ${art === 'auto' ? 'Auto' : 'Person'} erneut erkannt (linkes Objektiv, innerhalb der Ruhezeit – nicht angesagt)`) }
+      }
       if (da) zuletztGesehen[art] = t
       vorher[art] = da
     }
   }
 
+  let lebenszeichen = jetzt()
+  const ruheLog = {}
   async function schleife(meiner) {
     while (an && meiner === lauf) {
+      if (jetzt() - lebenszeichen >= LEBENSZEICHEN_MS) {
+        lebenszeichen = jetzt()
+        protokoll(`Kamera-Wache läuft: ${stand.abfragen} Abfragen, ${stand.fehler} Fehler, ${stand.ereignisse} Meldungen, letzte Abfrage ${stand.letzteDauerMs} ms`)
+      }
       const start = jetzt()
       try {
         const wert = await abfragen()
@@ -55,7 +66,7 @@ function erstelleKamerawache({ abfragen, beimEreignis, protokoll = () => {}, jet
   }
 
   return {
-    starten() { if (an) return; an = true; fehler = 0; vorher.person = vorher.auto = false; protokoll('Kamera-Wache: an (linkes Objektiv, Personen und Autos)'); void schleife(++lauf) },
+    starten() { if (an) return; an = true; lebenszeichen = jetzt(); fehler = 0; vorher.person = vorher.auto = false; protokoll('Kamera-Wache: an (linkes Objektiv, Personen und Autos)'); void schleife(++lauf) },
     stoppen() { if (!an) return; an = false; lauf++; protokoll('Kamera-Wache: aus') },
     laeuft: () => an,
     stand: () => ({ ...stand }),
@@ -63,4 +74,4 @@ function erstelleKamerawache({ abfragen, beimEreignis, protokoll = () => {}, jet
   }
 }
 
-module.exports = { erstelleKamerawache, TAKT_MS, RUHE_MS }
+module.exports = { erstelleKamerawache, TAKT_MS, RUHE_MS, LEBENSZEICHEN_MS }

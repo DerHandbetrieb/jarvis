@@ -460,8 +460,32 @@ if (!app.requestSingleInstanceLock()) {
         autoMitteilung.show()
       } catch (f) { kameraLog('Autos: Mitteilung fehlgeschlagen', f?.message ?? f) }
     }
+    let rechtsRunde = 0, rechtsLaeuft = false, rechtsFehler = 0, rechtsPauseBis = 0
+    const rechtsVorher = { person: false, auto: false }, rechtsZuletzt = {}
     const kamerawache = erstelleKamerawache({
-      abfragen: () => kamera.aiStand(0),
+      // rechtes Objektiv nur fürs Protokoll, jede zweite Runde (07.11.2026: Postauto nicht gemeldet – stand es vielleicht
+      // nur im rechten Bild?); angesagt wird weiter nur links. Läuft nebenher ohne Warten, damit es den Takt links nie
+      // bremst; nach Fehlern eigene Pause (1 min, doppelt bis 10 min), eine Protokollzeile je Fehlerphase (Prüf-Agent).
+      abfragen: async () => {
+        if (++rechtsRunde % 2 === 0 && !rechtsLaeuft && Date.now() >= rechtsPauseBis) {
+          rechtsLaeuft = true
+          kamera.aiStand(1).then((r) => {
+            if (rechtsFehler) kameraLog(`Kamera-Wache rechts: wieder erreichbar nach ${rechtsFehler} Fehlversuch(en)`)
+            rechtsFehler = 0
+            for (const art of ['person', 'auto']) {
+              if (r?.[art] && !rechtsVorher[art] && Date.now() - (rechtsZuletzt[art] ?? 0) >= 30_000) {
+                rechtsZuletzt[art] = Date.now()
+                kameraLog(`Kamera-Wache: ${art === 'auto' ? 'Auto' : 'Person'} am rechten Objektiv (nur Protokoll, nicht angesagt)`)
+              }
+              rechtsVorher[art] = !!r?.[art]
+            }
+          }, (f) => {
+            if (!rechtsFehler) kameraLog(`Kamera-Wache rechts: Abfrage fehlgeschlagen (${String(f?.message ?? f).slice(0, 120)})`)
+            rechtsPauseBis = Date.now() + Math.min(600_000, 60_000 * 2 ** rechtsFehler++)
+          }).finally(() => { rechtsLaeuft = false })
+        }
+        return kamera.aiStand(0)
+      },
       protokoll: kameraLog,
       beimEreignis: (e) => {
         // Person hat Vorrang: kommt im selben Moment ein Auto dazu, bleibt die Aufschrift bei der Person
