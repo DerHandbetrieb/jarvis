@@ -41,3 +41,12 @@ Quellen: siehe Links in der Tabelle; Einzelnachweise u. a. ankandrew.github.io/f
 ## Machbarkeitstest (Version 0.24.3)
 
 `electron/autotest.cjs`: Meldet die Kamera-Wache ein Auto am linken Objektiv, legt L.O.K.I. drei Standbilder (Abstand 3,2 s) in `%APPDATA%\Jarvis\auto-test` ab; höchstens 7 Tage ab dem ersten Bild, höchstens 400 Bilder. Nach der Auswertung löschen. Prüf-Agent: keine Störung der Wache; erstes Bild ansehen, ob das Standbild nur das linke Objektiv zeigt.
+
+### Erste Testbilder (07.11.2026, zwei Meldungen am Vormittag)
+- Snap channel=0 = **nur das linke Objektiv**, 2560×1440 (kein Panoramabild).
+- Tageslicht: Kennzeichen eines einfahrenden Autos (ca. 1/5 der Bildbreite entfernt, schräg von vorn) **klar lesbar**, Farbe und Form gut erkennbar.
+- Eine Meldung zeigte kein einfahrendes Auto, nur das geparkte eigene Auto im Carport (Dach) → „kein Auto“-Fälle kommen vor; dafür gibt es beim Benennen den Knopf „Kein Auto / Fehlalarm“.
+- Nachtbilder stehen noch aus.
+
+## Benennen schon während der Testwoche (Version 0.25.0, Wunsch Auftraggeber 07.11.2026)
+Bereich „Autos am Hof“ oben im L.O.K.I.-Fenster (`src/jarvis/AutosAmHof.tsx`, `electron/autobesuche.cjs`): je Meldung die Fotos, Name eintippen oder bekannten Namen anklicken, „Kein Auto / Fehlalarm“. Namen in `auto-test/namen.json` = Lösungen für die spätere Messung und das Anlernen. Erinnerung: Windows-Mitteilung (Klick öffnet das Fenster) und Lokis Satz nach der Auto-Ansage. Endet mit der Testwoche; danach gilt der eigentliche Plan (Foto höchstens 24 h zum Benennen).

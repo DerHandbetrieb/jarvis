@@ -25,6 +25,22 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     },
   },
   /** Kamera (Standbild): Zugangsdaten werden nur weitergereicht, verschlüsselt im Hauptprozess gespeichert, nie zurückgegeben */
+  /** Autos benennen (07.11.2026): Besuche aus den Testbildern, Name oder „kein Auto“ */
+  autos: {
+    liste: () => ipcRenderer.invoke('autos-liste'),
+    bild: (id, nr) => ipcRenderer.invoke('autos-bild', { id: String(id), nr: Number(nr) }),
+    benennen: (id, name, keinAuto) => ipcRenderer.invoke('autos-benennen', { id: String(id), name: name == null ? null : String(name).slice(0, 60), keinAuto: !!keinAuto }),
+    beiAenderung: (fn) => {
+      const h = () => fn()
+      ipcRenderer.on('autos-aenderung', h)
+      return () => ipcRenderer.removeListener('autos-aenderung', h)
+    },
+    beimZeigen: (fn) => {
+      const h = () => fn()
+      ipcRenderer.on('autos-zeigen', h)
+      return () => ipcRenderer.removeListener('autos-zeigen', h)
+    },
+  },
   kamera: {
     status: () => ipcRenderer.invoke('kamera-status'),
     einrichten: (d) => ipcRenderer.invoke('kamera-einrichten', { adresse: String(d?.adresse ?? ''), benutzer: String(d?.benutzer ?? ''), passwort: String(d?.passwort ?? ''), name: String(d?.name ?? '') }),

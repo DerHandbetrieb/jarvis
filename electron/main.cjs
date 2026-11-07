@@ -4,7 +4,7 @@
 // (5173 gehört der Werkstatt-App, damit beide gleichzeitig laufen können).
 // Immer bereit (Entscheidung Auftraggeber 03.11.2026): startet mit Windows unsichtbar (Argument --autostart), lebt als
 // Symbol im Infobereich unten rechts; das X versteckt nur das Fenster, beendet wird über das Symbol.
-const { app, BrowserWindow, Menu, Tray, desktopCapturer, ipcMain, nativeImage, net, protocol, safeStorage, screen, shell, session } = require('electron')
+const { app, BrowserWindow, Menu, Notification, Tray, desktopCapturer, ipcMain, nativeImage, net, protocol, safeStorage, screen, shell, session } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const { pathToFileURL } = require('node:url')
@@ -23,6 +23,7 @@ const { wetterAusStation } = require('./himmel.cjs')
 const { erstelleNeuigkeiten } = require('./neuigkeiten.cjs')
 const { erstelleKamerawache } = require('./kamerawache.cjs')
 const { erstelleAutotest } = require('./autotest.cjs')
+const { erstelleAutobesuche } = require('./autobesuche.cjs')
 const { Readable } = require('node:stream')
 let kameraLive = null // Live-Bild fürs Dauer-HUD (04.11.2026)
 const { findeWallpaperEngine, einrichten, zugangAbgleichen } = require('./wallpaper.cjs')
@@ -244,6 +245,8 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.whenReady().then(() => {
+    // Windows-Mitteilungen brauchen die App-Kennung des Installers (electron-builder: appId = AUMID der Startmenü-Verknüpfung)
+    if (process.platform === 'win32') app.setAppUserModelId(app.isPackaged ? 'de.der-handbetrieb.jarvis' : process.execPath)
     // mitgelieferte Oberfläche ausliefern (nur Dateien aus dist, kein Weg aus dem Ordner heraus)
     protocol.handle('app', (anfrage) => {
       let teil = ''
@@ -431,7 +434,31 @@ if (!app.requestSingleInstanceLock()) {
     // wie die Werkstatt-Neuigkeiten – dort gelten „nur wenn er am PC ist“, nie dazwischenreden, Verpasstes gesammelt.
     let kameraAlarm = 0, kameraAlarmArt = 'person'
     // Machbarkeitstest Auto-Erkennung (07.11.2026, Freigabe Auftraggeber): bei Auto-Meldung drei Standbilder ablegen, befristet
-    const autotest = erstelleAutotest({ ordner: path.join(app.getPath('userData'), 'auto-test'), bild: () => kamera.bild(), protokoll: kameraLog })
+    const autoOrdner = path.join(app.getPath('userData'), 'auto-test')
+    const autotest = erstelleAutotest({ ordner: autoOrdner, bild: () => kamera.bild(), protokoll: kameraLog })
+    // Autos benennen (07.11.2026): Besuche aus den Testbildern, Namen in auto-test/namen.json; Erinnerung per Windows-Mitteilung
+    const autobesuche = erstelleAutobesuche({ ordner: autoOrdner })
+    const autosGeaendert = () => { if (!hauptfenster.isDestroyed()) hauptfenster.webContents.send('autos-aenderung') }
+    ipcMain.handle('autos-liste', (e) => (vonFenster(e) ? { besuche: ((b) => [...b.filter((x) => !x.erledigt), ...b.filter((x) => x.erledigt).slice(0, 40)])(autobesuche.besuche()), bekannte: autobesuche.bekannte(), offen: autobesuche.offen() } : null))
+    ipcMain.handle('autos-bild', (e, d) => (vonFenster(e) ? autobesuche.bild(String(d?.id ?? ''), Number(d?.nr)) : null))
+    ipcMain.handle('autos-benennen', (e, d) => {
+      if (!vonFenster(e)) return false
+      let ok = false
+      try { ok = autobesuche.benennen(String(d?.id ?? ''), d?.name == null ? null : String(d.name), !!d?.keinAuto) } catch (f) { kameraLog('Autos: Speichern fehlgeschlagen', f?.message ?? f) }
+      if (ok) kameraLog('Autos: Besuch benannt')
+      return ok
+    })
+    let autoMitteilung = null // nur eine auf einmal stehen lassen (Windows sammelt sie sonst)
+    const autoErinnern = () => {
+      const n = autobesuche.offen()
+      if (!n || !Notification.isSupported()) return
+      try {
+        autoMitteilung?.close()
+        autoMitteilung = new Notification({ title: 'L.O.K.I. · Auto am Carport', body: n === 1 ? 'Ein neues Auto wurde fotografiert. Klicken, um es zu benennen.' : `${n} Autos warten darauf, benannt zu werden. Klicken zum Benennen.`, silent: true })
+        autoMitteilung.on('click', () => { zeigen(); if (!hauptfenster.isDestroyed()) hauptfenster.webContents.send('autos-zeigen') })
+        autoMitteilung.show()
+      } catch (f) { kameraLog('Autos: Mitteilung fehlgeschlagen', f?.message ?? f) }
+    }
     const kamerawache = erstelleKamerawache({
       abfragen: () => kamera.aiStand(0),
       protokoll: kameraLog,
@@ -440,9 +467,17 @@ if (!app.requestSingleInstanceLock()) {
         if (e.art === 'person' || kameraAlarmArt !== 'person' || e.zeit - kameraAlarm > 25_000) kameraAlarmArt = e.art
         kameraAlarm = e.zeit
         kameraLog(`Kamera-Wache: ${e.art === 'auto' ? 'Auto' : 'Person'} erkannt (linkes Objektiv)`)
-        if (e.art === 'auto') void autotest.autoGemeldet(e.zeit)
         // Personen höchstens 2 Stunden aufheben (sonst nach einer Nacht lauter „jemand war da“, Prüf-Agent)
-        neuPuffer = [...neuPuffer.filter((x) => !['person', 'auto'].includes(x.n.art) || e.zeit - x.zeit < 2 * 3600_000), { n: { art: e.art, seite: 'links' }, zeit: e.zeit }].slice(-200)
+        const einreihen = (n) => { neuPuffer = [...neuPuffer.filter((x) => !['person', 'auto'].includes(x.n.art) || e.zeit - x.zeit < 2 * 3600_000), { n, zeit: e.zeit }].slice(-200) }
+        // Auto während der Testwoche: erst nach dem Ablegen der Fotos einreihen (wenige Sekunden), damit Loki „fotografiert“ nur sagt, wenn es stimmt
+        if (e.art === 'auto' && autotest.erlaubt()) {
+          void autotest.autoGemeldet(e.zeit).then((n) => {
+            einreihen(n > 0 ? { art: 'auto', seite: 'links', foto: true } : { art: 'auto', seite: 'links' })
+            if (n > 0) { autosGeaendert(); autoErinnern() }
+          })
+          return
+        }
+        einreihen({ art: e.art, seite: 'links' })
       },
     })
     const wacheAbgleichen = () => { if (kamera.status().eingerichtet) kamerawache.starten(); else kamerawache.stoppen() }

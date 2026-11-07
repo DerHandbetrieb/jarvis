@@ -13,7 +13,7 @@ export type Neuigkeit =
   /** Kamera-Wache (04.11.2026): die Kamera hat eine Person erkannt (nur linkes Objektiv) */
   | { art: 'person'; seite: 'links' | 'rechts' }
   /** 06.11.2026: die Kamera hat ein Fahrzeug erkannt */
-  | { art: 'auto'; seite: 'links' | 'rechts' }
+  | { art: 'auto'; seite: 'links' | 'rechts'; /** Fotos zum Benennen abgelegt (07.11.2026) */ foto?: boolean }
 
 /** Gruppen in den Einstellungen: „problem“ = Amazon-Problem, Selbsttest rot, Lager knapp */
 export type NeuGruppe = 'bestellung' | 'problem' | 'aufgabe' | 'freigabe' | 'kamera'
@@ -72,6 +72,9 @@ export function ansage(liste: Neuigkeit[], o: { anrede: string; humor: boolean; 
   // Person an der Kamera zuerst – das ist das Eiligste (bei „weg“ gesammelt unten)
   if (pers.length && !o.weg) s.push(pers.length === 1 ? `${o.anrede}, eine Person nähert sich dem Grundstück.` : `${o.anrede}, an der Kamera war gerade ${zahl(pers.length) === 'zwei' ? 'zweimal' : `${zahl(pers.length)} Mal`} jemand.`)
   if (autos.length && !o.weg) s.push(autos.length === 1 ? `${o.anrede}, ein Auto fährt auf das Grundstück.` : `${o.anrede}, an der Kamera waren gerade ${zahl(autos.length)} Autos.`)
+  // Erinnerung ans Benennen (Wunsch Auftraggeber 07.11.2026), nur wenn wirklich Fotos abgelegt wurden
+  const fotos = autos.filter((n) => 'foto' in n && n.foto).length
+  if (fotos && !o.weg) s.push(autos.length === 1 ? 'Ich habe es fotografiert. Einen Namen dürfen Sie ihm im Loki-Fenster geben.' : fotos === autos.length ? 'Ich habe sie fotografiert. Namen dürfen Sie im Loki-Fenster vergeben.' : 'Fotos zum Benennen liegen im Loki-Fenster.')
   for (const a of amaz.slice(0, 2)) s.push(satz(`Neues Amazon-Problem: ${ohneAmazon(a.titel)}`))
   if (amaz.length === 3) s.push('Dazu ein weiteres Amazon-Problem.')
   else if (amaz.length > 3) s.push(`Dazu ${zahl(amaz.length - 2)} weitere Amazon-Probleme.`)
@@ -87,6 +90,7 @@ export function ansage(liste: Neuigkeit[], o: { anrede: string; humor: boolean; 
     if (frei.length) teile.push(frei.length === 1 ? 'eine neue Freigabe' : `${zahl(frei.length)} neue Freigaben`)
     if (teile.length) s.unshift(`Während Sie weg waren, ${o.anrede}: ${aufzaehlen(teile)}.`)
     else if (s.length) s.unshift(`Während Sie weg waren, ${o.anrede}:`)
+    if (fotos) s.push(autos.length === 1 ? 'Das Auto habe ich fotografiert, es wartet im Loki-Fenster auf einen Namen.' : 'Fotos zum Benennen liegen im Loki-Fenster.')
   } else {
     if (best.length === 1) {
       const b = best[0]
