@@ -112,7 +112,7 @@ function schleife(ms, meine = lauf) {
   zeichneSzene(g, szene, t, { wetter: antwort?.wetter ?? null, eis: antwort?.eis, versatz: VERSATZ, loki: reaktorZustand(loki), pegel: 0.6 + 0.4 * Math.abs(Math.sin(t * 7)), ton: tonJetzt }) // Reaktor pulsiert im Beat
   const fv = szene.wetter?.sichtbar?.frost ?? 0; if (fv > 0 && !frost) frost = frostEbene(); if (frost) { frostStellen(frost, fv); frostGrad(frost, antwort?.wetter?.grad) }
   kameraGross(tafeln, antwort?.kamera?.gross ?? null)
-  zeichneTafeln(tafeln, { ...daten, tonStatus: tonStatus(), ton: performance.now() - letzterTon < 2000 ? ton : null, kamBilder: [liveBild(0), liveBild(1)] }, t)
+  zeichneTafeln(tafeln, { ...daten, tonStatus: tonStatus(), ton: performance.now() - letzterTon < 2000 ? ton : null, kamBilder: [liveBild(0), liveBild(1)], medien: window.LOKI_MEDIEN ?? null }, t)
 }
 
 void holen()

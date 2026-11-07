@@ -32,6 +32,14 @@ const probeWetter = { regen: { code: 63, grad: 8 }, schnee: { code: 73, grad: -2
 const stationProbe = { regen: { grad: 6, regenRate: 3.5, feuchte: 92, wind: 5 }, schnee: { grad: 0.4, regenRate: 1.2, feuchte: 95, wind: 4 }, frost: { grad: -3, regenRate: 0, feuchte: 80, wind: 2 }, trocken: { grad: 9, regenRate: 0, feuchte: 70, wind: 8 } }[new URLSearchParams(location.search).get('station')]
 if (stationProbe) Object.assign(probeWetter, { grad: stationProbe.grad, station: stationProbe })
 const frage = new URLSearchParams(location.search)
+// Prüfhilfe laufendes Lied (?lied=1 spielt, ?lied=pause): Beispiel-Lied mit selbst gezeichnetem Cover (07.11.2026)
+const probeLied = (() => {
+  const w = frage.get('lied'); if (!w) return null
+  const c = document.createElement('canvas'); c.width = c.height = 300; const cg = c.getContext('2d')
+  const v = cg.createLinearGradient(0, 0, 300, 300); v.addColorStop(0, '#3a0d4f'); v.addColorStop(0.55, '#c2364a'); v.addColorStop(1, '#f6a03a'); cg.fillStyle = v; cg.fillRect(0, 0, 300, 300)
+  cg.fillStyle = 'rgba(255,240,200,0.9)'; cg.beginPath(); cg.arc(150, 170, 62, 0, Math.PI * 2); cg.fill()
+  return { aktiv: true, titel: 'Kalte Sterne über dem See', kuenstler: 'Die Nordlichter', album: 'Mitternachtsfahrt', cover: c, farbe: '#c2364a', zustand: w === 'pause' ? 'pause' : 'spielt', position: 83, dauer: 214, posZeit: performance.now() }
+})()
 if (frage.get('eis')) probeWetter.eis = Number(frage.get('eis')) // Prüfhilfe ?eis=0.5|1
 if (frage.get('kante')) KANTE.art = frage.get('kante')
 if (frage.get('spiegel')) SPIEGEL.abstand = Number(frage.get('spiegel'))
@@ -57,7 +65,7 @@ function schleife(ms) {
   const ton = Array.from({ length: 128 }, (_, i) => Math.max(0, Math.sin(ms / 300 + i * 0.3) * Math.exp(-((i % 64) / 20)) * 0.8))
   const fv = s.wetter?.sichtbar?.frost ?? 0; if (fv > 0 && !window.frostE) { const d = document.createElement('div'); c.parentElement.appendChild(d); window.frostE = erstelleFrost(d, zoom ? 1920 : 0) } if (window.frostE) { frostStellen(window.frostE, fv); frostGrad(window.frostE, Number(new URLSearchParams(location.search).get('grad') ?? -4)) }
   if (new URLSearchParams(location.search).has('kamgross')) kameraGross(tafeln, 0)
-  zeichneTafeln(tafeln, { ...beispiel, ton, loki: { zustand: { hoert: 'bereit', denkt: 'denkt', spricht: 'spricht', aus: 'aus' }[loki], mikrofon: loki !== 'aus', whatsapp: Number(new URLSearchParams(location.search).get('wa') ?? 0) } }, ms / 1000)
+  zeichneTafeln(tafeln, { ...beispiel, ton, loki: { zustand: { hoert: 'bereit', denkt: 'denkt', spricht: 'spricht', aus: 'aus' }[loki], mikrofon: loki !== 'aus', whatsapp: Number(new URLSearchParams(location.search).get('wa') ?? 0) }, medien: probeLied }, ms / 1000)
   const dauer = performance.now() - a
   zeiten.push(dauer); if (zeiten.length > 120) zeiten.shift()
   laengste = Math.max(laengste * 0.995, ms - vorher); vorher = ms

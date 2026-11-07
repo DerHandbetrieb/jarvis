@@ -164,12 +164,16 @@ function bestellungen(g, b, h, d) {
  */
 const BALKEN = 48, anzeige = new Float32Array(BALKEN), spitze = new Float32Array(BALKEN)
 let letztesBild = 0
-function tonwellen(g, b, h, ton, t, loki, tonStatus) {
+function tonwellen(g, b, h, ton, t, loki, tonStatus, medien) {
   const pegel = ton ? Math.max(...Array.from(ton, Number).map((v) => (Number.isFinite(v) ? v : 0))) : 0
   const spricht = loki?.zustand === 'spricht'
+  // Lied ausblenden, wenn der Player ohne Stopp-Meldung verschwunden ist (Position weit über der Dauer, Prüf-Agent)
+  const ueber = medien && medien.dauer > 0 && medien.position != null && medien.zustand === 'spielt' && medien.position + (performance.now() - medien.posZeit) / 1000 > medien.dauer + 10
+  const lied = medien && medien.titel && medien.zustand !== 'stopp' && medien.aktiv !== false && !ueber ? medien : null
   kopf(g, 'AUDIO', spricht ? 'L.O.K.I. SPRICHT' : ton && pegel > 0.01 ? 'PC-TON' : tonStatus ?? 'STILLE', b)
+  const links = lied ? schallplatte(g, b, h, lied, t) : 0
   const jetzt = performance.now(), dt = Math.min(0.1, Math.max(0.005, (jetzt - (letztesBild || jetzt)) / 1000)); letztesBild = jetzt
-  const x0 = 16, x1 = b - 16, unten = h - 12, oben = 42, hoehe = unten - oben, breite = (x1 - x0) / BALKEN
+  const x0 = 16 + links, x1 = b - 16, unten = h - 12, oben = 42, hoehe = unten - oben, breite = (x1 - x0) / BALKEN
   for (let i = 0; i < BALKEN; i++) {
     // Tonbereich i: gestaucht über die 64 Bänder (Bass bekommt mehr Balken, jeder Balken eigene Bänder)
     const a = Math.floor(Math.pow(i / BALKEN, 1.6) * 63), e = Math.max(a + 1, Math.floor(Math.pow((i + 1) / BALKEN, 1.6) * 63))
@@ -194,6 +198,43 @@ function tonwellen(g, b, h, ton, t, loki, tonStatus) {
   }
   g.restore()
   g.strokeStyle = 'rgba(95,246,255,0.25)'; g.beginPath(); g.moveTo(x0, unten + 0.5); g.lineTo(x1, unten + 0.5); g.stroke()
+}
+
+/**
+ * Laufendes Lied (07.11.2026, Wahl Auftraggeber: Entwurf D „Schallplatte“, hud5/audio-entwuerfe.js): Cover als Etikett einer
+ * schwarzen Platte, die sich beim Abspielen dreht; daneben Titel, Interpret · Album, Fortschritt. Liefert die belegte Breite –
+ * die Tonbalken rücken nach rechts. Daten aus der Medien-Schnittstelle von Wallpaper Engine (dauer-hud.html).
+ */
+let plattenWinkel = 0, plattenZeit = 0
+const zeitText = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+function schallplatte(g, b, h, m, t) {
+  const s = h - 50, x = 30, y = 40, cx = x + s / 2, cy = y + s / 2
+  if (m.zustand === 'spielt') plattenWinkel += Math.min(0.1, Math.max(0, t - plattenZeit)) * 0.9
+  plattenZeit = t
+  const farbe = typeof m.farbe === 'string' && m.farbe ? m.farbe : CYAN
+  g.save()
+  g.shadowColor = farbe; g.shadowBlur = 18
+  g.beginPath(); g.arc(cx, cy, s / 2, 0, Math.PI * 2); g.fillStyle = '#050505'; g.fill(); g.shadowBlur = 0
+  g.translate(cx, cy); g.rotate(plattenWinkel)
+  for (let r = s / 2 - 3; r > s * 0.31; r -= 3) { g.strokeStyle = 'rgba(255,255,255,0.05)'; g.lineWidth = 1; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.stroke() }
+  g.strokeStyle = 'rgba(255,255,255,0.13)'; g.beginPath(); g.arc(0, 0, s * 0.42, -0.6, 0.2); g.stroke() // Glanz, dreht mit
+  g.beginPath(); g.arc(0, 0, s * 0.3, 0, Math.PI * 2); g.clip()
+  if (m.cover) g.drawImage(m.cover, -s * 0.3, -s * 0.3, s * 0.6, s * 0.6)
+  else { g.fillStyle = farbe; g.globalAlpha = 0.5; g.fillRect(-s * 0.3, -s * 0.3, s * 0.6, s * 0.6); g.globalAlpha = 1 }
+  g.restore()
+  g.fillStyle = '#081820'; g.beginPath(); g.arc(cx, cy, 3, 0, Math.PI * 2); g.fill()
+  const tx = x + s + 22, tb = 420
+  text(g, m.zustand === 'pause' ? 'PAUSIERT' : 'JETZT LÄUFT', tx, 56, 11, GOLD, 'left', 600)
+  g.font = `600 26px ${SCHRIFT}`; text(g, kuerzen(g, m.titel, tb), tx, 86, 26, HELL, 'left', 600)
+  const unter = [m.kuenstler, m.album].filter(Boolean).join(' · ')
+  if (unter) { g.font = `400 16px ${SCHRIFT}`; text(g, kuerzen(g, unter, tb), tx, 110, 16, CYAN) }
+  if (m.dauer > 0 && m.position != null) {
+    const pos = Math.min(m.dauer, m.position + (m.zustand === 'spielt' ? (performance.now() - m.posZeit) / 1000 : 0)), f = pos / m.dauer, bb = 360
+    g.fillStyle = 'rgba(95,246,255,0.12)'; g.fillRect(tx, h - 20, bb, 3)
+    g.fillStyle = CYAN; g.fillRect(tx, h - 20, bb * f, 3); g.beginPath(); g.arc(tx + bb * f, h - 18.5, 4, 0, Math.PI * 2); g.fill()
+    text(g, zeitText(m.dauer - pos) + ' übrig', tx + tb, h - 15, 11, BLASS, 'right', 600)
+  }
+  return tx + tb + 14
 }
 
 // ---------- Inhalte rechts (Haus) ----------
@@ -321,7 +362,7 @@ export function zeichneInhalte(g, st, daten, t, versatz = 0) {
   g.drawImage(st.ruhig, 0, 0)
   // bewegte Inhalte jedes Bild
   const ton = st.fl.ton, tg = ton.c.getContext('2d'); tg.clearRect(0, 0, ton.c.width, ton.c.height)
-  tonwellen(tg, ton.c.width, ton.c.height, daten.ton, t, daten.loki); verzerren(g, ton.c, ton.innen)
+  tonwellen(tg, ton.c.width, ton.c.height, daten.ton, t, daten.loki, daten.tonStatus, daten.medien); verzerren(g, ton.c, ton.innen)
   const alarm = daten.kamera?.alarm ? daten.kamera.alarmArt ?? 'person' : null
   for (const [k, id, name] of [[0, 'kamera1', 'CAM 01 · LINKS'], [1, 'kamera2', 'CAM 02 · RECHTS']]) {
     const p = st.fl[id], cg = p.c.getContext('2d')
@@ -381,7 +422,7 @@ function BEISPIEL_LAGE(jetzt) {
 export const ZEICHNER = {
   verkaeufe: (g, b, h, d) => verkaeufe(g, b, h, d.werkstatt ?? {}),
   umsatz: (g, b, h, d) => umsatz(g, b, h, d.werkstatt ?? {}),
-  ton: (g, b, h, d, t) => tonwellen(g, b, h, d.ton, t, d.loki, d.tonStatus),
+  ton: (g, b, h, d, t) => tonwellen(g, b, h, d.ton, t, d.loki, d.tonStatus, d.medien),
   aufgaben: (g, b, h, d) => abarbeiten(g, b, h, d.werkstatt ?? {}),
   bestellungen: (g, b, h, d) => bestellungen(g, b, h, d.werkstatt ?? {}),
   kamera1: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[0] ?? null, 'CAM 01 · LINKS', d.kamera?.alarm ? d.kamera.alarmArt ?? 'person' : null, t),

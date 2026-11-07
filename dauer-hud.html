@@ -23,6 +23,44 @@
         window.LOKI_TON_ANGEMELDET = true
         window.wallpaperRegisterAudioListener(function (a) { window.LOKI_TON_WE = performance.now(); window.LOKI_TON = { werte: a, zeit: window.LOKI_TON_WE } })
       }
+      // Laufendes Lied (07.11.2026, Wahl Auftraggeber: Entwurf D „Schallplatte“): Medien-Schnittstelle von Wallpaper Engine
+      // (docs.wallpaperengine.io/en/web/audio/media.html) – nur Titel, Interpret, Album, Cover, Spielstand, Position.
+      // Muss in Wallpaper Engine unter Einstellungen eingeschaltet sein; sonst bleibt das Feld wie bisher.
+      ;(function () {
+        var nr = 0, zeitlinie = 0
+        var m = (window.LOKI_MEDIEN = { aktiv: null, titel: '', kuenstler: '', album: '', cover: null, farbe: null, zustand: 'stopp', position: null, dauer: null, posZeit: 0 })
+        var reg = function (n, f) { try { if (typeof window[n] === 'function') window[n](f) } catch (e) {} }
+        reg('wallpaperRegisterMediaStatusListener', function (e) { m.aktiv = !!(e && e.enabled) })
+        reg('wallpaperRegisterMediaPropertiesListener', function (e) {
+          var neu = String((e && e.title) || '')
+          if (neu !== m.titel && performance.now() - zeitlinie > 1500) { m.position = null; m.dauer = null }
+          m.titel = neu; m.kuenstler = String((e && (e.artist || e.albumArtist)) || ''); m.album = String((e && e.albumTitle) || '')
+        })
+        reg('wallpaperRegisterMediaThumbnailListener', function (e) {
+          var t = e && e.thumbnail, meine = ++nr
+          m.cover = null; m.farbe = (e && e.primaryColor) || null
+          if (!t) return
+          var img = new Image()
+          img.onload = function () {
+            if (meine !== nr) return
+            var c = document.createElement('canvas'); c.width = c.height = 160
+            c.getContext('2d').drawImage(img, 0, 0, 160, 160); m.cover = c
+          }
+          img.src = String(t).indexOf('data:') === 0 ? t : 'data:image/png;base64,' + t
+        })
+        reg('wallpaperRegisterMediaPlaybackListener', function (e) {
+          var P = window.wallpaperMediaIntegration || {}, s = e && e.state
+          var spielt = P.PLAYBACK_PLAYING != null ? P.PLAYBACK_PLAYING : P.playback && P.playback.PLAYING != null ? P.playback.PLAYING : 1
+          var pause = P.PLAYBACK_PAUSED != null ? P.PLAYBACK_PAUSED : P.playback && P.playback.PAUSED != null ? P.playback.PAUSED : 2
+          if (m.zustand === 'spielt' && m.position != null) m.position = Math.min(m.dauer || 1e9, m.position + (performance.now() - m.posZeit) / 1000)
+          m.posZeit = performance.now()
+          m.zustand = s === spielt ? 'spielt' : s === pause ? 'pause' : 'stopp'
+        })
+        reg('wallpaperRegisterMediaTimelineListener', function (e) {
+          if (!e || !(e.duration > 0)) return
+          m.position = Number(e.position) || 0; m.dauer = Number(e.duration); m.posZeit = zeitlinie = performance.now()
+        })
+      })()
     </script>
   </body>
 </html>
