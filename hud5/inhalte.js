@@ -168,8 +168,7 @@ function tonwellen(g, b, h, ton, t, loki, tonStatus, medien) {
   const pegel = ton ? Math.max(...Array.from(ton, Number).map((v) => (Number.isFinite(v) ? v : 0))) : 0
   const spricht = loki?.zustand === 'spricht'
   // Lied ausblenden, wenn der Player ohne Stopp-Meldung verschwunden ist (Position weit über der Dauer, Prüf-Agent)
-  const ueber = medien && medien.dauer > 0 && medien.position != null && medien.zustand === 'spielt' && medien.position + (performance.now() - medien.posZeit) / 1000 > medien.dauer + 10
-  const lied = medien && medien.titel && medien.zustand !== 'stopp' && medien.aktiv !== false && !ueber ? medien : null
+  const lied = liedSichtbar(medien) ? medien : null
   kopf(g, 'AUDIO', spricht ? 'L.O.K.I. SPRICHT' : ton && pegel > 0.01 ? 'PC-TON' : tonStatus ?? 'STILLE', b)
   const links = lied ? schallplatte(g, b, h, lied, t) : 0
   const jetzt = performance.now(), dt = Math.min(0.1, Math.max(0.005, (jetzt - (letztesBild || jetzt)) / 1000)); letztesBild = jetzt
@@ -205,6 +204,31 @@ function tonwellen(g, b, h, ton, t, loki, tonStatus, medien) {
  * schwarzen Platte, die sich beim Abspielen dreht; daneben Titel, Interpret · Album, Fortschritt. Liefert die belegte Breite –
  * die Tonbalken rücken nach rechts. Daten aus der Medien-Schnittstelle von Wallpaper Engine (dauer-hud.html).
  */
+/** Lied anzeigen? Nicht bei Stopp, abgeschalteter Integration oder wenn der Player ohne Stopp-Meldung verschwunden ist
+ *  (Position weit über der Dauer, Prüf-Agent) */
+export function liedSichtbar(m) {
+  if (!m || !m.titel || m.zustand === 'stopp' || m.aktiv === false) return false
+  const ueber = m.dauer > 0 && m.position != null && m.zustand === 'spielt' && m.position + (performance.now() - m.posZeit) / 1000 > m.dauer + 10
+  return !ueber
+}
+/** Knöpfe Zurück / Pause-Weiter / Vor im Audiofeld (07.11.2026, Wunsch Auftraggeber) – Mittelpunkte in Feld-Einheiten,
+ *  gemessen ab der Innenkante des Felds; tafeln.js legt genau darüber unsichtbare Klickflächen */
+export const MEDIEN_KNOEPFE = [['zurueck', 486, 80], ['pause', 534, 80], ['vor', 582, 80]]
+export const KNOPF_RADIUS = 19
+export const knopfBlitz = { id: null, zeit: 0 } // kurzes Aufleuchten nach dem Klick
+function medienKnopf(g, art, x, y, spielt) {
+  const blitz = knopfBlitz.id === art ? Math.max(0, 1 - (performance.now() - knopfBlitz.zeit) / 400) : 0
+  g.save()
+  g.beginPath(); g.arc(x, y, KNOPF_RADIUS, 0, Math.PI * 2)
+  g.fillStyle = `rgba(95,246,255,${0.06 + blitz * 0.35})`; g.fill()
+  g.strokeStyle = art === 'pause' ? GOLD : 'rgba(95,246,255,0.55)'; g.lineWidth = 1.2; g.stroke()
+  g.fillStyle = art === 'pause' ? GOLD : HELL
+  const dreieck = (x0, rechts) => { g.beginPath(); g.moveTo(x0, y - 6); g.lineTo(x0 + (rechts ? 9 : -9), y); g.lineTo(x0, y + 6); g.closePath(); g.fill() }
+  if (art === 'pause') { if (spielt) { g.fillRect(x - 5, y - 7, 3.5, 14); g.fillRect(x + 1.5, y - 7, 3.5, 14) } else dreieck(x - 3.5, true) }
+  else if (art === 'vor') { dreieck(x - 7, true); dreieck(x + 1, true); g.fillRect(x + 9, y - 6, 2, 12) }
+  else { dreieck(x + 7, false); dreieck(x - 1, false); g.fillRect(x - 11, y - 6, 2, 12) }
+  g.restore()
+}
 let plattenWinkel = 0, plattenZeit = 0
 const zeitText = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 function schallplatte(g, b, h, m, t) {
@@ -223,17 +247,18 @@ function schallplatte(g, b, h, m, t) {
   else { g.fillStyle = farbe; g.globalAlpha = 0.5; g.fillRect(-s * 0.3, -s * 0.3, s * 0.6, s * 0.6); g.globalAlpha = 1 }
   g.restore()
   g.fillStyle = '#081820'; g.beginPath(); g.arc(cx, cy, 3, 0, Math.PI * 2); g.fill()
-  const tx = x + s + 22, tb = 420
+  const tx = x + s + 22, tb = 420, tt = 290 // tt: Textbreite neben den Knöpfen
   text(g, m.zustand === 'pause' ? 'PAUSIERT' : 'JETZT LÄUFT', tx, 56, 11, GOLD, 'left', 600)
-  g.font = `600 26px ${SCHRIFT}`; text(g, kuerzen(g, m.titel, tb), tx, 86, 26, HELL, 'left', 600)
+  g.font = `600 26px ${SCHRIFT}`; text(g, kuerzen(g, m.titel, tt), tx, 86, 26, HELL, 'left', 600)
   const unter = [m.kuenstler, m.album].filter(Boolean).join(' · ')
-  if (unter) { g.font = `400 16px ${SCHRIFT}`; text(g, kuerzen(g, unter, tb), tx, 110, 16, CYAN) }
+  if (unter) { g.font = `400 16px ${SCHRIFT}`; text(g, kuerzen(g, unter, tt), tx, 110, 16, CYAN) }
   if (m.dauer > 0 && m.position != null) {
     const pos = Math.min(m.dauer, m.position + (m.zustand === 'spielt' ? (performance.now() - m.posZeit) / 1000 : 0)), f = pos / m.dauer, bb = 360
     g.fillStyle = 'rgba(95,246,255,0.12)'; g.fillRect(tx, h - 20, bb, 3)
     g.fillStyle = CYAN; g.fillRect(tx, h - 20, bb * f, 3); g.beginPath(); g.arc(tx + bb * f, h - 18.5, 4, 0, Math.PI * 2); g.fill()
     text(g, zeitText(m.dauer - pos) + ' übrig', tx + tb, h - 15, 11, BLASS, 'right', 600)
   }
+  for (const [art, kx, ky] of MEDIEN_KNOEPFE) medienKnopf(g, art, kx, ky, m.zustand === 'spielt')
   return tx + tb + 14
 }
 

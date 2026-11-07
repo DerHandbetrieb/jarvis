@@ -3,7 +3,7 @@
 // kippt (CSS 3D, rotateY) – dadurch passen Rahmen und Inhalt immer exakt zueinander. Links kippt die Tafel nach
 // rechts hinten, rechts gespiegelt nach links hinten (wie im Grafikpaket des Auftraggebers).
 import { RAHMEN_STILE } from './rahmen.js'
-import { ZEICHNER } from './inhalte.js'
+import { ZEICHNER, MEDIEN_KNOEPFE, KNOPF_RADIUS, liedSichtbar, knopfBlitz } from './inhalte.js'
 
 const STIL = RAHMEN_STILE[1]
 const TAFEL = { links: 490, oben: 165, breite: 1240, hoehe: 760, neigung: 24, tiefe: 1900, skala: 1.1 } // Wahl Auftraggeber 05.11.2026: 10 % größer und weiter zur Bildschirmmitte (links war 450)
@@ -104,6 +104,21 @@ function spiegelWellen(f, t) {
   }
 }
 
+/** Klickflächen über den Medien-Knöpfen im Audiofeld (07.11.2026): liegen als Elemente auf der gekippten Tafel direkt
+ *  über dem Feld – der Browser rechnet die Perspektive beim Treffer mit. beiKlick(art) mit art = zurueck | pause | vor */
+export function medienKnoepfe(st, beiKlick) {
+  const f = st.felder.ton
+  if (!f) return
+  const k = f.k / AUFLOESUNG, links = parseFloat(f.c.style.left), oben = parseFloat(f.c.style.top)
+  st.knoepfe = MEDIEN_KNOEPFE.map(([art, x, y]) => {
+    const d = document.createElement('div'), r = KNOPF_RADIUS + 4
+    Object.assign(d.style, { position: 'absolute', left: links + (x - r) * k + 'px', top: oben + (y - r) * k + 'px', width: 2 * r * k + 'px', height: 2 * r * k + 'px', borderRadius: '50%', pointerEvents: 'auto', cursor: 'pointer', display: 'none' })
+    d.addEventListener('click', (ev) => { ev.stopPropagation(); knopfBlitz.id = art; knopfBlitz.zeit = performance.now(); beiKlick(art) })
+    f.c.parentElement.appendChild(d)
+    return d
+  })
+}
+
 /** je Bild: ruhige Fenster nur bei neuen Daten, Tonwellen und Kameras immer */
 export function zeichneTafeln(st, daten, t) {
   const kennung = JSON.stringify([daten.werkstatt, daten.wetter, daten.kamera?.name ?? null, daten.loki, daten.uhr, daten.beispiel, daten.veraltet])
@@ -112,6 +127,7 @@ export function zeichneTafeln(st, daten, t) {
   const sekunde = Math.floor(Date.now() / 1000), neueSekunde = sekunde !== st.sekunde // Uhr mit Sekunden im System-Streifen
   st.sekunde = sekunde
   for (const [id, f] of Object.entries(st.felder)) { if (alles || BEWEGT.has(id) || (neueSekunde && id === 'system')) feldZeichnen(f, id, daten, t); spiegelWellen(f, t) }
+  if (st.knoepfe) { const an = liedSichtbar(daten.medien) ? 'block' : 'none'; for (const d of st.knoepfe) if (d.style.display !== an) d.style.display = an }
   if (st.grossBild && (st.grossKanal != null || st.grossBild.style.opacity !== '0')) ZEICHNER[st.grossZeigt === 1 ? 'kamera2' : 'kamera1'](st.grossG, GROSS.b, GROSS.h, daten, t)
 }
 

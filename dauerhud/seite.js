@@ -6,7 +6,7 @@
 // 5760×1080; auf einem einzelnen Bildschirm nur der mittlere Teil. Klick auf den Reaktor = L.O.K.I. stumm / wieder an.
 import { B, H, ladeSzene, zeichneSzene } from '../hud5/szene.js'
 import { ausHud } from '../hud5/inhalte.js'
-import { erstelleTafeln, kameraGross, zeichneTafeln } from '../hud5/tafeln.js'
+import { medienKnoepfe, erstelleTafeln, kameraGross, zeichneTafeln } from '../hud5/tafeln.js'
 import { erstelleFrost, frostStellen, frostGrad } from '../hud5/frost.js'
 import { sequenzDaten } from '../startsequenz/lageDaten.js'
 import { wetterAusCode } from '../src/jarvis/wetter.ts'
@@ -99,6 +99,13 @@ window.wallpaperPropertyListener = { setPaused: (p) => { const war = pausiert; p
 
 const szene = await ladeSzene('./ebenen/')
 const tafeln = erstelleTafeln(document.getElementById('tafeln'), VERSATZ) // Fenster mit echter Perspektive über der Szene
+// Knöpfe Zurück / Pause / Vor im Audiofeld (07.11.2026): L.O.K.I. drückt die Windows-Medientaste
+let medienSperre = 0
+medienKnoepfe(tafeln, async (art) => {
+  if (performance.now() < medienSperre) return
+  medienSperre = performance.now() + 300
+  try { await fetch(`http://127.0.0.1:${zugang.port}/medien/${art}`, { method: 'POST', headers: kopf(), signal: AbortSignal.timeout(3000) }) } catch { /* L.O.K.I. läuft nicht */ }
+})
 let frost = null // vereister Rand über allem – erst anlegen, wenn es friert (05.11.2026)
 const frostEbene = () => { const d = document.createElement('div'); document.body.appendChild(d); return erstelleFrost(d, VERSATZ) }
 /** Zustand von L.O.K.I. für den Reaktor: hört zu / denkt / spricht / aus */

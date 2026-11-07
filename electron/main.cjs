@@ -24,6 +24,7 @@ const { erstelleNeuigkeiten } = require('./neuigkeiten.cjs')
 const { erstelleKamerawache } = require('./kamerawache.cjs')
 const { erstelleAutotest } = require('./autotest.cjs')
 const { erstelleAutobesuche } = require('./autobesuche.cjs')
+const { erstelleMedientasten } = require('./medientasten.cjs')
 const { Readable } = require('node:stream')
 let kameraLive = null // Live-Bild fürs Dauer-HUD (04.11.2026)
 const { findeWallpaperEngine, einrichten, zugangAbgleichen } = require('./wallpaper.cjs')
@@ -508,7 +509,12 @@ if (!app.requestSingleInstanceLock()) {
       return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter(), eis: wettertage.eis(), station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null, alarmArt: kameraAlarmArt, gross: kameraGross() } : null, loki: { ...trayZustand, whatsapp: whatsappNeu } }
     }
     ipcMain.handle('sequenz-hud', (e) => (sequenzFenster && !sequenzFenster.isDestroyed() && e.sender === sequenzFenster.webContents ? hudDatenJetzt() : null))
+    // Medientasten fürs Audiofeld (07.11.2026): Pause/Weiter, vor, zurück – L.O.K.I. drückt die Windows-Medientaste
+    const medientasten = erstelleMedientasten({ protokoll: kameraLog })
+    app.on('will-quit', () => medientasten.beenden())
+    setTimeout(() => medientasten.vorwaermen(), 15_000) // Meldungen der Medientasten stehen in kamera.log
     const hudServer = erstelleHudServer({
+      medien: async (aktion) => medientasten.druecken(aktion),
       port: HUD_PORT, schluessel: () => hud.schluessel,
       liveBild: async (kanal, nach) => (kamera.status().eingerichtet ? kameraLive.bildNach(kanal, nach) : null),
       ton: async () => tonWerte(),

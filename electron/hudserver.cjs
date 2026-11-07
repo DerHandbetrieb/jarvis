@@ -2,7 +2,7 @@
 // Wallpaper darf http://127.0.0.1 abfragen). Loki liefert hier nur fertige Anzeige-Daten: Werkstatt-Lage (Zahlen und
 // Titel, keine Anmeldedaten), Wetter, Uhrzeit. Sicherheit: lauscht NUR auf 127.0.0.1 (nicht im Netzwerk erreichbar),
 // jede Anfrage braucht den Zugriffsschlüssel im Kopf „x-loki-schluessel“ (zufällig, liegt nur im Wallpaper-Ordner und in
-// Lokis Datenordner), nur GET /hud, /kamera, /bild/0|1 und POST /stumm, kein Zugriff auf Dateien oder Befehle.
+// Lokis Datenordner), nur GET /hud, /kamera, /bild/0|1 und POST /stumm und /medien/pause|vor|zurueck, kein Zugriff auf Dateien oder Befehle.
 const http = require('node:http')
 const crypto = require('node:crypto')
 
@@ -16,19 +16,25 @@ function gleich(a, b) {
  *  liveBild: async (kanal, nach) => { daten, nr }|null (GET /bild/0|1?nach=<nr> – nächstes Bild aus dem Live-Strom je
  *        Objektiv, wartet bis 1,5 s darauf; Nummer im Kopf x-bild-nr; 04.11.2026; nur im Arbeitsspeicher);
  *  schluessel: Zugriffsschlüssel oder Funktion, die ihn liefert (null = noch nicht geladen → alles abweisen); port: fester Port auf 127.0.0.1 */
-function erstelleHudServer({ port, schluessel, daten, kamera = async () => null, stumm = async () => null, liveBild = async () => null, ton = async () => null, protokoll = console.error }) {
+function erstelleHudServer({ port, schluessel, daten, kamera = async () => null, stumm = async () => null, medien = async () => false, liveBild = async () => null, ton = async () => null, protokoll = console.error }) {
   let server = null
   const kopf = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'x-loki-schluessel', 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Expose-Headers': 'x-bild-nr', 'Cache-Control': 'no-store' }
   async function antwort(req, res) {
     if (req.method === 'OPTIONS') { res.writeHead(204, kopf); res.end(); return }
     const pfad = String(req.url ?? '').split('?')[0]
-    const erlaubt = (req.method === 'GET' && (pfad === '/hud' || pfad === '/kamera' || pfad === '/bild/0' || pfad === '/bild/1' || pfad === '/ton')) || (req.method === 'POST' && pfad === '/stumm')
+    const erlaubt = (req.method === 'GET' && (pfad === '/hud' || pfad === '/kamera' || pfad === '/bild/0' || pfad === '/bild/1' || pfad === '/ton')) || (req.method === 'POST' && (pfad === '/stumm' || pfad === '/medien/pause' || pfad === '/medien/vor' || pfad === '/medien/zurueck'))
     if (!erlaubt) { res.writeHead(404, kopf); res.end(); return }
     // nur Aufrufe an 127.0.0.1/localhost annehmen (zusätzlicher Schutz gegen „DNS-Rebinding“ fremder Webseiten)
     if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(String(req.headers.host ?? ''))) { res.writeHead(403, kopf); res.end(); return }
     const soll = typeof schluessel === 'function' ? schluessel() : schluessel
     if (!soll || !gleich(req.headers['x-loki-schluessel'], soll)) { res.writeHead(403, kopf); res.end(); return }
     try {
+      if (pfad.startsWith('/medien/')) { // Medientasten aus dem Audiofeld (07.11.2026): nur pause/vor/zurueck
+        req.resume()
+        const ok = await medien(pfad.slice(8))
+        res.writeHead(ok ? 204 : 503, kopf); res.end()
+        return
+      }
       if (pfad === '/stumm') {
         req.resume() // Inhalt der Anfrage wird nicht gebraucht
         res.writeHead(200, { ...kopf, 'Content-Type': 'application/json; charset=utf-8' })
