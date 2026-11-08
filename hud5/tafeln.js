@@ -18,6 +18,13 @@ const RECHTS = [['kamera2', 0, 0, 610, 260], ['kamera1', 630, 0, 610, 260], ['sy
 // Spiegelung im Wasser. abstand = Weg von der Tafel-Unterkante bis zur Wasserlinie (größer = Spiegelbild tiefer, Rückmeldung
 // Auftraggeber 05.11.2026: sonst „schwebt“ es an der inneren Kante außerhalb vom Wasser); welle = waagerechtes Wabern in
 // Viertel-Bildpunkten, läuft mit der Zeit wie die Wellen im See
+// Probe-Aufteilungen (08.11.2026, Idee Auftraggeber: Audio nach rechts, links nur Arbeit) – nur für die Vorschau (?rechts=1|2)
+export const PROBE_AUFTEILUNG = {
+  1: { links: [['verkaeufe', 0, 0, 940, 130], ['umsatz', 960, 0, 280, 130], ['aufgaben', 0, 150, 700, 610], ['bestellungen', 720, 150, 520, 610]],
+    rechts: [['kamera2', 0, 0, 610, 260], ['kamera1', 630, 0, 610, 260], ['system', 0, 280, 1240, 64], ['ton', 0, 364, 1240, 160], ['energie', 0, 544, 800, 216], ['wetter', 820, 544, 420, 216]] },
+  2: { links: [['verkaeufe', 0, 0, 940, 130], ['umsatz', 960, 0, 280, 130], ['aufgaben', 0, 150, 700, 610], ['bestellungen', 720, 150, 520, 610]],
+    rechts: [['kamera2', 0, 0, 610, 220], ['kamera1', 630, 0, 610, 220], ['system', 0, 240, 1240, 64], ['ton', 0, 324, 1240, 130], ['energie', 0, 474, 800, 286], ['wetter', 820, 474, 420, 286]] },
+}
 export const SPIEGEL = { abstand: 70, deckkraft: 0.45, unschaerfe: 1.5, auslauf: 150, welle: 1.4 }
 // Inhalte in doppelter Auflösung zeichnen (Rückmeldung Auftraggeber 05.11.2026: leicht unscharf) – das schräge Kippen
 // vergrößert die vordere Kante; mit mehr Bildpunkten bleiben Linien und Schrift scharf
@@ -28,14 +35,14 @@ const BEWEGT = new Set(['ton', 'kamera1', 'kamera2', 'energie', 'wetter']) // en
 /** Tafeln anlegen. huelle = Element über der Szenen-Leinwand (gleiche Größe); faktor = Bildschirm-Pixel je Szenen-Pixel.
  *  skala: Größe der Fenster (1 = bisher; Wunsch Auftraggeber 05.11.2026: größer, Wahl über vier Vorschauen) – die Tafel
  *  wächst zur Bildschirmmitte hin, der Abstand zum Runenbogen außen bleibt, die senkrechte Mitte bleibt */
-export function erstelleTafeln(huelle, versatz = 0, { skala = TAFEL.skala } = {}) {
+export function erstelleTafeln(huelle, versatz = 0, { skala = TAFEL.skala, aufteilung = null } = {}) {
   const k = skala, br = TAFEL.breite * k, ho = TAFEL.hoehe * k, oben = TAFEL.oben + (TAFEL.hoehe - ho) / 2
   huelle.style.position = 'absolute'; huelle.style.inset = '0'; huelle.style.pointerEvents = 'none'; huelle.style.overflow = 'hidden'
   const flaeche = document.createElement('div') // 5760×1080-Fläche, auf die Fenstergröße skaliert
   Object.assign(flaeche.style, { position: 'absolute', left: '0', top: '0', width: '5760px', height: '1080px', transformOrigin: '0 0' })
   huelle.appendChild(flaeche)
   const felder = {}, buehnen = [] // buehnen: fürs Intro (Tafeln aufklappen/einblenden, tafelnStellen)
-  for (const [seite, liste] of [['links', LINKS], ['rechts', RECHTS]]) {
+  for (const [seite, liste] of [['links', aufteilung?.links ?? LINKS], ['rechts', aufteilung?.rechts ?? RECHTS]]) {
     const x = seite === 'links' ? TAFEL.links : 5760 - TAFEL.links - br
     // zwei Bühnen: die Tafel selbst und darunter ihre Spiegelung im Wasser (Wunsch Auftraggeber 05.11.2026). Gespiegelt
     // wird im Raum an der Wasserlinie knapp unter der Tafel – VOR der Perspektive (sonst laufen Tafel- und Spiegelkante

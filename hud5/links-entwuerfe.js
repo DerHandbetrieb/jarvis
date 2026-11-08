@@ -1,5 +1,5 @@
 // Vier Entwürfe für den Umbau der linken Tafel (08.11.2026, Wunsch Auftraggeber: Statistik oben niedriger und als
-// mehrere kleine Felder/Kuchen statt 14-Tage-Balken, Audiofeld bleibt, unten mehr Platz für Abarbeiten-Karten und
+// mehrere kleine Felder/Kuchen statt 14-Tage-Balken, Nachtrag: Audiofeld wandert nach rechts, links nur Arbeit; Bestellungen gekürzt), unten mehr Platz für Abarbeiten-Karten und
 // Termine, Zeilen enger). Flach gezeichnet in der Größe der Tafel (1240 × 760 Einheiten). Werte = Beispiel nach
 // echten Zahlen vom 08.11.2026 (Warenwert ohne Versand, Wahl Auftraggeber).
 import { RAHMEN_STILE } from './rahmen.js'
@@ -81,7 +81,8 @@ const ZEICHNER = {
     })
   },
   /** Top-Artikel 14 Tage als Balken */
-  top(g, b, h, n = 3) {
+  top(g, b, h) {
+    const n = Math.max(3, Math.min(5, Math.floor((h - 40) / 26)))
     kopf(g, 'BESTE ARTIKEL · 14 TAGE', '', b, true)
     const liste = B.top.slice(0, n), m = liste[0][2], zeile = Math.min(28, (h - 40) / liste.length)
     liste.forEach(([name, st, w], i) => {
@@ -152,7 +153,7 @@ const ZEICHNER = {
   /** Bestellungen kompakt (Zeile 22) */
   bestellungen(g, b, h) {
     kopf(g, 'AKTUELLE BESTELLUNGEN', `${B.offen} OFFEN`, b, h < 220)
-    const oben = h < 220 ? 34 : 38, zeile = 22, n = Math.min(B.bestellungen.length, Math.floor((h - oben - 6) / zeile))
+    const oben = h < 220 ? 34 : 38, zeile = 22, n = Math.min(5, B.bestellungen.length, Math.floor((h - oben - 6) / zeile)) // gekürzt auf höchstens fünf (Wunsch 08.11.2026)
     B.bestellungen.slice(0, n).forEach(([tag, kanal, art, w], i) => {
       const y = oben + i * zeile + zeile / 2 + 4
       text(g, tag, 22, y, 11, BLASS); text(g, kanal, 66, y, 10, CYAN, 'left', 600)
@@ -164,17 +165,17 @@ const ZEICHNER = {
 
 // ---------- Aufteilungen (x, y, Breite, Höhe auf der 1240 × 760-Tafel) ----------
 export const ENTWUERFE = {
-  a: { name: 'A · Kennzahlen-Leiste', text: 'Oben fünf kleine Felder (130 hoch statt 260). Unten Abarbeiten groß, daneben Termine und Bestellungen übereinander.',
+  a: { name: 'A · Kennzahlen-Leiste', text: 'Oben fünf kleine Felder (130 hoch statt 260). Darunter Abarbeiten über die volle Höhe, rechts Termine und die gekürzten Bestellungen.',
     felder: [['heute', 0, 0, 190, 130], ['verlauf', 205, 0, 300, 130], ['kanaele', 520, 0, 250, 130], ['top', 785, 0, 300, 130], ['zaehler', 1100, 0, 140, 130],
-      ['ton', 0, 150, 1240, 160], ['aufgaben', 0, 330, 640, 430], ['termine', 660, 330, 580, 190], ['bestellungen', 660, 540, 580, 220]] },
-  b: { name: 'B · Bestellungen nach oben', text: 'Oben Warenwert heute, Kanäle und die Bestellungen kompakt. Unten nur Abarbeiten und Termine, beide groß.',
+      ['aufgaben', 0, 150, 640, 610], ['termine', 660, 150, 580, 330], ['bestellungen', 660, 500, 580, 260]] },
+  b: { name: 'B · Bestellungen nach oben', text: 'Oben Warenwert heute, Kanäle und die Bestellungen kompakt (höchstens fünf). Darunter nur Abarbeiten und Termine, beide groß, dazu die besten Artikel.',
     felder: [['heute', 0, 0, 180, 170], ['kanaele', 195, 0, 260, 170], ['bestellungen', 470, 0, 770, 170],
-      ['ton', 0, 190, 1240, 160], ['aufgaben', 0, 370, 780, 390], ['termine', 800, 370, 440, 250], ['top', 800, 640, 440, 120]] },
-  c: { name: 'C · Schmale Zahlenzeile', text: 'Oben nur eine flache Zeile mit acht Zahlen (90 hoch). Unten am meisten Platz: Abarbeiten links, Termine und Bestellungen rechts.',
-    felder: [['kennzahlen', 0, 0, 1240, 90], ['ton', 0, 110, 1240, 160], ['aufgaben', 0, 290, 700, 470], ['termine', 720, 290, 520, 200], ['bestellungen', 720, 510, 520, 250]] },
-  d: { name: 'D · Wochenblick', text: 'Oben vier Felder mit Statistik. Darunter eine Wochenleiste mit Terminen und Fälligem je Tag, unten Abarbeiten und Bestellungen.',
-    felder: [['heute', 0, 0, 180, 130], ['verlauf', 195, 0, 330, 130], ['kanaele', 540, 0, 260, 130], ['top', 815, 0, 425, 130],
-      ['ton', 0, 150, 1240, 160], ['woche', 0, 330, 1240, 110], ['aufgaben', 0, 460, 640, 300], ['bestellungen', 660, 460, 580, 300]] },
+      ['aufgaben', 0, 190, 780, 570], ['termine', 800, 190, 440, 380], ['top', 800, 590, 440, 170]] },
+  c: { name: 'C · Schmale Zahlenzeile', text: 'Oben nur eine flache Zeile mit acht Zahlen (90 hoch). Darunter am meisten Platz: Abarbeiten links, Termine und Bestellungen rechts.',
+    felder: [['kennzahlen', 0, 0, 1240, 90], ['aufgaben', 0, 110, 700, 650], ['termine', 720, 110, 520, 380], ['bestellungen', 720, 510, 520, 250]] },
+  d: { name: 'D · Wochenblick', text: 'Oben vier Felder mit Statistik, darunter eine Wochenleiste mit Terminen und Fälligem je Tag, unten Abarbeiten, Bestellungen und beste Artikel.',
+    felder: [['heute', 0, 0, 180, 130], ['verlauf', 195, 0, 330, 130], ['kanaele', 540, 0, 260, 130], ['zaehler', 815, 0, 425, 130],
+      ['woche', 0, 150, 1240, 120], ['aufgaben', 0, 290, 640, 470], ['bestellungen', 660, 290, 580, 230], ['top', 660, 540, 580, 220]] },
 }
 
 /** einen Entwurf flach in eine Leinwand zeichnen (k = Bildpunkte je Einheit) */

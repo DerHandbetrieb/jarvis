@@ -1,7 +1,7 @@
 // Vorschau der Szene mit Bildrate (Regel: Bildrate selbst messen, bevor gezeigt wird – CLAUDE.md Etappe 13)
 import { B, H, ladeSzene, zeichneSzene } from './szene.js'
 import { ausHud } from './inhalte.js'
-import { erstelleTafeln, kameraGross, zeichneTafeln, SPIEGEL } from './tafeln.js'
+import { erstelleTafeln, kameraGross, zeichneTafeln, SPIEGEL, PROBE_AUFTEILUNG } from './tafeln.js'
 import { erstelleFrost, frostStellen, frostGrad } from './frost.js'
 import { beispielTag } from './pv-tag.js'
 import { KANTE } from './rahmen.js'
@@ -43,7 +43,7 @@ const probeLied = (() => {
 if (frage.get('eis')) probeWetter.eis = Number(frage.get('eis')) // Prüfhilfe ?eis=0.5|1
 if (frage.get('kante')) KANTE.art = frage.get('kante')
 if (frage.get('spiegel')) SPIEGEL.abstand = Number(frage.get('spiegel'))
-const tafeln = erstelleTafeln(document.getElementById('tafeln'), 0, frage.get('gross') ? { skala: Number(frage.get('gross')) } : {})
+const tafeln = erstelleTafeln(document.getElementById('tafeln'), 0, { ...(frage.get('gross') ? { skala: Number(frage.get('gross')) } : {}), aufteilung: PROBE_AUFTEILUNG[frage.get('rechts')] ?? null })
 const beispiel = ausHud({ wetter: { ort: 'Obersontheim', grad: 9.4, wolken: 70 }, pv: { akku: 64, akkuW: -1200, netzW: -850, pvW: 4300, hausW: 2250, zustand: 0, inselbetrieb: false, zeit: Date.now(), tag: { punkte: beispielTag(), summen: null, zeit: 1, beispiel: true } } }, new Date(), sequenzDaten, () => 'BEWÖLKT')
 addEventListener('keydown', (e) => {
   loki = { 1: 'hoert', 2: 'denkt', 3: 'spricht', 4: 'aus' }[e.key] ?? loki
