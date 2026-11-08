@@ -8,7 +8,7 @@
 
 const B = 5760, H = 1080
 import { PV_VARIANTE } from './pv-varianten.js'
-import { WETTER_ENTWURF } from './wetter-entwuerfe.js'
+import { WETTER_ENTWURF, wetterKopf } from './wetter-entwuerfe.js'
 import { leistenSymbol, knoten } from './pv-zeichen.js'
 const CYAN = '#5ff6ff', GOLD = '#f2b04a', ROT = '#ff5a4a', HELL = '#e8fdff', BLASS = 'rgba(165,230,240,0.62)'
 const SCHRIFT = 'Bahnschrift, "Segoe UI", Arial, sans-serif'
@@ -300,22 +300,66 @@ function kamera(g, b, h, bild, name, alarm, t) {
 function energie(g, b, h, pv, t) {
   const stoerung = pv && pv.zustand >= 3, warnung = pv && pv.zustand === 2
   kopf(g, 'ENERGIE · PV-ANLAGE', !pv ? 'NICHT VERBUNDEN' : stoerung ? 'STÖRUNG' : warnung ? 'WARNUNG' : pv.inselbetrieb ? 'INSELBETRIEB' : 'LIVE', b)
-  PV_VARIANTE.d(g, b, h, pv, t ?? 0, 3, false)
+  verkleinert(g, b, h, (bb, hh) => PV_VARIANTE.d(g, bb, hh, pv, t ?? 0, 3, false))
+}
+/** Inhalt unter dem Kopf gleichmäßig verkleinern, wenn das Feld flacher ist als die 396 Einheiten, für die es gebaut ist
+ *  (08.11.2026: rechts kommt das Audiofeld dazu, PV und Wetter behalten Angaben und Aufbau) */
+function verkleinert(g, b, h, zeichne, voll = 396, kopfH = 36) {
+  const f = Math.min(1, (h - kopfH) / (voll - kopfH))
+  if (f >= 1) return zeichne(b, h)
+  g.save(); g.translate(0, kopfH); g.scale(f, f); g.translate(0, -kopfH); zeichne(b / f, kopfH + (h - kopfH) / f); g.restore()
 }
 /** Wetter (Wahl Auftraggeber 05.11.2026: Entwurf B) – Temperatur groß mit Himmel-Symbol, darunter Feuchte, Wind, Böen,
  *  Regen als Symbol-Reihe; alle Werte aus der eigenen Station */
 function wetter(g, b, h, w, t = 0) {
   if (!w || !Number.isFinite(w.grad)) { kopf(g, 'WETTER · OBERSONTHEIM', '', b); text(g, 'Keine Wetterdaten', 16, 70, 14, BLASS); return }
-  WETTER_ENTWURF.b(g, b, h, { ...w, station: w.station ?? {} }, t)
+  wetterKopf(g, b, w); verkleinert(g, b, h, (bb, hh) => WETTER_ENTWURF.b(g, bb, hh, { ...w, station: w.station ?? {} }, t, false))
 }
 const SYSTEM_SYMBOL = { STATUS: 'stimme', MIKROFON: 'mikrofon', WERKSTATT: 'zahnrad', KAMERA: 'kamera', SELBSTTEST: 'schild', WHATSAPP: 'whatsapp' }
-const STATUS_H = 46
-function tonMitStatus(g, b, h, d, t, oben) {
-  const sy = oben ? 0 : h - STATUS_H, ty = oben ? STATUS_H : 0
-  g.save(); g.translate(0, sy); ZEICHNER.system(g, b, STATUS_H, d); g.restore()
-  g.save(); g.translate(0, ty); g.beginPath(); g.rect(0, 0, b, h - STATUS_H); g.clip(); ZEICHNER.ton(g, b, h - STATUS_H, d, t); g.restore()
-  const ly = oben ? STATUS_H + 0.5 : h - STATUS_H + 0.5
-  g.strokeStyle = 'rgba(95,246,255,0.28)'; g.lineWidth = 1; g.beginPath(); g.moveTo(14, ly); g.lineTo(b - 14, ly); g.stroke()
+/** Statuszeile nur aus Symbolen, Farbe = Zustand (Wunsch Auftraggeber 08.11.2026: „Status“-Wort weg, türkis = hört zu,
+ *  rot = hört nicht zu; Mikrofon an türkis / aus rot; Werkstatt und Kamera grün / rot; WhatsApp grün = neue Nachricht,
+ *  rot = keine). Eine Zeile: L.O.K.I., sechs Symbole, rechts Datum und Uhr. */
+const GRUEN_S = '#7dffb0'
+function statusSymbole(g, x0, x1, my, d, gr = 22) {
+  const z = d.loki?.zustand ?? 'aus', wa = d.loki?.whatsapp
+  const liste = [
+    ['stimme', ['bereit', 'spricht', 'denkt', 'laedt'].includes(z) ? CYAN : ROT],
+    ['mikrofon', d.loki?.mikrofon ? CYAN : ROT],
+    ['zahnrad', d.verbunden ? GRUEN_S : ROT],
+    ['kamera', d.kamera ? GRUEN_S : ROT],
+    ['schild', d.selbsttestRot ? ROT : GRUEN_S],
+    ['whatsapp', wa > 0 ? GRUEN_S : ROT, wa > 0 ? String(wa) : ''],
+  ]
+  const sp = (x1 - x0) / liste.length
+  liste.forEach(([art, farbe, zahl], i) => {
+    const x = x0 + sp * (i + 0.5)
+    g.save(); g.shadowColor = farbe; g.shadowBlur = 6; leistenSymbol(g, art, x, my, gr, farbe); g.restore()
+    if (zahl) text(g, zahl, x + gr * 0.7, my - gr * 0.25, 11, farbe, 'left', 600)
+  })
+}
+function statusZeile(g, b, h, d) {
+  const my = h / 2, j = new Date(), zwei = (n) => String(n).padStart(2, '0')
+  knoten(g, 24, my, 16, GOLD); text(g, 'L.O.K.I.', 38, my + 5, 13, CYAN, 'left', 600); knoten(g, 104, my, 16, GOLD)
+  g.save(); g.shadowColor = GOLD; g.shadowBlur = 6; text(g, `${zwei(j.getHours())}:${zwei(j.getMinutes())}:${zwei(j.getSeconds())}`, b - 16, my + 7, 20, GOLD, 'right', 600); g.restore()
+  text(g, `${zwei(j.getDate())}.${zwei(j.getMonth() + 1)}.${j.getFullYear()}`, b - 112, my + 5, 12, BLASS, 'right', 500)
+  statusSymbole(g, 130, b - 200, my, d)
+}
+/** Audio + Statuszeile in einem Feld: lage = 'oben' | 'unten' (eigene Zeile, hauchdünne Linie) oder 'kopf' (Symbole in der Audio-Kopfzeile) */
+function tonMitStatus(g, b, h, d, t, lage) {
+  const sd = { ...(d.werkstatt ?? {}), loki: d.loki, verbunden: !d.beispiel && !d.veraltet, kamera: d.kamera }
+  if (lage === 'kopf') {
+    ZEICHNER.ton(g, b, h, d, t)
+    const x1 = b - 110; g.fillStyle = 'rgba(4,19,26,1)'; g.fillRect(110, 6, x1 - 110, 24) // Platz zwischen „AUDIO“ und „PC-TON“
+    statusSymbole(g, 120, x1 - 150, 18, sd, 18)
+    const j = new Date(), zwei = (n) => String(n).padStart(2, '0')
+    text(g, `${zwei(j.getHours())}:${zwei(j.getMinutes())}:${zwei(j.getSeconds())}`, x1 - 10, 24, 16, GOLD, 'right', 600)
+    return
+  }
+  const SH = 32, sy = lage === 'oben' ? 0 : h - SH, ty = lage === 'oben' ? SH : 0
+  g.save(); g.translate(0, sy); statusZeile(g, b, SH, sd); g.restore()
+  g.save(); g.translate(0, ty); g.beginPath(); g.rect(0, 0, b, h - SH); g.clip(); ZEICHNER.ton(g, b, h - SH, d, t); g.restore()
+  const ly = (lage === 'oben' ? SH : h - SH) + 0.5
+  g.strokeStyle = 'rgba(95,246,255,0.22)'; g.lineWidth = 0.6; g.beginPath(); g.moveTo(14, ly); g.lineTo(b - 14, ly); g.stroke()
 }
 function system(g, b, h, d) {
   const z = d.loki?.zustand ?? 'aus', wa = d.loki?.whatsapp
@@ -464,8 +508,9 @@ export const ZEICHNER = {
   umsatz: (g, b, h, d) => umsatz(g, b, h, d.werkstatt ?? {}),
   ton: (g, b, h, d, t) => tonwellen(g, b, h, d.ton, t, d.loki, d.tonStatus, d.medien),
   // Probe 08.11.2026 (Idee Auftraggeber): Audio und L.O.K.I.-Zeile in EINEM Feld, getrennt durch eine hauchdünne Linie
-  tonSystemOben: (g, b, h, d, t) => tonMitStatus(g, b, h, d, t, true),
-  tonSystemUnten: (g, b, h, d, t) => tonMitStatus(g, b, h, d, t, false),
+  tonSystemOben: (g, b, h, d, t) => tonMitStatus(g, b, h, d, t, 'oben'),
+  tonSystemUnten: (g, b, h, d, t) => tonMitStatus(g, b, h, d, t, 'unten'),
+  tonSystemKopf: (g, b, h, d, t) => tonMitStatus(g, b, h, d, t, 'kopf'),
   aufgaben: (g, b, h, d) => abarbeiten(g, b, h, d.werkstatt ?? {}),
   bestellungen: (g, b, h, d) => bestellungen(g, b, h, d.werkstatt ?? {}),
   kamera1: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[0] ?? null, 'CAM 01 · LINKS', d.kamera?.alarm && (d.kamera.alarmKanal ?? 0) === 0 ? d.kamera.alarmArt ?? 'person' : null, t),

@@ -10,6 +10,7 @@ const RICHTUNG = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW']
 const richtung = (grad) => (grad == null ? '' : RICHTUNG[Math.round(grad / 45) % 8])
 
 /** Linien-Symbole: thermo | tropfen | wind | boe | druck | regen; (x, y) = Mitte, gr = Höhe */
+export const wetterKopf = (g, b, w) => kopf(g, b, w)
 export function symbolW(g, art, x, y, gr, farbe = CYAN) {
   const s = gr / 2
   g.save(); g.translate(x, y); g.strokeStyle = farbe; g.fillStyle = farbe; g.lineWidth = Math.max(1.6, gr * 0.055); g.lineCap = 'round'; g.lineJoin = 'round'; g.shadowColor = farbe; g.shadowBlur = gr * 0.12
@@ -54,8 +55,8 @@ export const WETTER_ENTWURF = {
     })
   },
   /** B · Temperatur groß oben mit Himmel, darunter eine Reihe mit vier Symbol-Werten */
-  b(g, b, h, w, t = 0) {
-    kopf(g, b, w)
+  b(g, b, h, w, t = 0, mitKopf = true) {
+    if (mitKopf) kopf(g, b, w)
     const st = w.station ?? {}, [art, wort] = himmel(w)
     // Himmel-Symbol leicht bewegt (Wunsch Auftraggeber 05.11.2026: überall etwas Animation, minimalistisch)
     g.save(); g.strokeStyle = GOLD; g.lineWidth = 2.4; g.shadowColor = GOLD; g.shadowBlur = 8; g.translate(70, 120)
