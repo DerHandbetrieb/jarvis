@@ -10,6 +10,7 @@ const B = 5760, H = 1080
 import { PV_VARIANTE } from './pv-varianten.js'
 import { WETTER_ENTWURF, wetterKopf } from './wetter-entwuerfe.js'
 import { leistenSymbol, knoten } from './pv-zeichen.js'
+import { ikone } from './ikonen.js'
 const CYAN = '#5ff6ff', GOLD = '#f2b04a', ROT = '#ff5a4a', HELL = '#e8fdff', BLASS = 'rgba(165,230,240,0.62)'
 const SCHRIFT = 'Bahnschrift, "Segoe UI", Arial, sans-serif'
 
@@ -171,15 +172,15 @@ function bestellungen(g, b, h, d) {
  */
 const BALKEN = 48, anzeige = new Float32Array(BALKEN), spitze = new Float32Array(BALKEN)
 let letztesBild = 0
-function tonwellen(g, b, h, ton, t, loki, tonStatus, medien) {
+function tonwellen(g, b, h, ton, t, loki, tonStatus, medien, gespiegelt = false) {
   const pegel = ton ? Math.max(...Array.from(ton, Number).map((v) => (Number.isFinite(v) ? v : 0))) : 0
   const spricht = loki?.zustand === 'spricht'
   // Lied ausblenden, wenn der Player ohne Stopp-Meldung verschwunden ist (Position weit über der Dauer, Prüf-Agent)
   const lied = liedSichtbar(medien) ? medien : null
   kopf(g, 'AUDIO', spricht ? 'L.O.K.I. SPRICHT' : ton && pegel > 0.01 ? 'PC-TON' : tonStatus ?? 'STILLE', b)
-  const links = lied ? schallplatte(g, b, h, lied, t) : 0
+  const platz = lied ? schallplatte(g, b, h, lied, t, gespiegelt) : 0, links = gespiegelt ? 0 : platz
   const jetzt = performance.now(), dt = Math.min(0.1, Math.max(0.005, (jetzt - (letztesBild || jetzt)) / 1000)); letztesBild = jetzt
-  const x0 = 16 + links, x1 = b - 16, unten = h - 12, oben = 42, hoehe = unten - oben, breite = (x1 - x0) / BALKEN
+  const x0 = 16 + links, x1 = b - 16 - (gespiegelt ? platz : 0), unten = h - 12, oben = 42, hoehe = unten - oben, breite = (x1 - x0) / BALKEN
   for (let i = 0; i < BALKEN; i++) {
     // Tonbereich i: gestaucht über die 64 Bänder (Bass bekommt mehr Balken, jeder Balken eigene Bänder)
     const a = Math.floor(Math.pow(i / BALKEN, 1.6) * 63), e = Math.max(a + 1, Math.floor(Math.pow((i + 1) / BALKEN, 1.6) * 63))
@@ -222,6 +223,11 @@ export function liedSichtbar(m) {
  *  gemessen ab der Innenkante des Felds; tafeln.js legt genau darüber unsichtbare Klickflächen */
 export const MEDIEN_KNOEPFE = [['zurueck', 486, 80], ['pause', 534, 80], ['vor', 582, 80]]
 export const KNOPF_RADIUS = 19
+/** Mittelpunkte der Knöpfe im Audiofeld; gespiegelt (rechter Bildschirm, Wunsch 08.11.2026) von der rechten Kante aus */
+export function knopfListe(b, gespiegelt = false) {
+  if (!gespiegelt) return MEDIEN_KNOEPFE
+  return [['zurueck', b - 582, 80], ['pause', b - 534, 80], ['vor', b - 486, 80]]
+}
 export const knopfBlitz = { id: null, zeit: 0 } // kurzes Aufleuchten nach dem Klick
 function medienKnopf(g, art, x, y, spielt) {
   const blitz = knopfBlitz.id === art ? Math.max(0, 1 - (performance.now() - knopfBlitz.zeit) / 400) : 0
@@ -238,8 +244,8 @@ function medienKnopf(g, art, x, y, spielt) {
 }
 let plattenWinkel = 0, plattenZeit = 0
 const zeitText = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
-function schallplatte(g, b, h, m, t) {
-  const s = h - 50, x = 30, y = 40, cx = x + s / 2, cy = y + s / 2
+function schallplatte(g, b, h, m, t, gespiegelt = false) {
+  const s = h - 50, x = gespiegelt ? b - 30 - s : 30, y = 40, cx = x + s / 2, cy = y + s / 2
   if (m.zustand === 'spielt') plattenWinkel += Math.min(0.1, Math.max(0, t - plattenZeit)) * 0.9
   plattenZeit = t
   const farbe = typeof m.farbe === 'string' && m.farbe ? m.farbe : CYAN
@@ -254,19 +260,22 @@ function schallplatte(g, b, h, m, t) {
   else { g.fillStyle = farbe; g.globalAlpha = 0.5; g.fillRect(-s * 0.3, -s * 0.3, s * 0.6, s * 0.6); g.globalAlpha = 1 }
   g.restore()
   g.fillStyle = '#081820'; g.beginPath(); g.arc(cx, cy, 3, 0, Math.PI * 2); g.fill()
-  const tx = x + s + 22, tb = 420, tt = 290 // tt: Textbreite neben den Knöpfen
-  text(g, m.zustand === 'pause' ? 'PAUSIERT' : 'JETZT LÄUFT', tx, 56, 11, GOLD, 'left', 600)
-  g.font = `600 26px ${SCHRIFT}`; text(g, kuerzen(g, m.titel, tt), tx, 86, 26, HELL, 'left', 600)
+  const tb = 420, tt = 290 // tt: Textbreite neben den Knöpfen
+  // gespiegelt: Text rechtsbündig links neben der Platte, Fortschritt endet an der Platte
+  const tx = gespiegelt ? x - 22 : x + s + 22, ausr = gespiegelt ? 'right' : 'left'
+  text(g, m.zustand === 'pause' ? 'PAUSIERT' : 'JETZT LÄUFT', tx, 56, 11, GOLD, ausr, 600)
+  g.font = `600 26px ${SCHRIFT}`; text(g, kuerzen(g, m.titel, tt), tx, 86, 26, HELL, ausr, 600)
   const unter = [m.kuenstler, m.album].filter(Boolean).join(' · ')
-  if (unter) { g.font = `400 16px ${SCHRIFT}`; text(g, kuerzen(g, unter, tt), tx, 110, 16, CYAN) }
+  if (unter) { g.font = `400 16px ${SCHRIFT}`; text(g, kuerzen(g, unter, tt), tx, 110, 16, CYAN, ausr) }
   if (m.dauer > 0 && m.position != null) {
     const pos = Math.min(m.dauer, m.position + (m.zustand === 'spielt' ? (performance.now() - m.posZeit) / 1000 : 0)), f = pos / m.dauer, bb = 360
-    g.fillStyle = 'rgba(95,246,255,0.12)'; g.fillRect(tx, h - 20, bb, 3)
-    g.fillStyle = CYAN; g.fillRect(tx, h - 20, bb * f, 3); g.beginPath(); g.arc(tx + bb * f, h - 18.5, 4, 0, Math.PI * 2); g.fill()
-    text(g, zeitText(m.dauer - pos) + ' übrig', tx + tb, h - 15, 11, BLASS, 'right', 600)
+    const bx = gespiegelt ? tx - bb : tx
+    g.fillStyle = 'rgba(95,246,255,0.12)'; g.fillRect(bx, h - 20, bb, 3)
+    g.fillStyle = CYAN; g.fillRect(bx, h - 20, bb * f, 3); g.beginPath(); g.arc(bx + bb * f, h - 18.5, 4, 0, Math.PI * 2); g.fill()
+    text(g, zeitText(m.dauer - pos) + ' übrig', gespiegelt ? tx - tb : tx + tb, h - 15, 11, BLASS, gespiegelt ? 'left' : 'right', 600)
   }
-  for (const [art, kx, ky] of MEDIEN_KNOEPFE) medienKnopf(g, art, kx, ky, m.zustand === 'spielt')
-  return tx + tb + 14
+  for (const [art, kx, ky] of knopfListe(b, gespiegelt)) medienKnopf(g, art, kx, ky, m.zustand === 'spielt')
+  return gespiegelt ? b - (tx - tb) + 34 : tx + tb + 14
 }
 
 // ---------- Inhalte rechts (Haus) ----------
@@ -320,21 +329,25 @@ const SYSTEM_SYMBOL = { STATUS: 'stimme', MIKROFON: 'mikrofon', WERKSTATT: 'zahn
  *  rot = hört nicht zu; Mikrofon an türkis / aus rot; Werkstatt und Kamera grün / rot; WhatsApp grün = neue Nachricht,
  *  rot = keine). Eine Zeile: L.O.K.I., sechs Symbole, rechts Datum und Uhr. */
 const GRUEN_S = '#7dffb0'
-function statusSymbole(g, x0, x1, my, d, gr = 22) {
+function statusSymbole(g, x0, x1, my, d, gr = 22, mitNamen = false) {
   const z = d.loki?.zustand ?? 'aus', wa = d.loki?.whatsapp
   const liste = [
-    ['stimme', ['bereit', 'spricht', 'denkt', 'laedt'].includes(z) ? CYAN : ROT],
-    ['mikrofon', d.loki?.mikrofon ? CYAN : ROT],
-    ['zahnrad', d.verbunden ? GRUEN_S : ROT],
-    ['kamera', d.kamera ? GRUEN_S : ROT],
-    ['schild', d.selbsttestRot ? ROT : GRUEN_S],
-    ['whatsapp', wa > 0 ? GRUEN_S : ROT, wa > 0 ? String(wa) : ''],
+    ['stimme', ['bereit', 'spricht', 'denkt', 'laedt'].includes(z) ? CYAN : ROT, '', 'STATUS'],
+    ['mikrofon', d.loki?.mikrofon ? CYAN : ROT, '', 'MIKROFON'],
+    ['zahnrad', d.verbunden ? GRUEN_S : ROT, '', 'WERKSTATT'],
+    ['kamera', d.kamera ? GRUEN_S : ROT, '', 'KAMERA'],
+    ['schild', d.selbsttestRot ? ROT : GRUEN_S, '', 'SELBSTTEST'],
+    ['whatsapp', wa > 0 ? GRUEN_S : ROT, wa > 0 ? String(wa) : '', 'WHATSAPP'],
   ]
   const sp = (x1 - x0) / liste.length
-  liste.forEach(([art, farbe, zahl], i) => {
-    const x = x0 + sp * (i + 0.5)
-    g.save(); g.shadowColor = farbe; g.shadowBlur = 6; leistenSymbol(g, art, x, my, gr, farbe); g.restore()
-    if (zahl) text(g, zahl, x + gr * 0.7, my - gr * 0.25, 11, farbe, 'left', 600)
+  liste.forEach(([art, farbe, zahl, name], i) => {
+    // mit Namen: Symbol + Wort in der Zustandsfarbe (Wunsch 08.11.2026: Wörter wie „hört zu“ weg, die Namen bleiben)
+    g.font = `600 11px ${SCHRIFT}`
+    const nb = mitNamen ? g.measureText(name).width + 8 : 0, x = x0 + sp * (i + 0.5) - nb / 2
+    g.save(); g.shadowColor = farbe; g.shadowBlur = 6; leistenSymbol(g, art, x, my, gr, farbe)
+    if (mitNamen) text(g, name, x + gr * 0.6 + 4, my + 4, 11, farbe, 'left', 600)
+    g.restore()
+    if (zahl) text(g, zahl, x + gr * 0.6 + 6 + nb, my + 4, 11, farbe, 'left', 600)
   })
 }
 function statusZeile(g, b, h, d) {
@@ -348,9 +361,9 @@ function statusZeile(g, b, h, d) {
 function tonMitStatus(g, b, h, d, t, lage) {
   const sd = { ...(d.werkstatt ?? {}), loki: d.loki, verbunden: !d.beispiel && !d.veraltet, kamera: d.kamera }
   if (lage === 'kopf') {
-    ZEICHNER.ton(g, b, h, d, t)
+    tonwellen(g, b, h, d.ton, t, d.loki, d.tonStatus, d.medien, true)
     const x1 = b - 110; g.fillStyle = 'rgba(4,19,26,1)'; g.fillRect(110, 6, x1 - 110, 24) // Platz zwischen „AUDIO“ und „PC-TON“
-    statusSymbole(g, 120, x1 - 150, 18, sd, 18)
+    statusSymbole(g, 96, x1 - 120, 18, sd, 16, true)
     const j = new Date(), zwei = (n) => String(n).padStart(2, '0')
     text(g, `${zwei(j.getHours())}:${zwei(j.getMinutes())}:${zwei(j.getSeconds())}`, x1 - 10, 24, 16, GOLD, 'right', 600)
     return
@@ -503,7 +516,116 @@ function BEISPIEL_LAGE(jetzt) {
 }
 
 /** einzelne Inhalte zum Wiederverwenden (z. B. Rahmen-Entwürfe): (g, breite, höhe, daten, t) */
+// ---------- linke Tafel, Entwurf 2 (Wahl Auftraggeber 08.11.2026: „Statistik-Säule links“, nur Arbeit) ----------
+const GRUEN = '#7dffb0'
+const welleZ = (t, f = 1) => 0.5 + 0.5 * Math.sin(t * f)
+const euroNk = (v) => `${(Number(v) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+function statHeute(g, b, h, d, t) {
+  kopf(g, 'WARENWERT · HEUTE', d.stand ? `STAND ${d.stand}` : '', b)
+  const heute = d.heute ?? { umsatz: 0, bestellungen: 0 }, my = 34 + (h - 34) / 2, gr = Math.min(40, h * 0.24)
+  ikone(g, 'muenze', 46, my, Math.min(44, h * 0.28), GOLD, t)
+  text(g, euroNk(heute.umsatz), 84, my + gr * 0.2, gr, HELL, 'left', 600)
+  const v = new Date(Date.now() - 86_400_000), gTag = v.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }).replace(/\.$/, '')
+  const gestern = (d.tage ?? []).find((x) => x.tag === gTag)
+  text(g, `${heute.bestellungen} ${heute.bestellungen === 1 ? 'BESTELLUNG' : 'BESTELLUNGEN'}${gestern ? ` · GESTERN ${euro(gestern.umsatz)}` : ''}`, 84, my + gr * 0.2 + 24, 12, CYAN, 'left', 600)
+}
+function statVerlauf(g, b, h, d, t) {
+  const tage = d.tage ?? [], u = tage.map((x) => x.umsatz), s14 = u.reduce((a, x) => a + x, 0), s7 = u.slice(-7).reduce((a, x) => a + x, 0), v7 = u.slice(-14, -7).reduce((a, x) => a + x, 0)
+  kopf(g, 'VERKÄUFE · 14 TAGE', euro(s14), b)
+  ikone(g, 'kurve', 38, 56, 24, CYAN, t)
+  text(g, `7 TAGE ${euro(s7)}`, 60, 62, 15, HELL, 'left', 600)
+  if (v7 > 0) { const pz = Math.round((s7 / v7 - 1) * 100); text(g, `${pz >= 0 ? '▲' : '▼'} ${Math.abs(pz)} %`, b - 14, 62, 12, pz >= 0 ? GRUEN : ROT, 'right', 600); text(g, 'ZUR VORWOCHE', b - 14, 76, 9, BLASS, 'right', 600) }
+  if (u.length < 2) return
+  const x0 = 22, x1 = b - 16, y0 = 96, y1 = h - 28, m = Math.max(10, ...u)
+  const p = u.map((v, i) => [x0 + ((x1 - x0) * i) / (u.length - 1), y1 - ((y1 - y0) * v) / m])
+  const v = g.createLinearGradient(0, y0, 0, y1); v.addColorStop(0, 'rgba(95,246,255,0.42)'); v.addColorStop(1, 'rgba(95,246,255,0)')
+  g.beginPath(); g.moveTo(x0, y1); p.forEach(([x, y]) => g.lineTo(x, y)); g.lineTo(x1, y1); g.closePath(); g.fillStyle = v; g.fill()
+  g.beginPath(); p.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.strokeStyle = CYAN; g.lineWidth = 1.5; g.stroke()
+  // Lichtpunkt läuft die Kurve entlang, der heutige Tag pulsiert golden
+  const f = (t * 0.12) % 1, i = Math.min(p.length - 2, Math.floor(f * (p.length - 1))), w = f * (p.length - 1) - i
+  g.save(); g.shadowColor = CYAN; g.shadowBlur = 12; g.fillStyle = HELL; g.beginPath(); g.arc(p[i][0] + (p[i + 1][0] - p[i][0]) * w, p[i][1] + (p[i + 1][1] - p[i][1]) * w, 3, 0, Math.PI * 2); g.fill(); g.restore()
+  const [ex, ey] = p.at(-1); g.fillStyle = GOLD; g.beginPath(); g.arc(ex, ey, 3.5 + welleZ(t, 3), 0, Math.PI * 2); g.fill()
+  // Höchstwert als feine Linie mit Betrag – die Kurve wächst mit dem stärksten Tag mit
+  g.strokeStyle = 'rgba(95,246,255,0.18)'; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(x0, y0 + 0.5); g.lineTo(x1, y0 + 0.5); g.stroke(); g.setLineDash([])
+  text(g, `MAX ${euro(m)}`, x0, y0 - 4, 9, BLASS, 'left', 600)
+  ;[[0, 'left'], [Math.floor((tage.length - 1) / 2), 'center'], [tage.length - 1, 'right']].forEach(([k, a]) => text(g, tage[k]?.tag ?? '', x0 + ((x1 - x0) * k) / (tage.length - 1), h - 10, 10, BLASS, a))
+}
+function statKanaele(g, b, h, d, t) {
+  const k = d.kanaele ?? [], farben = [CYAN, GOLD, '#9b8cff'], n = k.reduce((a, x) => a + (x.bestellungen || 0), 0)
+  kopf(g, 'KANÄLE · 14 TAGE', `${n} BEST.`, b)
+  if (!k.length) { text(g, 'Keine Verkäufe', 22, 70, 13, BLASS); return }
+  const r = Math.min((h - 70) / 2, b * 0.2), cx = 26 + r, cy = 34 + (h - 34) / 2
+  let a = -Math.PI / 2 + Math.sin(t * 0.3) * 0.05
+  k.forEach((x, i) => { const dd = (x.anteil || 0) * Math.PI * 2; if (dd > 0.09) { g.beginPath(); g.arc(cx, cy, r, a + 0.04, a + dd - 0.04); g.strokeStyle = farben[i]; g.lineWidth = r * 0.3; g.stroke() } a += dd })
+  g.save(); g.strokeStyle = 'rgba(95,246,255,0.35)'; g.lineWidth = 1; g.setLineDash([3, 5]); g.lineDashOffset = -t * 12; g.beginPath(); g.arc(cx, cy, r * 0.62, 0, Math.PI * 2); g.stroke(); g.restore()
+  const zeile = Math.min(30, (h - 50) / 3)
+  k.forEach((x, i) => {
+    const y = cy - zeile + i * zeile + 5
+    g.fillStyle = farben[i]; g.fillRect(cx + r + 20, y - 9, 9, 9)
+    g.font = `600 13px ${SCHRIFT}`; text(g, kuerzen(g, String(x.name).toUpperCase(), b - cx - r - 110), cx + r + 36, y, 13, HELL, 'left', 600)
+    text(g, `${Math.round((x.anteil || 0) * 100)} % · ${x.bestellungen}`, b - 14, y, 12, farben[i], 'right', 600)
+  })
+}
+/** Abarbeiten ohne Nachproduzieren-Karten (eigenes Feld), dringendste zuerst; zwei Spalten, wenn es viele werden */
+function abarbeitenListe(g, b, h, d, t) {
+  const karten = (d.karten ?? []).filter((k) => k[4] !== 'nachproduzieren')
+  kopf(g, 'ABARBEITEN · DRINGEND ZUERST', `${d.abarbeitenOffen ?? karten.length} OFFEN`, b)
+  ikone(g, 'haken', b - 110, 20, 14, CYAN, t)
+  if (!karten.length) { text(g, 'Nichts Dringendes – erstaunlich.', 22, 66, 14, BLASS); return }
+  const zeile = 26, pro = Math.max(1, Math.floor((h - 44) / zeile)), spalten = karten.length > pro ? 2 : 1, sb = (b - 16) / spalten
+  karten.slice(0, pro * spalten).forEach(([titel, , , faellig, art], i) => {
+    const sp = Math.floor(i / pro), x = 8 + sp * sb, y = 40 + (i % pro) * zeile, m = y + zeile / 2
+    const f = art === 'amazon_fall' ? GOLD : art === 'hintergrund' ? BLASS : CYAN
+    g.strokeStyle = f; g.globalAlpha = 0.8; g.lineWidth = 1.2; g.strokeRect(x + 14.5, m - 6.5, 13, 13); g.globalAlpha = 1
+    if (faellig === 'ÜBERFÄLLIG' || faellig === 'FÄLLIG HEUTE') { g.fillStyle = faellig === 'ÜBERFÄLLIG' ? `rgba(255,90,74,${0.1 + 0.1 * welleZ(t, 2.5)})` : `rgba(242,176,74,${0.1 + 0.12 * welleZ(t, 2.5)})`; g.fillRect(x + 6, y + 2, sb - 12, zeile - 4) }
+    g.font = `600 11px ${SCHRIFT}`; const fb = faellig ? g.measureText(faellig).width + 14 : 0
+    g.font = `400 14px ${SCHRIFT}`; text(g, kuerzen(g, String(titel), sb - 60 - fb), x + 38, m + 5, 14, HELL)
+    if (faellig) text(g, faellig, x + sb - 12, m + 4, 11, faellig === 'ÜBERFÄLLIG' ? ROT : faellig === 'FÄLLIG HEUTE' ? GOLD : BLASS, 'right', 600)
+    g.strokeStyle = 'rgba(95,246,255,0.07)'; g.beginPath(); g.moveTo(x + 14, y + zeile - 0.5); g.lineTo(x + sb - 12, y + zeile - 0.5); g.stroke()
+  })
+  if (karten.length > pro * spalten) text(g, `+ ${karten.length - pro * spalten} WEITERE`, 22, h - 8, 10, BLASS, 'left', 600)
+}
+/** Nachproduzieren: Lager knapp mit Füllbalken Bestand / Meldebestand, leere Artikel pulsieren rot */
+function nachproduzieren(g, b, h, d, t) {
+  const l = d.lager ?? []
+  kopf(g, 'NACHPRODUZIEREN', `${l.length} ARTIKEL`, b)
+  ikone(g, 'saege', b - 120, 19, 18, l.length ? ROT : BLASS, t)
+  if (!l.length) { text(g, 'Lager voll. Ein seltener Anblick.', 22, 66, 14, BLASS); return }
+  const zeile = Math.min(40, Math.max(30, (h - 44) / l.length)), n = Math.floor((h - 44) / zeile)
+  l.slice(0, n).forEach(([name, ist, soll], i) => {
+    const y = 40 + i * zeile
+    g.font = `400 14px ${SCHRIFT}`; text(g, kuerzen(g, String(name), b - 110), 22, y + 17, 14, HELL)
+    text(g, `${ist} / ${soll}`, b - 16, y + 17, 13, ist <= 0 ? ROT : GOLD, 'right', 600)
+    if (zeile >= 36) { const bb = b - 38, anteil = Math.min(1, Math.max(0, ist) / Math.max(1, soll)); g.fillStyle = 'rgba(95,246,255,0.1)'; g.fillRect(22, y + 25, bb, 5)
+      g.fillStyle = ist <= 0 ? `rgba(255,90,74,${0.5 + 0.5 * welleZ(t, 3)})` : GOLD; g.fillRect(22, y + 25, Math.max(4, bb * anteil), 5) }
+  })
+  if (l.length > n) text(g, `+ ${l.length - n} WEITERE`, 22, h - 8, 10, BLASS, 'left', 600)
+}
+/** aktuelle Bestellungen, kompakt: Datum, Kanal, Artikel, Betrag */
+function bestellungen2(g, b, h, d, t) {
+  const o = d.offeneBestellungen
+  kopf(g, 'AKTUELLE BESTELLUNGEN', o ? `${o.anzahl} OFFEN` : '', b)
+  ikone(g, 'paket', b - 118, 18, 18, GOLD, t)
+  if (!o) { text(g, 'Noch keine Daten aus Billbee.', 22, 66, 13, BLASS); return }
+  const liste = o.liste ?? []
+  if (!liste.length) { text(g, 'Alles versendet – die Werkstatt hat Pause. Theoretisch.', 22, 66, 13, BLASS); return }
+  const zeile = 26, n = Math.min(liste.length, Math.floor((h - 44) / zeile))
+  liste.slice(0, n).forEach((x, i) => {
+    const y = 40 + i * zeile + zeile / 2 + 5, am = new Date(x.am)
+    const tag = Number.isFinite(am.getTime()) ? am.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }) : ''
+    text(g, tag, 22, y, 12, BLASS); g.font = `600 11px ${SCHRIFT}`; text(g, kuerzen(g, String(x.kanal).toUpperCase(), 64), 70, y, 11, CYAN, 'left', 600)
+    g.font = `400 13px ${SCHRIFT}`; text(g, kuerzen(g, String(x.artikel || '–'), b - 230), 144, y, 13, HELL); text(g, euro(x.cent / 100), b - 16, y, 13, GOLD, 'right', 600)
+  })
+  if ((o.anzahl ?? liste.length) > n) text(g, `+ ${(o.anzahl ?? liste.length) - n} WEITERE`, 22, h - 8, 10, BLASS, 'left', 600)
+}
+
 export const ZEICHNER = {
+  statHeute: (g, b, h, d, t) => statHeute(g, b, h, d.werkstatt ?? {}, t),
+  statVerlauf: (g, b, h, d, t) => statVerlauf(g, b, h, d.werkstatt ?? {}, t),
+  statKanaele: (g, b, h, d, t) => statKanaele(g, b, h, d.werkstatt ?? {}, t),
+  abarbeiten: (g, b, h, d, t) => abarbeitenListe(g, b, h, d.werkstatt ?? {}, t),
+  nachproduzieren: (g, b, h, d, t) => nachproduzieren(g, b, h, d.werkstatt ?? {}, t),
+  bestellungen2: (g, b, h, d, t) => bestellungen2(g, b, h, d.werkstatt ?? {}, t),
   verkaeufe: (g, b, h, d) => verkaeufe(g, b, h, d.werkstatt ?? {}),
   umsatz: (g, b, h, d) => umsatz(g, b, h, d.werkstatt ?? {}),
   ton: (g, b, h, d, t) => tonwellen(g, b, h, d.ton, t, d.loki, d.tonStatus, d.medien),

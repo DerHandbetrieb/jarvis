@@ -3,18 +3,21 @@
 // kippt (CSS 3D, rotateY) – dadurch passen Rahmen und Inhalt immer exakt zueinander. Links kippt die Tafel nach
 // rechts hinten, rechts gespiegelt nach links hinten (wie im Grafikpaket des Auftraggebers).
 import { RAHMEN_STILE } from './rahmen.js'
-import { ZEICHNER, MEDIEN_KNOEPFE, KNOPF_RADIUS, liedSichtbar, knopfBlitz } from './inhalte.js'
+import { ZEICHNER, KNOPF_RADIUS, liedSichtbar, knopfBlitz, knopfListe } from './inhalte.js'
 
 const STIL = RAHMEN_STILE[1]
 const TAFEL = { links: 490, oben: 165, breite: 1240, hoehe: 760, neigung: 24, tiefe: 1900, skala: 1.1 } // Wahl Auftraggeber 05.11.2026: 10 % größer und weiter zur Bildschirmmitte (links war 450)
 // Felder auf der flachen Tafel (x, y, Breite, Höhe) – links Werkstatt, rechts Haus (gleiche Anordnung, gespiegelt)
 // 05.11.2026 (Wunsch Auftraggeber): Umsatz heute braucht wenig Platz, Verkäufe 14 Tage dafür breiter; Felder bewusst
 // unterschiedlich groß statt alle gleich
-const LINKS = [['verkaeufe', 0, 0, 940, 260], ['umsatz', 960, 0, 280, 260], ['ton', 0, 280, 1240, 160], ['aufgaben', 0, 460, 700, 300], ['bestellungen', 720, 460, 520, 300]]
+// Umbau 08.11.2026 (Wahl Auftraggeber: links Entwurf 2 „Statistik-Säule“, nur Arbeit; Audio wandert nach rechts)
+const LINKS = [['statHeute', 0, 0, 340, 170], ['statVerlauf', 0, 185, 340, 300], ['statKanaele', 0, 500, 340, 260],
+  ['abarbeiten', 355, 0, 885, 380], ['nachproduzieren', 355, 395, 420, 365], ['bestellungen2', 790, 395, 450, 365]]
 // rechts gespiegelt: Feld bei x 630 landet innen (links) – CAM 01 links, CAM 02 rechts (Rückmeldung 05.11.2026)
 // Umbau 05.11.2026 (Wunsch Auftraggeber): schmaler Streifen für den L.O.K.I.-Systemstatus, unten innen Wetter, unten
 // außen groß die PV-Anlage
-const RECHTS = [['kamera2', 0, 0, 610, 260], ['kamera1', 630, 0, 610, 260], ['system', 0, 280, 1240, 64], ['energie', 0, 364, 800, 396], ['wetter', 820, 364, 420, 396]] // PV breiter, Wetter schmaler (05.11.2026)
+// rechts (Wahl Auftraggeber 08.11.2026: S3): Kameras wie bisher, Audio mit den Status-Symbolen in der Kopfzeile, PV/Wetter etwas flacher
+const RECHTS = [['kamera2', 0, 0, 610, 260], ['kamera1', 630, 0, 610, 260], ['tonSystemKopf', 0, 280, 1240, 140], ['energie', 0, 440, 800, 320], ['wetter', 820, 440, 420, 320]]
 // Spiegelung im Wasser. abstand = Weg von der Tafel-Unterkante bis zur Wasserlinie (größer = Spiegelbild tiefer, Rückmeldung
 // Auftraggeber 05.11.2026: sonst „schwebt“ es an der inneren Kante außerhalb vom Wasser); welle = waagerechtes Wabern in
 // Viertel-Bildpunkten, läuft mit der Zeit wie die Wellen im See
@@ -35,7 +38,8 @@ export const SPIEGEL = { abstand: 70, deckkraft: 0.45, unschaerfe: 1.5, auslauf:
 // vergrößert die vordere Kante; mit mehr Bildpunkten bleiben Linien und Schrift scharf
 const AUFLOESUNG = 2
 const GROSS = { b: 1560, h: 878, dreh: 'perspective(2600px) rotateY(-5deg)' } // großes Kamerabild, leicht in der Schräge der Fenster
-const BEWEGT = new Set(['ton', 'tonSystemOben', 'tonSystemUnten', 'tonSystemKopf', 'kamera1', 'kamera2', 'energie', 'wetter']) // energie: laufende Lichtpunkte
+const LANGSAM = new Set(['abarbeiten', 'nachproduzieren', 'bestellungen2'])
+const BEWEGT = new Set(['statHeute', 'statVerlauf', 'statKanaele', 'abarbeiten', 'nachproduzieren', 'bestellungen2', 'ton', 'tonSystemOben', 'tonSystemUnten', 'tonSystemKopf', 'kamera1', 'kamera2', 'energie', 'wetter']) // energie: laufende Lichtpunkte
 
 /** Tafeln anlegen. huelle = Element über der Szenen-Leinwand (gleiche Größe); faktor = Bildschirm-Pixel je Szenen-Pixel.
  *  skala: Größe der Fenster (1 = bisher; Wunsch Auftraggeber 05.11.2026: größer, Wahl über vier Vorschauen) – die Tafel
@@ -98,7 +102,7 @@ function feldZeichnen(f, id, daten, t) {
   g.clip(); g.translate(innen.x, innen.y)
   ZEICHNER[id](g, innen.b, innen.h, daten, t)
   if (bild && STIL.rand) { g.restore(); g.save(); STIL.rand(g, b, h) }
-  if ((daten.beispiel || daten.veraltet) && ['verkaeufe', 'umsatz', 'aufgaben', 'bestellungen'].includes(id)) {
+  if ((daten.beispiel || daten.veraltet) && ['verkaeufe', 'umsatz', 'aufgaben', 'bestellungen', 'statHeute', 'statVerlauf', 'statKanaele', 'abarbeiten', 'nachproduzieren', 'bestellungen2'].includes(id)) {
     g.font = '600 12px Bahnschrift, "Segoe UI", sans-serif'; g.fillStyle = 'rgba(242,176,74,0.9)'; g.textAlign = 'right'
     g.fillText(daten.veraltet ? 'KEINE AKTUELLEN DATEN' : 'BEISPIEL', innen.b - 14, innen.h - 10)
   }
@@ -119,10 +123,10 @@ function spiegelWellen(f, t) {
 /** Klickflächen über den Medien-Knöpfen im Audiofeld (07.11.2026): liegen als Elemente auf der gekippten Tafel direkt
  *  über dem Feld – der Browser rechnet die Perspektive beim Treffer mit. beiKlick(art) mit art = zurueck | pause | vor */
 export function medienKnoepfe(st, beiKlick) {
-  const f = st.felder.ton
+  const f = st.felder.ton ?? st.felder.tonSystemKopf
   if (!f) return
   const k = f.k / AUFLOESUNG, links = parseFloat(f.c.style.left), oben = parseFloat(f.c.style.top)
-  st.knoepfe = MEDIEN_KNOEPFE.map(([art, x, y]) => {
+  st.knoepfe = knopfListe(f.b, !st.felder.ton).map(([art, x, y]) => {
     const d = document.createElement('div'), r = KNOPF_RADIUS + 4
     Object.assign(d.style, { position: 'absolute', left: links + (x - r) * k + 'px', top: oben + (y - r) * k + 'px', width: 2 * r * k + 'px', height: 2 * r * k + 'px', borderRadius: '50%', pointerEvents: 'auto', cursor: 'pointer', display: 'none' })
     d.addEventListener('click', (ev) => { ev.stopPropagation(); knopfBlitz.id = art; knopfBlitz.zeit = performance.now(); beiKlick(art) })
@@ -138,7 +142,11 @@ export function zeichneTafeln(st, daten, t) {
   st.kennung = kennung
   const sekunde = Math.floor(Date.now() / 1000), neueSekunde = sekunde !== st.sekunde // Uhr mit Sekunden im System-Streifen
   st.sekunde = sekunde
-  for (const [id, f] of Object.entries(st.felder)) { if (alles || BEWEGT.has(id) || (neueSekunde && id === 'system')) feldZeichnen(f, id, daten, t); spiegelWellen(f, t) }
+  for (const [id, f] of Object.entries(st.felder)) {
+    const faellig = !LANGSAM.has(id) || !(t - (f.zuletzt ?? -1) < 0.15) // Listen: höchstens alle 150 ms (Prüf-Agent 08.11.2026)
+    if (alles || (BEWEGT.has(id) && faellig) || (neueSekunde && id === 'system')) { feldZeichnen(f, id, daten, t); f.zuletzt = t }
+    spiegelWellen(f, t)
+  }
   if (st.knoepfe) { const an = liedSichtbar(daten.medien) ? 'block' : 'none'; for (const d of st.knoepfe) if (d.style.display !== an) d.style.display = an }
   if (st.grossBild && (st.grossKanal != null || st.grossBild.style.opacity !== '0')) ZEICHNER[st.grossZeigt === 1 ? 'kamera2' : 'kamera1'](st.grossG, GROSS.b, GROSS.h, daten, t)
 }
