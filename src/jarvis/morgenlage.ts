@@ -29,8 +29,23 @@ export type LageEingabe = {
   offen?: { anzahl: number; liste: { kanal: string; artikel: string[] }[] } | null
   verkauf?: { bestellungen: number; stueck: number; umsatzCent: number } | null
   freigaben?: number | null
+  /** Nur Neues (Wunsch Auftraggeber 08.11.2026: „nur Aktualisierungen“): Kennungen aus der Lage des Vortags (lageSchluessel).
+   *  Was dort schon vorkam, wird nicht wiederholt; ohne Angabe die volle Lage. Wetter und „gestern“ kommen immer. */
+  bekannt?: Set<string> | null
   /** Spitzen und Sprüche auswählen (dienst.ts: benutzte nach hinten, rotation.ts); ohne = nach Tag (Tests) */
   waehler?: (pool: string, liste: string[]) => string
+}
+
+/** Kennungen aller Einzelheiten der heutigen Lage – werden gemerkt und morgen als `bekannt` übergeben (nur Neues). */
+export function lageSchluessel(e: LageEingabe): string[] {
+  const k: string[] = []
+  for (const t of e.aufgaben?.wichtigste ?? []) k.push(`aufgabe:${t}`)
+  for (const o of e.offen?.liste ?? []) k.push(`bestellung:${o.kanal}|${o.artikel.join(',')}`)
+  for (const n of e.lager?.namen ?? []) k.push(`lager:${n}`)
+  for (const a of e.probleme?.amazon ?? []) k.push(`amazon:${a}`)
+  if (e.probleme?.selbsttestRot) k.push('selbsttest:rot')
+  if (e.freigaben) k.push(`freigaben:${e.freigaben}`)
+  return k
 }
 
 /** Zahl in Worten für kleine Werte (klingt gesprochen besser), sonst Ziffern */
@@ -194,7 +209,18 @@ export function morgenLage(e: LageEingabe): string[] {
   const ORDNUNG = ['Erstens', 'Zweitens', 'Drittens']
   const klar = (t: string) => ohneLangeNummern(t)
 
-  if (b.has('aufgaben') && e.aufgaben) {
+  const alt = e.bekannt ?? null, istNeu = (k: string) => !alt || !alt.has(k)
+  // „nichts Neues“ nur, wenn Werkstatt-Daten da sind – sonst wüsste Loki es gar nicht (Prüf-Agent)
+  let nichtsNeues = !!alt && (e.aufgaben != null || e.verkauf != null)
+  if (b.has('aufgaben') && e.aufgaben && alt) {
+    const neu = e.aufgaben.wichtigste.filter((t) => istNeu(`aufgabe:${t}`)).map(klar).filter(Boolean).slice(0, 3)
+    if (neu.length) {
+      kapitel(); nichtsNeues = false
+      s.push(`Neu unter Abarbeiten: ${neu.length === 1 ? 'eine Karte' : `${zahl(neu.length)} Karten`}. Insgesamt ${e.aufgaben.anzahl === 1 ? 'ist eine' : `sind ${zahl(e.aufgaben.anzahl)}`} offen.`)
+      neu.forEach((w, i) => s.push(neu.length > 1 ? `${ORDNUNG[i]}: ${w}.` : `${w}.`))
+      hieb(e.aufgaben.anzahl >= 8 ? SPITZEN.vieleAufgaben : SPITZEN.wenigeAufgaben)
+    }
+  } else if (b.has('aufgaben') && e.aufgaben) {
     kapitel()
     const a = e.aufgaben
     if (!a.anzahl) s.push('Unter Abarbeiten liegt nichts Dringendes. Ich bin mir nicht sicher, ob ich das beunruhigend finden soll.')
@@ -206,7 +232,13 @@ export function morgenLage(e: LageEingabe): string[] {
     }
   }
 
-  if (b.has('verkauf') && e.offen && e.offen.anzahl) {
+  const offenNeu = (e.offen?.liste ?? []).filter((x) => istNeu(`bestellung:${x.kanal}|${x.artikel.join(',')}`))
+  if (b.has('verkauf') && e.offen && e.offen.anzahl && alt && offenNeu.length) {
+    kapitel(); nichtsNeues = false
+    s.push(`Neue offene Bestellungen: ${offenNeu.length === 1 ? 'eine' : zahl(offenNeu.length)}. Insgesamt ${e.offen.anzahl === 1 ? 'wartet eine' : `warten ${zahl(e.offen.anzahl)}`} auf den Versand.`)
+    for (const x of offenNeu.slice(0, 4)) { const artikel = x.artikel.map(klar).filter(Boolean); s.push(`${x.kanal}: ${artikel.length ? artikel.join(', ') : 'ohne Artikelangabe'}.`) }
+    if (offenNeu.length > 4) s.push(`Dazu ${offenNeu.length - 4 === 1 ? 'eine weitere' : `${zahl(offenNeu.length - 4)} weitere`}.`)
+  } else if (b.has('verkauf') && e.offen && e.offen.anzahl && !alt) {
     kapitel()
     const o = e.offen
     s.push(`Zu den offenen Bestellungen: ${o.anzahl === 1 ? 'Eine Bestellung wartet' : `${zahl(o.anzahl)} Bestellungen warten`} auf den Versand.`)
@@ -214,25 +246,31 @@ export function morgenLage(e: LageEingabe): string[] {
     if (o.anzahl > 4) s.push(`Dazu ${o.anzahl - 4 === 1 ? 'eine weitere' : `${zahl(o.anzahl - 4)} weitere`}.`)
   }
 
-  if (b.has('lager') && e.lager && e.lager.namen.length) {
-    kapitel()
-    const n = e.lager.namen
-    s.push(`Zum Nachproduzieren haben wir ${n.length === 1 ? 'folgenden Artikel' : 'folgende Artikel'}.`)
+  const lagerNeu = (e.lager?.namen ?? []).filter((n) => istNeu(`lager:${n}`))
+  if (b.has('lager') && e.lager && lagerNeu.length) {
+    kapitel(); nichtsNeues = false
+    const n = lagerNeu
+    s.push(alt ? `Neu zum Nachproduzieren: ${n.length === 1 ? 'ein Artikel' : `${zahl(n.length, false)} Artikel`}.` : `Zum Nachproduzieren haben wir ${n.length === 1 ? 'folgenden Artikel' : 'folgende Artikel'}.`)
     for (const x of n.map(klar).filter(Boolean).slice(0, 6)) s.push(`${x}.`)
     if (n.length > 6) s.push(`Und ${zahl(n.length - 6, false)} weitere.`)
     hieb(SPITZEN.lager)
   }
 
-  if (b.has('probleme') && e.probleme) {
-    kapitel()
-    const p = e.probleme
-    if (p.amazon.length) {
+  const amazonNeu = (e.probleme?.amazon ?? []).filter((a) => istNeu(`amazon:${a}`)), testNeu = !!e.probleme?.selbsttestRot && istNeu('selbsttest:rot')
+  if (b.has('probleme') && e.probleme && (!alt || amazonNeu.length || testNeu)) {
+    kapitel(); if (alt) nichtsNeues = false
+    const p = alt ? { amazon: amazonNeu, selbsttestRot: testNeu } : e.probleme
+    if (p.amazon.length && alt) {
+      s.push(p.amazon.length === 1 ? 'Bei Amazon ist ein neuer Fall dazugekommen.' : `Bei Amazon sind ${zahl(p.amazon.length, false)} neue Fälle dazugekommen.`)
+      for (const t of p.amazon.slice(0, 3)) { const name = amazonArtikel(t); s.push(name ? `Es geht um ${name}.` : 'Um welchen Artikel es geht, steht nicht auf der Karte.') }
+      hieb(SPITZEN.probleme)
+    } else if (p.amazon.length) {
       s.push(p.amazon.length === 1 ? 'Bei Amazon ist ein Fall offen.' : `Bei Amazon sind ${zahl(p.amazon.length, false)} Fälle offen.`)
       for (const t of p.amazon.slice(0, 3)) { const name = amazonArtikel(t); s.push(name ? `Es geht um ${name}.` : 'Um welchen Artikel es geht, steht nicht auf der Karte.') }
       hieb(SPITZEN.probleme)
     }
     if (p.selbsttestRot) s.push('Der nächtliche Selbsttest hat Störungen gefunden. Die Einzelheiten liegen auf einer Karte bereit.')
-    if (!p.selbsttestRot && !p.amazon.length) s.push('In den Shops ist alles ruhig. Verdächtig ruhig, aber ruhig.')
+    if (!alt && !p.selbsttestRot && !p.amazon.length) s.push('In den Shops ist alles ruhig. Verdächtig ruhig, aber ruhig.')
   }
 
   if (b.has('verkauf') && e.verkauf) {
@@ -246,12 +284,16 @@ export function morgenLage(e: LageEingabe): string[] {
     }
   }
 
-  if (b.has('freigaben') && e.freigaben) {
+  // Freigaben nur, wenn es mehr geworden sind als in der Lage des Vortags
+  const freigabenVorher = Math.max(0, ...[...(alt ?? [])].filter((k) => k.startsWith('freigaben:')).map((k) => Number(k.slice(10)) || 0))
+  if (b.has('freigaben') && e.freigaben && (!alt || e.freigaben > freigabenVorher)) {
+    if (alt) nichtsNeues = false
     kapitel()
     s.push(`Zu den Freigaben: Es ${mehrzahl(e.freigaben, 'wartet', 'warten')} ${zahl(e.freigaben, false)} ${mehrzahl(e.freigaben, 'Vorschlag', 'Vorschläge')} auf Sie.`)
     hieb(SPITZEN.freigaben)
   }
 
+  if (nichtsNeues) { kapitel(); s.push('Sonst gibt es seit gestern nichts Neues.') }
   kapitel()
   // ungefähr jeden zweiten Tag zusätzlich ein Spruch ohne Arbeitsbezug, an einem Tag immer derselbe
   if (e.humor && t % 2 === 0) s.push(anrede(e.waehler ? e.waehler('sprueche', SPRUECHE) : SPRUECHE[(t / 2) % SPRUECHE.length]))

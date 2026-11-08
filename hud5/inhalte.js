@@ -82,11 +82,18 @@ function kuerzen(g, t, breite) {
 function beispielMarke(g, b, h, wort = 'BEISPIEL') { text(g, wort, b - 14, h - 10, 12, 'rgba(242,176,74,0.9)', 'right', 600) }
 
 // ---------- Inhalte links (Werkstatt) ----------
+/** auf eine glatte Achsen-Obergrenze aufrunden, durch 4 teilbar: 133 → 160, 164 → 200, 480 → 500, 57 → 60 */
+export function glatt(x) {
+  // nur ganze Euro-Schritte, damit die Beschriftung nicht gerundet wird (Prüf-Agent)
+  const schritt = [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((f) => f * 10 ** Math.floor(Math.log10(x / 4))).find((st) => Number.isInteger(st) && st * 4 >= x) ?? Math.max(1, 10 ** Math.ceil(Math.log10(x / 4)))
+  return schritt * 4
+}
 function verkaeufe(g, b, h, d) {
   const tage = d.tage ?? [], summe7 = tage.slice(-7).reduce((s, t) => s + t.umsatz, 0)
   kopf(g, 'VERKÄUFE · 14 TAGE', `7 TAGE ${euro(summe7)}`, b)
   const x0 = 46, x1 = b - 18, y0 = 44, y1 = h - 30, n = Math.max(1, tage.length)
-  const maxU = Math.max(10, ...tage.map((t) => t.umsatz)), maxB = Math.max(1, ...tage.map((t) => t.bestellungen))
+  // Skala passt sich dem stärksten Tag an und rundet auf eine glatte Zahl auf (08.11.2026: Achse soll mitwachsen, 4 Teilstriche)
+  const maxU = glatt(Math.max(10, ...tage.map((t) => t.umsatz))), maxB = Math.max(1, ...tage.map((t) => t.bestellungen))
   g.strokeStyle = 'rgba(95,246,255,0.1)'
   for (let i = 0; i <= 4; i++) { const y = Math.round(y1 - ((y1 - y0) * i) / 4) + 0.5; g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke(); if (i) text(g, euro((maxU * i) / 4), x0 - 6, y + 4, 10, BLASS, 'right') }
   const sb = (x1 - x0) / n
@@ -100,11 +107,11 @@ function verkaeufe(g, b, h, d) {
   g.strokeStyle = GOLD; g.lineWidth = 1.6; g.beginPath()
   tage.forEach((t, i) => { const x = x0 + (i + 0.5) * sb, y = y1 - ((y1 - y0) * 0.92 * t.bestellungen) / maxB; i ? g.lineTo(x, y) : g.moveTo(x, y) }); g.stroke()
   g.fillStyle = GOLD; tage.forEach((t, i) => { const x = x0 + (i + 0.5) * sb, y = y1 - ((y1 - y0) * 0.92 * t.bestellungen) / maxB; g.beginPath(); g.arc(x, y, 2.4, 0, Math.PI * 2); g.fill() })
-  text(g, '▮ UMSATZ  ', x0, y0 - 2 + 12, 10, CYAN); text(g, '● BESTELLUNGEN', x0 + 64, y0 + 10, 10, GOLD)
+  text(g, '▮ WARENWERT', x0, y0 - 2 + 12, 10, CYAN); text(g, '● BESTELLUNGEN', x0 + 80, y0 + 10, 10, GOLD)
 }
 function umsatz(g, b, h, d) {
   // heute statt gestern (Wunsch Auftraggeber 05.11.2026: gestern steht schon in den Verkäufen daneben)
-  kopf(g, 'UMSATZ · HEUTE', d.stand ? `STAND ${d.stand}` : '', b)
+  kopf(g, 'WARENWERT · HEUTE', d.stand ? `STAND ${d.stand}` : '', b)
   const heute = d.heute ?? { umsatz: 0, bestellungen: 0, stueck: 0 }, nb = heute.bestellungen
   text(g, euro(heute.umsatz), 16, 94, 36, HELL, 'left', 600)
   text(g, `${nb} ${nb === 1 ? 'BESTELLUNG' : 'BESTELLUNGEN'} · ${heute.stueck} STÜCK`, 16, 116, 12, CYAN)

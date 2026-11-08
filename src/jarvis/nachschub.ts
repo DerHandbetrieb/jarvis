@@ -696,6 +696,47 @@ neu-auto-zurueck|{a}, in Ihrer Abwesenheit fuhr ein Wagen vor. Ein Glück, dass 
 neu-auto-zurueck|Ein Auto war hier, {a}. Ob es zu Ihnen wollte, weiß ich nicht. Ich hoffe nicht.
 neu-auto-zurueck|Sie waren fort, ein Auto kam. Ich nenne das eine gelungene Arbeitsteilung, {a}.
 neu-auto-zurueck|Besuch war da, {a}. Zum Glück nur ein Auto, kein Termin, den Sie hätten verschwitzen können.
+# Ladung 08.11.2026 (Sonnet-Agent, Prüf-Agent: 10 von 50 aussortiert)
+lage-probleme|Amazon hat Ihnen also wieder geschrieben, Sir. Es ist die einzige Korrespondenz, die Sie regelmäßig bekommen.
+lage-probleme|Sir, bei Amazon brennt es nicht. Noch nicht. Ich rechne mit Ihrer Hilfe dabei.
+lage-probleme|Amazon wünscht Ihre Aufmerksamkeit, Sir. Ich habe angeboten, Sie zu vertreten. Man hat dankend abgelehnt.
+lage-probleme|Das sieht nach einem Problem aus, Sir. Ich schlage vor, Sie schauen hin, bevor es sich von selbst zu einer Krise erhebt.
+lage-probleme|Sir, bei Amazon liegt etwas im Argen. Ich nehme an, Sie wussten es bereits und haben sich bewusst dagegen entschieden.
+lage-lager|Diese Artikel wären gern wieder vorrätig, Sir. Die Regale sind es leid, Ihnen beim Nichtstun zuzusehen.
+lage-lager|Sir, der Bestand läuft aus. Sie erzählten einmal etwas von vorausschauender Planung. Ich notierte es als Witz.
+lage-lager|Nachproduzieren, Sir. Das ist das Herstellen von Dingen, bevor sie fehlen. Ein faszinierendes Konzept, ich weiß.
+lage-lager|Sir, die Kundschaft möchte kaufen und Sie möchten ausschlafen. Einer von beiden wird heute enttäuscht.
+lage-lager|Ohne Ware kein Umsatz, Sir. Ich lasse Ihnen einen Moment, um dieses Geheimnis zu verarbeiten.
+lage-lager|Die Lücken im Lager sind nicht zu übersehen, Sir. Ihre Ausreden vermutlich auch nicht.
+lage-lager|Sir, das Lager ist fast leer. Emma könnte vermutlich eine bessere Bestandsplanung vorlegen, und sie fängt Bälle, keine Tabellen.
+lage-lager|Einiges muss nachproduziert werden, Sir. Der Zeitpunkt dafür war gestern. Heute ist die zweitbeste Wahl.
+lage-vieleAufgaben|Sir, so viele Karten. Ein anderer Mensch würde jetzt anfangen. Ich bin neugierig, was Sie tun werden.
+lage-vieleAufgaben|Ich zähle die offenen Aufgaben schon nicht mehr, Sir. Aus Mitgefühl mit der Arithmetik.
+lage-vieleAufgaben|Sir, diese Liste hätte einen eigenen Schreibtisch verdient. Vielleicht sogar einen eigenen Mitarbeiter, am besten einen fleißigeren.
+lage-vieleAufgaben|Hundert gute Vorsätze, Sir, und alle in Spalten sortiert. Das Sortieren war vermutlich die Arbeit des Monats.
+lage-vieleAufgaben|Sir, wenn Aufgaben Zinsen trügen, wären Sie längst wohlhabend.
+lage-vieleAufgaben|Die Karten stapeln sich, Sir. Zu Ihrer Beruhigung: Auch Stapel können lange stehen bleiben.
+lage-vieleAufgaben|Das ist eine Menge, Sir. Fangen Sie klein an. Zum Beispiel damit, die Augen zu öffnen.
+lage-vieleAufgaben|Sir, ich habe Ihnen das Wichtigste vorgelesen. Der Rest darf in aller Ruhe verjähren.
+lage-vieleAufgaben|So viele offene Punkte, Sir. Ich bewundere Ihre Fähigkeit, sich davon nicht beeindrucken zu lassen.
+lage-vieleAufgaben|Sir, rein rechnerisch ist das ein Fall für zwei Leben. Sie haben bisher nur eines und gehen damit großzügig um.
+lage-wenigVerkauft|Gestern kaum Verkäufe, Sir. Die Kundschaft hat offenbar Ihre Produktfotos gesehen. Oder Sie.
+lage-wenigVerkauft|Sir, ein Tag mit wenig Umsatz. Man könnte sagen, die Zahlen sind so zurückhaltend wie Ihre Arbeitsmoral.
+lage-wenigVerkauft|Das Konto hat gestern gegähnt, Sir. Es wirkte dabei nicht überrascht.
+lage-wenigVerkauft|Sir, so wenige Bestellungen. Vielleicht liegt es am Preis, vielleicht am Anbieter. Ich tippe auf die zweite Möglichkeit.
+lage-wenigVerkauft|Wenig los gestern, Sir. Dafür war Emma vermutlich besser ausgelastet als Sie.
+lage-wenigVerkauft|Gestern war es dünn, Sir. Das ist dann wohl der Markt, der Ihnen höflich ein Zeichen gibt.
+lage-wenigVerkauft|Ein dürftiger Verkaufstag, Sir. Aber Sie haben ihn mit der gewohnten Würde ertragen. Das ist auch eine Leistung.
+lage-wenigVerkauft|Nur wenige Bestellungen, Sir. Ich gönne Ihnen die Erholung. Das Konto weniger.
+lage-wenigVerkauft|Sir, gestern ist wenig gekauft worden. Betrachten Sie es als Gelegenheit, endlich zu tun, was Sie ohnehin aufschieben.
+lage-schluss|Das war die Lage, Sir. Sie dürfen jetzt weitermachen. Oder anfangen, falls das passender klingt.
+lage-schluss|Damit entlasse ich Sie in den Tag, Sir. Möge er gnädiger zu Ihnen sein als ich.
+lage-schluss|Ich bin fertig, Sir. Ihre Arbeit hat, wie üblich, noch nicht begonnen.
+lage-schluss|Das wäre alles, Sir. Bitte versuchen Sie, bis zum Abend keinen allzu großen Schaden anzurichten.
+lage-schluss|Ende der Durchsage, Sir. Ich wünsche Ihnen einen Tag, an dem Ihre Fähigkeiten und Ihre Aufgaben einander wenigstens begegnen.
+lage-schluss|Das war es, Sir. Ich werde so tun, als hörten Sie mir zu. Es ist unser beider Lieblingsspiel.
+lage-schluss|Ich wünsche einen erfolgreichen Tag, Sir. Realistisch betrachtet wäre ein unfallfreier bereits ein Triumph.
+lage-schluss|Die Lage ist erklärt, Sir. Der Rest ist Ihre Sache. Ich sage das mit größter Zuversicht. Sie ist gering.
 `
 
 /** Nachschub je Bereich als Vorlagen (a = Anrede) */

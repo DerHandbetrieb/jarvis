@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { morgenLage, uhrzeit, zahl, euro, type LageEingabe, BAUSTEINE, SPITZEN, spitze, tagNummer } from './morgenlage'
+import { lageSchluessel, morgenLage, uhrzeit, zahl, euro, type LageEingabe, BAUSTEINE, SPITZEN, spitze, tagNummer } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { befehl, codewort, istNachfrage, istWiederholung, vereinfachen } from './befehle'
 import { verstaerkung } from './dienst'
@@ -9,6 +9,38 @@ const basis = (x: Partial<LageEingabe> = {}): LageEingabe => ({
 })
 
 describe('Morgen-Lage', () => {
+  it('nur Neues: was gestern schon vorkam, wird nicht wiederholt (08.11.2026)', () => {
+    const gestern = basis({
+      aufgaben: { anzahl: 9, wichtigste: ['Kerzenständer produzieren', 'Tassen schließen'], neu: 0 },
+      offen: { anzahl: 1, liste: [{ kanal: 'Etsy', artikel: ['Tasse'] }] },
+      lager: { namen: ['Lampe'] }, probleme: { amazon: ['Kuh-Kucks-Uhr'], selbsttestRot: false }, freigaben: 2,
+    })
+    const heute = basis({
+      aufgaben: { anzahl: 10, wichtigste: ['Kerzenständer produzieren', 'Uhr reparieren'], neu: 1 },
+      offen: { anzahl: 2, liste: [{ kanal: 'Etsy', artikel: ['Tasse'] }, { kanal: 'Amazon', artikel: ['Lampe'] }] },
+      lager: { namen: ['Lampe'] }, probleme: { amazon: ['Kuh-Kucks-Uhr'], selbsttestRot: false }, freigaben: 2,
+      verkauf: { bestellungen: 1, stueck: 1, umsatzCent: 2000 },
+    })
+    const s = morgenLage({ ...heute, bekannt: new Set(lageSchluessel(gestern)) }).join(' ')
+    expect(s).toContain('Neu unter Abarbeiten: eine Karte. Insgesamt sind zehn offen.')
+    expect(s).toContain('Uhr reparieren.')
+    expect(s).not.toContain('Kerzenständer')
+    expect(s).toContain('Neue offene Bestellungen: eine.')
+    expect(s).toContain('Amazon: Lampe.')
+    expect(s).not.toContain('Etsy')
+    expect(s).not.toContain('Nachproduzieren')
+    expect(s).not.toContain('Kuh-Kucks-Uhr')
+    expect(s).not.toContain('Freigaben')
+    expect(s).toContain('Zum gestrigen Tag')
+    expect(s).not.toContain('nichts Neues')
+    const nichts = morgenLage({ ...gestern, bekannt: new Set(lageSchluessel(gestern)) }).join(' ')
+    expect(nichts).toContain('Sonst gibt es seit gestern nichts Neues.')
+    expect(nichts).not.toContain('Abarbeiten')
+    // Freigaben nur, wenn es mehr wurden; ohne Werkstatt-Daten kein „nichts Neues“
+    expect(morgenLage({ ...gestern, freigaben: 1, bekannt: new Set(lageSchluessel(gestern)) }).join(' ')).not.toContain('Freigaben')
+    expect(morgenLage({ ...gestern, freigaben: 3, bekannt: new Set(lageSchluessel(gestern)) }).join(' ')).toContain('Zu den Freigaben')
+    expect(morgenLage({ ...basis(), bekannt: new Set(lageSchluessel(gestern)) }).join(' ')).not.toContain('nichts Neues')
+  })
   it('begrüßt mit Uhrzeit und endet mit dem Schlusssatz', () => {
     const s = morgenLage(basis())
     expect(s[0]).toBe('Guten Morgen, Sir. Es ist 7 Uhr 30.')

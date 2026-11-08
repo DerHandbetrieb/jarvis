@@ -67,7 +67,7 @@ export default function JarvisKnopf({ klasse }: { klasse: string }) {
               <button type="button" className="rounded-lg bg-akzent px-3 py-1.5 text-white" onClick={() => void anschalten()}>Einschalten</button>
             ) : (
               <>
-                <button type="button" className="rounded-lg border border-neutral-300 px-3 py-1.5" disabled={j.zustand !== 'bereit'} onClick={() => void morgenLageVortragen()}>Lage vorlesen</button>
+                <button type="button" className="rounded-lg border border-neutral-300 px-3 py-1.5" disabled={j.zustand !== 'bereit'} onClick={() => void morgenLageVortragen(true)}>Lage vorlesen</button>
                 <button type="button" className="rounded-lg border border-neutral-300 px-3 py-1.5" onClick={() => void mikrofonUmschalten()}>{j.mikrofon ? 'Mikrofon aus' : 'Mikrofon an'}</button>
                 {j.zustand === 'spricht' && <button type="button" className="rounded-lg border border-neutral-300 px-3 py-1.5" onClick={stopp}>Stopp</button>}
                 <button type="button" className="rounded-lg border border-neutral-300 px-3 py-1.5" onClick={() => void abschalten()}>Ausschalten</button>

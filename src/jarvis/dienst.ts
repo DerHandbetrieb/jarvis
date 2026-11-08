@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react'
 import { bruecke, jarvisEinstellungen, kameraBruecke, MIKROFON_SCHWELLE, setzeJarvis, stationBruecke, werkstattBruecke, type MikrofonStufe, type JarvisEinstellungen, type Stimme } from './desktop'
 import { befehl, codewort, istNachfrage, istWiederholung, type Befehl } from './befehle'
 import { ziehe } from './fundus'
-import { morgenLage, SPITZEN, SPRUECHE, type BausteinSchluessel } from './morgenlage'
+import { lageSchluessel, morgenLage, SPITZEN, SPRUECHE, type BausteinSchluessel } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
 import { BEGRUESSUNGEN, naechsteBegruessung, sequenzGruss } from './begruessung'
@@ -182,7 +182,25 @@ const heute = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMo
 /** Tage seit einem heute()-Datum („JJJJ-M-T“); leer/kaputt = unendlich lange her */
 const tageSeit = (tag: string) => { const [j, m, t] = tag.split('-').map(Number); const d = new Date(j, m - 1, t); return Number.isNaN(d.getTime()) || !j ? Infinity : (Date.now() - d.getTime()) / 86_400_000 }
 
-export async function morgenLageVortragen() {
+/** Gemerkte Kennungen der Lage je Tag (localStorage jarvis.lageBekannt, nur die letzten 3 Tage) */
+const LAGE_SPEICHER = 'jarvis.lageBekannt'
+function lageGemerkt(): Record<string, string[]> {
+  try { const x = JSON.parse(localStorage.getItem(LAGE_SPEICHER) ?? '{}'); return x && typeof x === 'object' ? x : {} } catch { return {} }
+}
+function lageBekannt(): Set<string> | null {
+  const tage = Object.entries(lageGemerkt()).filter(([t]) => t !== heute() && tageSeit(t) <= 7).sort(([a], [b]) => tageSeit(a) - tageSeit(b))
+  return tage.length ? new Set(tage[0][1]) : null
+}
+function lageMerken(schluessel: string[]) {
+  try {
+    const alt = lageGemerkt(), neu: Record<string, string[]> = { [heute()]: schluessel }
+    for (const [t, k] of Object.entries(alt).filter(([t]) => t !== heute()).sort(([a], [b]) => tageSeit(a) - tageSeit(b)).slice(0, 2)) neu[t] = k
+    localStorage.setItem(LAGE_SPEICHER, JSON.stringify(neu))
+  } catch { /* Speicher voll/gesperrt – dann morgen eben die volle Lage */ }
+}
+
+/** voll = ausdrücklich verlangt („Loki, Lage“, Knopf): alles; sonst (Guten Morgen, Rechnerstart) nur Neues seit dem Vortag */
+export async function morgenLageVortragen(voll = false) {
   if (lage.zustand === 'spricht' || lage.zustand === 'denkt') return
   const e = jarvisEinstellungen()
   const bausteine = new Set(e.bausteine as BausteinSchluessel[])
@@ -192,10 +210,12 @@ export async function morgenLageVortragen() {
   const pruefen = b?.modellPruefen && tageSeit(e.zuletztModellPruefung) >= 30 ? Promise.race([b.modellPruefen(e.modell).catch(() => null), new Promise<null>((f) => setTimeout(() => f(null), 5000))]) : Promise.resolve(null)
   const [daten, modell] = await Promise.all([ladeLageDaten(bausteine), pruefen])
   if (modell && modell.stand !== 'unbekannt') setzeJarvis({ zuletztModellPruefung: heute() })
-  const saetze = morgenLage({ jetzt: new Date(), anrede: e.anrede || 'Sir', humor: e.humor, bausteine, ...daten, waehler: lageWaehler })
+  // nur Neues gegenüber der Lage eines früheren Tages (Wunsch Auftraggeber 08.11.2026); höchstens 7 Tage zurück, sonst volle Lage
+  const eingabe = { jetzt: new Date(), anrede: e.anrede || 'Sir', humor: e.humor, bausteine, ...daten, waehler: lageWaehler }
+  const saetze = morgenLage({ ...eingabe, bekannt: voll ? null : lageBekannt() })
   if (modell?.stand === 'neuer') saetze.push(`Für mein Sprachmodell gibt es eine neuere Fassung. In den Einstellungen genügt ein Klick auf „Sprachmodell aktualisieren“.${e.humor ? ' Ein Klick, Sir. Ich traue Ihnen das zu. Beinahe.' : ''}`)
   // erst nach vollständigem Vortrag als „heute erledigt“ merken (Prüf-Agent)
-  if (await sprechen(saetze)) setzeJarvis({ zuletztLage: heute() })
+  if (await sprechen(saetze)) { setzeJarvis({ zuletztLage: heute() }); if (daten.aufgaben != null || daten.verkauf != null) lageMerken(lageSchluessel(eingabe)) } // ohne Werkstatt-Daten nichts merken (Prüf-Agent)
 }
 
 const ZWEITES_MAL = [
@@ -298,7 +318,7 @@ async function ausfuehren(bf: Befehl) {
   const e = jarvisEinstellungen()
   if (bf.art === 'stopp') { stopp(); return }
   if (bf.art === 'still') { await mikrofonAus(); await sprechen([`Wie Sie wünschen. Ich höre nicht mehr zu${e.humor ? '. Endlich Ruhe. Ich werde sie genießen' : ''}. Zum Aufwecken bitte das Mikrofon oben wieder einschalten.`]); return }
-  if (bf.art === 'lage') return morgenLageVortragen()
+  if (bf.art === 'lage') return morgenLageVortragen(true)
   if (bf.art === 'kamera') {
     const a = e.anrede || 'Sir', k = kameraBruecke()
     const ok = (await k?.gross?.(bf.kanal).catch(() => null)) ?? null
