@@ -20,6 +20,11 @@ const RECHTS = [['kamera2', 0, 0, 610, 260], ['kamera1', 630, 0, 610, 260], ['sy
 // Viertel-Bildpunkten, läuft mit der Zeit wie die Wellen im See
 // Probe-Aufteilungen (08.11.2026, Idee Auftraggeber: Audio nach rechts, links nur Arbeit) – nur für die Vorschau (?rechts=1|2)
 export const PROBE_AUFTEILUNG = {
+  // rechte Seite, Runde 08.11.2026: Kameras größer, Audio + L.O.K.I.-Zeile in einem Feld
+  r1: { rechts: [['kamera2', 0, 0, 610, 300], ['kamera1', 630, 0, 610, 300], ['tonSystemOben', 0, 320, 1240, 200], ['energie', 0, 540, 800, 220], ['wetter', 820, 540, 420, 220]] },
+  r2: { rechts: [['kamera2', 0, 0, 610, 300], ['kamera1', 630, 0, 610, 300], ['tonSystemUnten', 0, 320, 1240, 200], ['energie', 0, 540, 800, 220], ['wetter', 820, 540, 420, 220]] },
+  r3: { rechts: [['kamera2', 0, 0, 610, 340], ['kamera1', 630, 0, 610, 340], ['tonSystemOben', 0, 360, 1240, 180], ['energie', 0, 560, 800, 200], ['wetter', 820, 560, 420, 200]] },
+  r4: { rechts: [['kamera2', 0, 0, 610, 300], ['kamera1', 630, 0, 610, 300], ['tonSystemOben', 0, 320, 820, 220], ['wetter', 840, 320, 400, 220], ['energie', 0, 560, 1240, 200]] },
   1: { links: [['verkaeufe', 0, 0, 940, 130], ['umsatz', 960, 0, 280, 130], ['aufgaben', 0, 150, 700, 610], ['bestellungen', 720, 150, 520, 610]],
     rechts: [['kamera2', 0, 0, 610, 260], ['kamera1', 630, 0, 610, 260], ['system', 0, 280, 1240, 64], ['ton', 0, 364, 1240, 160], ['energie', 0, 544, 800, 216], ['wetter', 820, 544, 420, 216]] },
   2: { links: [['verkaeufe', 0, 0, 940, 130], ['umsatz', 960, 0, 280, 130], ['aufgaben', 0, 150, 700, 610], ['bestellungen', 720, 150, 520, 610]],
@@ -30,7 +35,7 @@ export const SPIEGEL = { abstand: 70, deckkraft: 0.45, unschaerfe: 1.5, auslauf:
 // vergrößert die vordere Kante; mit mehr Bildpunkten bleiben Linien und Schrift scharf
 const AUFLOESUNG = 2
 const GROSS = { b: 1560, h: 878, dreh: 'perspective(2600px) rotateY(-5deg)' } // großes Kamerabild, leicht in der Schräge der Fenster
-const BEWEGT = new Set(['ton', 'kamera1', 'kamera2', 'energie', 'wetter']) // energie: laufende Lichtpunkte
+const BEWEGT = new Set(['ton', 'tonSystemOben', 'tonSystemUnten', 'kamera1', 'kamera2', 'energie', 'wetter']) // energie: laufende Lichtpunkte
 
 /** Tafeln anlegen. huelle = Element über der Szenen-Leinwand (gleiche Größe); faktor = Bildschirm-Pixel je Szenen-Pixel.
  *  skala: Größe der Fenster (1 = bisher; Wunsch Auftraggeber 05.11.2026: größer, Wahl über vier Vorschauen) – die Tafel

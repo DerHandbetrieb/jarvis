@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="de"><head><meta charset="UTF-8" /><title>L.O.K.I. – linke Seite, Runde 2</title>
+<style>html,body{margin:0;background:#03090d;font:600 18px Bahnschrift,sans-serif;color:#9ef}
+.feld{margin:18px 14px 30px} .feld p{margin:4px 0 8px;font-weight:400;font-size:15px;color:#bfe} canvas{display:block;width:100%;max-width:1240px;border:1px solid #2a5560}</style></head>
+<body><div id="wurzel"></div>
+<script type="module">
+// zweite Runde, bewegt (08.11.2026)
+import { ENTWUERFE2, zeichneEntwurf2 } from './links-entwuerfe2.js'
+const K = 1.5, liste = []
+for (const k of Object.keys(ENTWUERFE2)) {
+  const d = document.createElement('div'); d.className = 'feld'
+  const h = document.createElement('div'); h.textContent = ENTWUERFE2[k].name
+  const p = document.createElement('p'); p.textContent = ENTWUERFE2[k].text
+  const c = document.createElement('canvas'); c.id = 'e-' + k; c.width = 1240 * K; c.height = 760 * K
+  d.append(h, p, c); document.getElementById('wurzel').appendChild(d); liste.push([k, c.getContext('2d')])
+}
+await document.fonts.ready
+function bild(ms) {
+  for (const [k, g] of liste) { g.setTransform(K, 0, 0, K, 0, 0); zeichneEntwurf2(g, k, ms / 1000) }
+  requestAnimationFrame(bild)
+}
+requestAnimationFrame(bild)
+</script></body></html>

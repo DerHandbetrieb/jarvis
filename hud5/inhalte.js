@@ -309,6 +309,14 @@ function wetter(g, b, h, w, t = 0) {
   WETTER_ENTWURF.b(g, b, h, { ...w, station: w.station ?? {} }, t)
 }
 const SYSTEM_SYMBOL = { STATUS: 'stimme', MIKROFON: 'mikrofon', WERKSTATT: 'zahnrad', KAMERA: 'kamera', SELBSTTEST: 'schild', WHATSAPP: 'whatsapp' }
+const STATUS_H = 46
+function tonMitStatus(g, b, h, d, t, oben) {
+  const sy = oben ? 0 : h - STATUS_H, ty = oben ? STATUS_H : 0
+  g.save(); g.translate(0, sy); ZEICHNER.system(g, b, STATUS_H, d); g.restore()
+  g.save(); g.translate(0, ty); g.beginPath(); g.rect(0, 0, b, h - STATUS_H); g.clip(); ZEICHNER.ton(g, b, h - STATUS_H, d, t); g.restore()
+  const ly = oben ? STATUS_H + 0.5 : h - STATUS_H + 0.5
+  g.strokeStyle = 'rgba(95,246,255,0.28)'; g.lineWidth = 1; g.beginPath(); g.moveTo(14, ly); g.lineTo(b - 14, ly); g.stroke()
+}
 function system(g, b, h, d) {
   const z = d.loki?.zustand ?? 'aus', wa = d.loki?.whatsapp
   const zeilen = [
@@ -455,6 +463,9 @@ export const ZEICHNER = {
   verkaeufe: (g, b, h, d) => verkaeufe(g, b, h, d.werkstatt ?? {}),
   umsatz: (g, b, h, d) => umsatz(g, b, h, d.werkstatt ?? {}),
   ton: (g, b, h, d, t) => tonwellen(g, b, h, d.ton, t, d.loki, d.tonStatus, d.medien),
+  // Probe 08.11.2026 (Idee Auftraggeber): Audio und L.O.K.I.-Zeile in EINEM Feld, getrennt durch eine hauchdünne Linie
+  tonSystemOben: (g, b, h, d, t) => tonMitStatus(g, b, h, d, t, true),
+  tonSystemUnten: (g, b, h, d, t) => tonMitStatus(g, b, h, d, t, false),
   aufgaben: (g, b, h, d) => abarbeiten(g, b, h, d.werkstatt ?? {}),
   bestellungen: (g, b, h, d) => bestellungen(g, b, h, d.werkstatt ?? {}),
   kamera1: (g, b, h, d, t) => kamera(g, b, h, d.kamBilder?.[0] ?? null, 'CAM 01 · LINKS', d.kamera?.alarm && (d.kamera.alarmKanal ?? 0) === 0 ? d.kamera.alarmArt ?? 'person' : null, t),
