@@ -15,6 +15,7 @@ export const BEISPIEL = {
   kanaele: [['Etsy', 558.86], ['Amazon', 323.82], ['Shop', 51.7]],
   top: [['Boulderstein-Kaffeetasse', 23, 480.7], ['Klettergriff Schlüsselanhänger', 12, 119.52], ['Schlüsselbrett Wurzelholz', 2, 119.8], ['Kerzenständer Wurzelholz', 2, 99.8], ['Klettergriff Magnete 5er', 5, 99.5]],
   offen: 7, lagerKnapp: 4, freigaben: 0,
+  lager: [['Kerzenständer aus Wurzelholz für 4 Kerzen', 0, 2], ['Tetrapod Lampe aus Beton mit Edison LED', 1, 2], ['Kletteraffen Pocket Fingertrainer Set', 3, 3], ['Kuh-Kucks-Uhr · Schwarz Weiß Braun', 2, 2]],
   karten: [
     ['Schlüsselanhänger bei Amazon prüfen', 'FÄLLIG HEUTE'], ['Amazon-Problem: 5er Set Schlüsselanhänger Klettern', 'FÄLLIG HEUTE'],
     ['Tetrapod Lampe aus Beton mit Edison LED produzieren', ''], ['Kletteraffen Pocket Fingertrainer Set produzieren', ''],
@@ -95,7 +96,7 @@ const ZEICHNER = {
   /** kleine Zählerkacheln nebeneinander */
   zaehler(g, b, h) {
     kopf(g, 'STAND', '', b, true)
-    const werte = [['OFFEN', B.offen, GOLD], ['LAGER', B.lagerKnapp, ROT], ['FREIG.', B.freigaben, CYAN]], sp = (b - 28) / werte.length
+    const werte = [['OFFEN', B.offen, GOLD], ['LAGER', B.lagerKnapp, ROT], [b > 300 ? 'FREIGABEN' : 'FREIG.', B.freigaben, CYAN]], sp = (b - 28) / werte.length
     werte.forEach(([n, v, f], i) => { const x = 14 + sp * (i + 0.5); text(g, String(v), x, 34 + (h - 34) * 0.55, Math.min(32, h * 0.3), f, 'center', 600); text(g, n, x, h - 12, 10, BLASS, 'center', 600) })
   },
   /** schmale Kennzahlen-Zeile (Entwurf C) */
@@ -150,6 +151,28 @@ const ZEICHNER = {
       if (i) { g.strokeStyle = 'rgba(95,246,255,0.12)'; g.beginPath(); g.moveTo(x + 0.5, 34); g.lineTo(x + 0.5, h - 10); g.stroke() }
     })
   },
+  /** Nachproduzieren: Artikel mit knappem Bestand */
+  lager(g, b, h) {
+    kopf(g, 'NACHPRODUZIEREN · LAGER KNAPP', `${B.lager.length} ARTIKEL`, b, h < 220)
+    const oben = h < 220 ? 34 : 38, zeile = 24
+    B.lager.slice(0, Math.floor((h - oben - 6) / zeile)).forEach(([name, ist, soll], i) => {
+      const y = oben + i * zeile + zeile / 2 + 4
+      g.font = `400 13px ${SCHRIFT}`; text(g, kuerzen(g, name, b - 130), 22, y, 13, HELL)
+      text(g, `${ist} / ${soll}`, b - 16, y, 12, ist === 0 ? ROT : GOLD, 'right', 600)
+    })
+  },
+  /** Abarbeiten über die ganze Breite in zwei Spalten (Entwurf D) */
+  aufgaben2(g, b, h) {
+    kopf(g, 'ABARBEITEN · DRINGEND ZUERST', `${B.karten.length} OFFEN`, b)
+    const zeile = 23, proSpalte = Math.floor((h - 42) / zeile), sb = (b - 20) / 2
+    B.karten.forEach(([t, f], i) => {
+      const sp = Math.floor(i / proSpalte), x = 10 + sp * sb, y = 38 + (i % proSpalte) * zeile, m = y + zeile / 2
+      if (sp > 1) return
+      g.strokeStyle = 'rgba(95,246,255,0.55)'; g.lineWidth = 1.1; g.strokeRect(x + 12.5, m - 5.5, 11, 11)
+      g.font = `400 13px ${SCHRIFT}`; text(g, kuerzen(g, t, sb - 140), x + 32, m + 4.5, 13, HELL)
+      if (f) text(g, f, x + sb - 14, m + 4, 10, f.startsWith('FÄLLIG') ? GOLD : BLASS, 'right', 600)
+    })
+  },
   /** Bestellungen kompakt (Zeile 22) */
   bestellungen(g, b, h) {
     kopf(g, 'AKTUELLE BESTELLUNGEN', `${B.offen} OFFEN`, b, h < 220)
@@ -164,18 +187,20 @@ const ZEICHNER = {
 }
 
 // ---------- Aufteilungen (x, y, Breite, Höhe auf der 1240 × 760-Tafel) ----------
+// 08.11.2026 (Korrektur Auftraggeber): keine Termine (noch nicht in der Werkstatt) und keine „besten Artikel“ – nur, was
+// für die Arbeit gerade zählt. Neu dafür: „Nachproduzieren“ (Lager knapp).
 export const ENTWUERFE = {
-  a: { name: 'A · Kennzahlen-Leiste', text: 'Oben fünf kleine Felder (130 hoch statt 260). Darunter Abarbeiten über die volle Höhe, rechts Termine und die gekürzten Bestellungen.',
-    felder: [['heute', 0, 0, 190, 130], ['verlauf', 205, 0, 300, 130], ['kanaele', 520, 0, 250, 130], ['top', 785, 0, 300, 130], ['zaehler', 1100, 0, 140, 130],
-      ['aufgaben', 0, 150, 640, 610], ['termine', 660, 150, 580, 330], ['bestellungen', 660, 500, 580, 260]] },
-  b: { name: 'B · Bestellungen nach oben', text: 'Oben Warenwert heute, Kanäle und die Bestellungen kompakt (höchstens fünf). Darunter nur Abarbeiten und Termine, beide groß, dazu die besten Artikel.',
+  a: { name: 'A · Kennzahlen-Leiste', text: 'Oben vier kleine Felder (130 hoch statt 260). Darunter Abarbeiten über die volle Höhe, rechts die gekürzten Bestellungen und Nachproduzieren.',
+    felder: [['heute', 0, 0, 200, 130], ['verlauf', 215, 0, 360, 130], ['kanaele', 590, 0, 300, 130], ['zaehler', 905, 0, 335, 130],
+      ['aufgaben', 0, 150, 760, 610], ['bestellungen', 780, 150, 460, 190], ['lager', 780, 360, 460, 400]] },
+  b: { name: 'B · Bestellungen nach oben', text: 'Oben Warenwert heute, Kanäle und die Bestellungen kompakt (höchstens fünf). Darunter Abarbeiten groß, daneben Nachproduzieren und der Stand.',
     felder: [['heute', 0, 0, 180, 170], ['kanaele', 195, 0, 260, 170], ['bestellungen', 470, 0, 770, 170],
-      ['aufgaben', 0, 190, 780, 570], ['termine', 800, 190, 440, 380], ['top', 800, 590, 440, 170]] },
-  c: { name: 'C · Schmale Zahlenzeile', text: 'Oben nur eine flache Zeile mit acht Zahlen (90 hoch). Darunter am meisten Platz: Abarbeiten links, Termine und Bestellungen rechts.',
-    felder: [['kennzahlen', 0, 0, 1240, 90], ['aufgaben', 0, 110, 700, 650], ['termine', 720, 110, 520, 380], ['bestellungen', 720, 510, 520, 250]] },
-  d: { name: 'D · Wochenblick', text: 'Oben vier Felder mit Statistik, darunter eine Wochenleiste mit Terminen und Fälligem je Tag, unten Abarbeiten, Bestellungen und beste Artikel.',
-    felder: [['heute', 0, 0, 180, 130], ['verlauf', 195, 0, 330, 130], ['kanaele', 540, 0, 260, 130], ['zaehler', 815, 0, 425, 130],
-      ['woche', 0, 150, 1240, 120], ['aufgaben', 0, 290, 640, 470], ['bestellungen', 660, 290, 580, 230], ['top', 660, 540, 580, 220]] },
+      ['aufgaben', 0, 190, 820, 570], ['lager', 840, 190, 400, 380], ['zaehler', 840, 590, 400, 170]] },
+  c: { name: 'C · Schmale Zahlenzeile', text: 'Oben nur eine flache Zeile mit acht Zahlen (90 hoch). Darunter am meisten Platz: Abarbeiten links, Bestellungen und Nachproduzieren rechts.',
+    felder: [['kennzahlen', 0, 0, 1240, 90], ['aufgaben', 0, 110, 760, 650], ['bestellungen', 780, 110, 460, 190], ['lager', 780, 320, 460, 440]] },
+  d: { name: 'D · Abarbeiten in zwei Spalten', text: 'Oben vier Felder mit Statistik. Abarbeiten über die ganze Breite in zwei Spalten, unten Bestellungen und Nachproduzieren nebeneinander.',
+    felder: [['heute', 0, 0, 180, 130], ['verlauf', 195, 0, 380, 130], ['kanaele', 590, 0, 300, 130], ['zaehler', 905, 0, 335, 130],
+      ['aufgaben2', 0, 150, 1240, 400], ['bestellungen', 0, 570, 720, 190], ['lager', 740, 570, 500, 190]] },
 }
 
 /** einen Entwurf flach in eine Leinwand zeichnen (k = Bildpunkte je Einheit) */
