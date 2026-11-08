@@ -146,7 +146,7 @@ function abarbeiten(g, b, h, d) {
 /** aktuelle Bestellungen: alles, was in Billbee noch nicht versendet ist (Wunsch Auftraggeber 05.11.2026), älteste zuerst */
 function bestellungen(g, b, h, d) {
   const o = d.offeneBestellungen
-  kopf(g, 'AKTUELLE BESTELLUNGEN', o ? `${o.anzahl} OFFEN` : '', b)
+  kopf(g, 'OFFENE BESTELLUNGEN', o ? `${o.anzahl} OFFEN` : '', b)
   const liste = (o?.liste ?? []).slice(0, 10)
   if (!o) { text(g, 'Noch keine Daten aus Billbee.', 16, 64, 13, BLASS); return }
   if (!liste.length) { text(g, 'Alles versendet – die Werkstatt hat Pause. Theoretisch.', 16, 64, 13, BLASS); return }
@@ -604,7 +604,7 @@ function nachproduzieren(g, b, h, d, t) {
 /** aktuelle Bestellungen, kompakt: Datum, Kanal, Artikel, Betrag */
 function bestellungen2(g, b, h, d, t) {
   const o = d.offeneBestellungen
-  kopf(g, 'AKTUELLE BESTELLUNGEN', o ? `${o.anzahl} OFFEN` : '', b)
+  kopf(g, 'OFFENE BESTELLUNGEN', o ? `${o.anzahl} OFFEN` : '', b)
   ikone(g, 'paket', b - 118, 18, 18, GOLD, t)
   if (!o) { text(g, 'Noch keine Daten aus Billbee.', 22, 66, 13, BLASS); return }
   const liste = o.liste ?? []
