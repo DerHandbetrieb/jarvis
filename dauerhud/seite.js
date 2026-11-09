@@ -6,7 +6,7 @@
 // 5760×1080; auf einem einzelnen Bildschirm nur der mittlere Teil. Klick auf den Reaktor = L.O.K.I. stumm / wieder an.
 import { B, H, ladeSzene, zeichneSzene } from '../hud5/szene.js'
 import { ausHud } from '../hud5/inhalte.js'
-import { medienKnoepfe, erstelleTafeln, kameraGross, zeichneTafeln } from '../hud5/tafeln.js'
+import { lautRegelung, medienKnoepfe, erstelleTafeln, kameraGross, zeichneTafeln } from '../hud5/tafeln.js'
 import { erstelleFrost, frostStellen, frostGrad } from '../hud5/frost.js'
 import { sequenzDaten } from '../startsequenz/lageDaten.js'
 import { wetterAusCode } from '../src/jarvis/wetter.ts'
@@ -25,15 +25,17 @@ let ton = null, letzterTon = 0
 const kopf = () => ({ 'x-loki-schluessel': zugang.schluessel })
 
 let klickNr = 0 // Stand von vor einem Klick auf den Reaktor nicht mehr übernehmen
+let lautNr = 0 // ebenso: Lautstärke von vor einer Regler-Bewegung (sonst springt die Anzeige zurück, Prüf-Agent)
 async function holen() {
   if (pausiert) return
-  const nr = klickNr
+  const nr = klickNr, lautVorher = lautNr
   try {
     const r = await fetch(`http://127.0.0.1:${zugang.port}/hud`, { headers: kopf(), signal: AbortSignal.timeout(8000) })
     if (!r.ok) throw new Error(String(r.status))
     const neu = await r.json()
     if (nr !== klickNr) neu.loki = antwort?.loki ?? neu.loki
     if (neu?.station && neu.wetter && Number.isFinite(neu.station.grad)) neu.wetter = { ...neu.wetter, grad: neu.station.grad, station: neu.station } // Ring und Wettereffekte nach der eigenen Station
+    if (lautVorher !== lautNr) neu.lautstaerke = antwort?.lautstaerke ?? neu.lautstaerke
     antwort = neu
   } catch {
     antwort = null // ohne L.O.K.I.: Beispielwerte, klar als „BEISPIEL“ markiert; Systemfeld zeigt „nicht verbunden“
@@ -106,6 +108,31 @@ medienKnoepfe(tafeln, async (art) => {
   medienSperre = performance.now() + 300
   try { await fetch(`http://127.0.0.1:${zugang.port}/medien/${art}`, { method: 'POST', headers: kopf(), signal: AbortSignal.timeout(3000) }) } catch { /* L.O.K.I. läuft nicht */ }
 })
+// Lautstärke-Regler im Audiofeld (09.11.2026): Anzeige folgt dem Klick sofort, an L.O.K.I. geht immer nur der neueste Wert.
+// Ohne Verbindung zu L.O.K.I. (Stand unbekannt) passiert beim Klick nichts.
+let lautLokal = null, lautBis = 0, lautSendet = false, lautOffen = null
+const lautJetzt = () => (lautLokal && performance.now() < lautBis ? lautLokal : antwort?.lautstaerke ?? null)
+async function lautSenden() {
+  if (lautSendet) return
+  lautSendet = true
+  try {
+    while (lautOffen != null) {
+      const n = lautOffen; lautOffen = null
+      const r = await fetch(`http://127.0.0.1:${zugang.port}/lautstaerke/${n}`, { method: 'POST', headers: kopf(), signal: AbortSignal.timeout(3000) })
+      if (r.ok) {
+        const stand = await r.json()
+        // erst nach dem Warten prüfen: ein Klick von eben gilt, die ältere Antwort nicht (Prüf-Agent)
+        if (lautOffen == null) { lautLokal = stand; lautBis = performance.now() + 2000; lautNr++; if (antwort) antwort = { ...antwort, lautstaerke: stand } }
+      }
+      await new Promise((f) => setTimeout(f, 60))
+    }
+  } catch { lautOffen = null; lautBis = 0 } finally { lautSendet = false }
+}
+lautRegelung(tafeln, (n) => {
+  if (!lautJetzt()) return
+  lautLokal = { wert: n, stumm: false }; lautBis = performance.now() + 2000; lautOffen = n; lautNr++
+  void lautSenden()
+}, () => lautJetzt()?.wert ?? null)
 let frost = null // vereister Rand über allem – erst anlegen, wenn es friert (05.11.2026)
 const frostEbene = () => { const d = document.createElement('div'); document.body.appendChild(d); return erstelleFrost(d, VERSATZ) }
 /** Zustand von L.O.K.I. für den Reaktor: hört zu / denkt / spricht / aus */
@@ -119,7 +146,7 @@ function schleife(ms, meine = lauf) {
   zeichneSzene(g, szene, t, { wetter: antwort?.wetter ?? null, eis: antwort?.eis, versatz: VERSATZ, loki: reaktorZustand(loki), pegel: 0.6 + 0.4 * Math.abs(Math.sin(t * 7)), ton: tonJetzt }) // Reaktor pulsiert im Beat
   const fv = szene.wetter?.sichtbar?.frost ?? 0; if (fv > 0 && !frost) frost = frostEbene(); if (frost) { frostStellen(frost, fv); frostGrad(frost, antwort?.wetter?.grad) }
   kameraGross(tafeln, antwort?.kamera?.gross ?? null)
-  zeichneTafeln(tafeln, { ...daten, tonStatus: tonStatus(), ton: performance.now() - letzterTon < 2000 ? ton : null, kamBilder: [liveBild(0), liveBild(1)], medien: window.LOKI_MEDIEN ?? null }, t)
+  zeichneTafeln(tafeln, { ...daten, tonStatus: tonStatus(), ton: performance.now() - letzterTon < 2000 ? ton : null, kamBilder: [liveBild(0), liveBild(1)], medien: window.LOKI_MEDIEN ?? null, lautstaerke: lautJetzt() }, t)
 }
 
 void holen()

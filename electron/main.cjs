@@ -25,6 +25,7 @@ const { erstelleKamerawache } = require('./kamerawache.cjs')
 const { erstelleAutotest } = require('./autotest.cjs')
 const { erstelleAutobesuche } = require('./autobesuche.cjs')
 const { erstelleMedientasten } = require('./medientasten.cjs')
+const { erstelleLautstaerke } = require('./lautstaerke.cjs')
 const { Readable } = require('node:stream')
 let kameraLive = null // Live-Bild fürs Dauer-HUD (04.11.2026)
 const { findeWallpaperEngine, einrichten, zugangAbgleichen } = require('./wallpaper.cjs')
@@ -516,12 +517,17 @@ if (!app.requestSingleInstanceLock()) {
     const medientasten = erstelleMedientasten({ protokoll: kameraLog })
     app.on('will-quit', () => medientasten.beenden())
     setTimeout(() => medientasten.vorwaermen(), 15_000) // Meldungen der Medientasten stehen in kamera.log
+    // Lautstärke-Regler im Audiofeld (09.11.2026): liest und setzt die Windows-Lautstärke. Das Programm dafür bleibt offen, gefragt wird nur, wenn das Wallpaper läuft
+    const lautstaerke = erstelleLautstaerke({ protokoll: kameraLog })
+    app.on('will-quit', () => lautstaerke.beenden())
+    setTimeout(() => lautstaerke.vorwaermen(), 15_000)
     const hudServer = erstelleHudServer({
       medien: async (aktion) => medientasten.druecken(aktion),
+      lautstaerke: async (n) => lautstaerke.setzen(n),
       port: HUD_PORT, schluessel: () => hud.schluessel,
       liveBild: async (kanal, nach) => (kamera.status().eingerichtet ? kameraLive.bildNach(kanal, nach) : null),
       ton: async () => tonWerte(),
-      daten: async () => hudDatenJetzt(),
+      daten: async () => ({ ...hudDatenJetzt(), lautstaerke: await lautstaerke.lesen() }),
       // roter Knopf im Wallpaper: wie „Mikrofon aus/an“ im Infobereich, beim Stummschalten verstummt Loki auch sofort
       stumm: async () => {
         if (hauptfenster.isDestroyed()) return { ...trayZustand }

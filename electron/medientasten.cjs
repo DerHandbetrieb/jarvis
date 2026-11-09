@@ -21,6 +21,7 @@ function erstelleMedientasten({ starte = spawn, protokoll = () => {} } = {}) {
     q.on('error', (f) => { protokoll('Medientasten: Start fehlgeschlagen', f?.message ?? f); if (p === q) p = null })
     q.on('exit', () => { if (p === q) p = null })
     q.stderr?.on('data', (d) => protokoll('Medientasten:', String(d).slice(0, 200)))
+    q.stdin?.on?.('error', (f) => protokoll('Medientasten:', f?.message ?? f)) // Programm eben beendet: nicht als Absturz melden
     return q
   }
   /** aktion: 'pause' | 'vor' | 'zurueck' → true, wenn gesendet */

@@ -3,7 +3,7 @@
 // kippt (CSS 3D, rotateY) – dadurch passen Rahmen und Inhalt immer exakt zueinander. Links kippt die Tafel nach
 // rechts hinten, rechts gespiegelt nach links hinten (wie im Grafikpaket des Auftraggebers).
 import { RAHMEN_STILE } from './rahmen.js'
-import { ZEICHNER, KNOPF_RADIUS, liedSichtbar, knopfBlitz, knopfListe } from './inhalte.js'
+import { ZEICHNER, KNOPF_RADIUS, liedSichtbar, knopfBlitz, knopfListe, lautFlaeche, lautAusPunkt, lautGebremst } from './inhalte.js'
 
 const STIL = RAHMEN_STILE[1]
 const TAFEL = { links: 490, oben: 165, breite: 1240, hoehe: 760, neigung: 24, tiefe: 1900, skala: 1.1 } // Wahl Auftraggeber 05.11.2026: 10 % größer und weiter zur Bildschirmmitte (links war 450)
@@ -133,6 +133,26 @@ export function medienKnoepfe(st, beiKlick) {
     f.c.parentElement.appendChild(d)
     return d
   })
+}
+
+/** Klickfläche über dem Lautstärke-Regler (09.11.2026): liegt wie die Medien-Knöpfe auf der gekippten Tafel, die Punkte
+ *  rechnet der Browser in Feld-Einheiten zurück. Klick genügt; Ziehen und Mausrad wirken, falls Wallpaper Engine sie weitergibt.
+ *  beiWert(n) mit n = 0..100, alt() = aktueller Stand */
+export function lautRegelung(st, beiWert, alt) {
+  const f = st.felder.tonSystemKopf
+  if (!f) return null
+  const k = f.k / AUFLOESUNG, r = lautFlaeche(f.h), d = document.createElement('div')
+  Object.assign(d.style, { position: 'absolute', left: parseFloat(f.c.style.left) + r.x * k + 'px', top: parseFloat(f.c.style.top) + r.y * k + 'px', width: r.b * k + 'px', height: r.h * k + 'px', pointerEvents: 'auto', cursor: 'pointer', touchAction: 'none' })
+  const melde = (ev, ziehen) => { const n = lautAusPunkt(r.x + ev.offsetX / k, r.y + ev.offsetY / k, f.h, alt(), ziehen); if (n != null) beiWert(lautGebremst(n, alt())) }
+  let zieht = false
+  d.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); if (ev.button !== 0) return; zieht = true; // nur die linke Taste (Prüf-Agent)
+ try { d.setPointerCapture(ev.pointerId) } catch { /* nicht nötig */ } melde(ev, false) })
+  d.addEventListener('pointermove', (ev) => { if (zieht && ev.buttons & 1) melde(ev, true) })
+  for (const e of ['pointerup', 'pointercancel']) d.addEventListener(e, () => { zieht = false })
+  d.addEventListener('click', (ev) => ev.stopPropagation())
+  d.addEventListener('wheel', (ev) => { const a = alt(); if (a != null) beiWert(Math.max(0, Math.min(100, a + (ev.deltaY < 0 ? 5 : -5)))) }, { passive: true })
+  f.c.parentElement.appendChild(d)
+  return d
 }
 
 /** je Bild: ruhige Fenster nur bei neuen Daten, Tonwellen und Kameras immer */

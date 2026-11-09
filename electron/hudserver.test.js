@@ -35,6 +35,22 @@ describe('Dauer-HUD-Gegenstelle', () => {
     expect(vorab.status).toBe(204)
     expect(vorab.headers.get('access-control-allow-headers')).toContain('x-loki-schluessel')
   })
+  it('Lautstärke: nur POST mit Schlüssel und Zahl bis 100 (09.11.2026)', async () => {
+    const gesetzt = []
+    s = erstelleHudServer({ port: 0, schluessel: SCHLUESSEL, daten: async () => ({}), lautstaerke: async (n) => { gesetzt.push(n); return { wert: n, stumm: false } }, protokoll: () => {} })
+    const port = await s.start()
+    const hole = (pfad, opt = {}) => fetch(`http://127.0.0.1:${port}${pfad}`, opt)
+    const mit = { method: 'POST', headers: { 'x-loki-schluessel': SCHLUESSEL } }
+    const r = await hole('/lautstaerke/40', mit)
+    expect(r.status).toBe(200)
+    expect(await r.json()).toEqual({ wert: 40, stumm: false })
+    expect((await hole('/lautstaerke/40', { method: 'POST' })).status).toBe(403)
+    expect((await hole('/lautstaerke/40', { headers: mit.headers })).status).toBe(404)
+    expect((await hole('/lautstaerke/101', mit)).status).toBe(400)
+    expect((await hole('/lautstaerke/abc', mit)).status).toBe(404)
+    expect((await hole('/lautstaerke/-1', mit)).status).toBe(404)
+    expect(gesetzt).toEqual([40])
+  })
   it('fremder Host-Kopf (DNS-Rebinding) wird abgewiesen, localhost angenommen', async () => {
     s = erstelleHudServer({ port: 0, schluessel: SCHLUESSEL, daten: async () => ({ ok: 1 }), protokoll: () => {} })
     const port = await s.start()
