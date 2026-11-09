@@ -143,7 +143,7 @@ export function lautRegelung(st, beiWert, alt) {
   if (!f) return null
   const k = f.k / AUFLOESUNG, r = lautFlaeche(f.h), d = document.createElement('div')
   Object.assign(d.style, { position: 'absolute', left: parseFloat(f.c.style.left) + r.x * k + 'px', top: parseFloat(f.c.style.top) + r.y * k + 'px', width: r.b * k + 'px', height: r.h * k + 'px', pointerEvents: 'auto', cursor: 'pointer', touchAction: 'none' })
-  const melde = (ev, ziehen) => { const n = lautAusPunkt(r.x + ev.offsetX / k, r.y + ev.offsetY / k, f.h, alt(), ziehen); if (n != null) beiWert(lautGebremst(n, alt())) }
+  const melde = (ev, ziehen) => { const n = lautAusPunkt(r.x + ev.offsetX / k, alt(), ziehen); if (n != null) beiWert(lautGebremst(n, alt())) }
   let zieht = false
   d.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); if (ev.button !== 0) return; zieht = true; // nur die linke Taste (Prüf-Agent)
  try { d.setPointerCapture(ev.pointerId) } catch { /* nicht nötig */ } melde(ev, false) })

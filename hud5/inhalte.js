@@ -243,79 +243,41 @@ function medienKnopf(g, art, x, y, spielt) {
   g.restore()
 }
 /**
- * Lautstärke-Regler am linken Rand des Audiofelds (09.11.2026, Wunsch Auftraggeber: schnell lauter/leiser), immer sichtbar,
- * auch ohne Lied. Vier Entwürfe, gewählt über LAUT_ART. Alle funktionieren mit einem einfachen Klick, denn ob Wallpaper Engine
- * Ziehen und Mausrad weitergibt, ist nicht dokumentiert. Stand { wert: 0..100, stumm } oder null (L.O.K.I. nicht erreichbar).
+ * Lautstärke-Regler am linken Rand des Audiofelds (09.11.2026, Wunsch Auftraggeber: schnell lauter/leiser; Wahl: Entwurf D
+ * „Keil mit Plus und Minus“), immer sichtbar, auch ohne Lied. Ein einfacher Klick genügt, denn ob Wallpaper Engine Ziehen und
+ * Mausrad weitergibt, ist nicht dokumentiert. Stand { wert: 0..100, stumm } oder null (L.O.K.I. nicht erreichbar).
  */
-export const LAUT_ART = 'd'
 const LAUT_X = 18, LAUT_OBEN = 40, LAUT_UNTEN_ABSTAND = 12
-export const LAUT_BREITE = { a: 84, b: 206, c: 112, d: 206 }
-const PLATZ = { a: { spur: LAUT_X + 22 }, b: { x0: LAUT_X + 4, x1: LAUT_X + 180 }, c: { cx: LAUT_X + 46, r: 36 }, d: { minus: LAUT_X + 16, plus: LAUT_X + 174, x0: LAUT_X + 38, x1: LAUT_X + 152 } }
+export const LAUT_BREITE = 206
+const LAUT_MINUS = LAUT_X + 16, LAUT_PLUS = LAUT_X + 174, KEIL_X0 = LAUT_X + 38, KEIL_X1 = LAUT_X + 152
 const begrenzt = (v) => Math.max(0, Math.min(100, Math.round(v)))
 /** Klickfläche in Feld-Einheiten */
-export function lautFlaeche(h, art = LAUT_ART) { return { x: LAUT_X - 8, y: LAUT_OBEN - 2, b: LAUT_BREITE[art] - 14, h: h - LAUT_OBEN - LAUT_UNTEN_ABSTAND + 6 } }
-/** Punkt im Feld → neue Lautstärke; ziehen = Maus wird gehalten (die Plus/Minus-Knöpfe wirken nur beim Drücken, dann null) */
-export function lautAusPunkt(x, y, h, alt, ziehen = false, art = LAUT_ART) {
-  const unten = h - LAUT_UNTEN_ABSTAND
-  if (art === 'a') return begrenzt(((unten - 4 - y) / (unten - LAUT_OBEN - 8)) * 100)
-  if (art === 'b') return begrenzt(((x - PLATZ.b.x0) / (PLATZ.b.x1 - PLATZ.b.x0)) * 100)
-  if (art === 'c') {
-    const my = (LAUT_OBEN + unten) / 2
-    let w = (Math.atan2(y - my, x - PLATZ.c.cx) * 180) / Math.PI - 135; while (w < 0) w += 360 // 0° = links unten, im Uhrzeigersinn
-    if (w > 270) w = w > 315 ? 0 : 270 // Lücke unten: zum näheren Ende
-    return begrenzt((w / 270) * 100)
-  }
-  const d = PLATZ.d
-  if (x < d.x0 - 4 || x > d.x1 + 4) return ziehen ? null : begrenzt((alt ?? 0) + (x < d.x0 ? -5 : 5))
-  return begrenzt(((x - d.x0) / (d.x1 - d.x0)) * 100)
+export function lautFlaeche(h) { return { x: LAUT_X - 8, y: LAUT_OBEN - 2, b: LAUT_BREITE - 4, h: h - LAUT_OBEN - LAUT_UNTEN_ABSTAND + 6 } }
+/** Punkt im Feld → neue Lautstärke; ziehen = Maus wird gehalten (Plus und Minus wirken nur beim Drücken, dann null) */
+export function lautAusPunkt(x, alt, ziehen = false) {
+  if (x < KEIL_X0 - 4 || x > KEIL_X1 + 4) return ziehen ? null : begrenzt((alt ?? 0) + (x < KEIL_X0 ? -5 : 5))
+  return begrenzt(((x - KEIL_X0) / (KEIL_X1 - KEIL_X0)) * 100)
 }
 /** Schutz vor Lärm: Ein Fehlklick darf nicht von 8 auf 100 % springen. Nach oben höchstens 25 Punkte je Klick (beim Ziehen je
  *  Mausbewegung, kommt also trotzdem schnell ans Ziel); nach unten frei. */
 export function lautGebremst(n, alt) { return alt == null ? n : Math.min(n, Math.max(alt, Math.min(100, alt + 25))) }
-function lautRegler(g, h, laut, art = LAUT_ART) {
-  const unten = h - LAUT_UNTEN_ABSTAND, oben = LAUT_OBEN, my = (oben + unten) / 2
-  const wert = laut?.wert ?? 0, f = wert / 100, stumm = !!laut?.stumm
+function lautRegler(g, h, laut) {
+  const unten = h - LAUT_UNTEN_ABSTAND, oben = LAUT_OBEN
+  const f = (laut?.wert ?? 0) / 100, stumm = !!laut?.stumm
   const farbe = !laut ? BLASS : stumm ? ROT : CYAN, leer = 'rgba(95,246,255,0.14)'
-  const zahl = !laut ? '–' : stumm ? 'STUMM' : String(wert)
+  const y1 = unten - 2, y0 = oben + 18, n = 18, bb = (KEIL_X1 - KEIL_X0) / n
   g.save()
-  if (art === 'a') {
-    const x = PLATZ.a.spur, y0 = oben + 4, y1 = unten - 4, y = y1 - (y1 - y0) * f
-    for (let i = 0; i <= 10; i++) { const yy = Math.round(y1 - ((y1 - y0) * i) / 10) + 0.5; g.strokeStyle = 'rgba(95,246,255,0.3)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x + 7, yy); g.lineTo(x + (i % 5 ? 10 : 13), yy); g.stroke() }
-    g.fillStyle = leer; g.fillRect(x - 2, y0, 4, y1 - y0)
-    g.fillStyle = farbe; g.fillRect(x - 2, y, 4, y1 - y)
-    if (laut) { g.fillStyle = GOLD; g.fillRect(x - 11, y - 3, 22, 6) }
-    text(g, zahl, x + 18, my + 7, stumm ? 11 : 20, stumm ? ROT : HELL, 'left', 600)
-  } else if (art === 'b') {
-    const { x0, x1 } = PLATZ.b, y = my + 14, x = x0 + (x1 - x0) * f
-    text(g, 'LAUTSTÄRKE', x0, my - 18, 11, BLASS, 'left', 600)
-    text(g, stumm ? 'STUMM' : laut ? `${wert} %` : '–', x1, my - 12, stumm ? 14 : 24, stumm ? ROT : HELL, 'right', 600)
-    for (let i = 0; i <= 20; i++) { const xx = Math.round(x0 + ((x1 - x0) * i) / 20) + 0.5; g.strokeStyle = 'rgba(95,246,255,0.3)'; g.lineWidth = 1; g.beginPath(); g.moveTo(xx, y + 8); g.lineTo(xx, y + (i % 5 ? 11 : 15)); g.stroke() }
-    g.fillStyle = leer; g.fillRect(x0, y - 2, x1 - x0, 4)
-    g.fillStyle = farbe; g.fillRect(x0, y - 2, x - x0, 4)
-    if (laut) { g.fillStyle = GOLD; g.beginPath(); g.arc(x, y, 7, 0, Math.PI * 2); g.fill() }
-  } else if (art === 'c') {
-    const { cx, r } = PLATZ.c, a0 = (135 * Math.PI) / 180, n = 36
-    for (let i = 0; i < n; i++) {
-      const w = a0 + (i / (n - 1)) * 1.5 * Math.PI, voll = laut && i / (n - 1) <= f
-      g.strokeStyle = voll ? farbe : leer; g.lineWidth = voll ? 2.4 : 1.6
-      g.beginPath(); g.moveTo(cx + Math.cos(w) * (r - 7), my + Math.sin(w) * (r - 7)); g.lineTo(cx + Math.cos(w) * r, my + Math.sin(w) * r); g.stroke()
-    }
-    if (laut) { const w = a0 + f * 1.5 * Math.PI; g.fillStyle = GOLD; g.beginPath(); g.arc(cx + Math.cos(w) * (r - 13), my + Math.sin(w) * (r - 13), 3, 0, Math.PI * 2); g.fill() }
-    text(g, zahl, cx, my + (stumm ? 4 : 7), stumm ? 11 : 20, stumm ? ROT : HELL, 'center', 600)
-  } else {
-    const d = PLATZ.d, y1 = unten - 2, y0 = oben + 18, n = 18, bb = (d.x1 - d.x0) / n
-    text(g, 'LAUTSTÄRKE', d.x0, oben + 10, 11, BLASS, 'left', 600)
-    text(g, stumm ? 'STUMM' : laut ? `${wert} %` : '–', d.x1, oben + 11, 14, stumm ? ROT : HELL, 'right', 600)
-    for (let i = 0; i < n; i++) { // ansteigender Keil, der gefüllte Teil zeigt die Lautstärke
-      const hb = 8 + (y1 - y0 - 8) * (i / (n - 1)), voll = laut && (i + 0.5) / n <= f
-      g.fillStyle = voll ? (i >= n - 4 ? GOLD : farbe) : leer
-      g.fillRect(d.x0 + i * bb + 0.5, y1 - hb, Math.max(1, bb - 2), hb)
-    }
-    for (const [mx, plus] of [[d.minus, false], [d.plus, true]]) {
-      const ky = y1 - 15
-      g.beginPath(); g.arc(mx, ky, 15, 0, Math.PI * 2); g.fillStyle = 'rgba(95,246,255,0.06)'; g.fill(); g.strokeStyle = 'rgba(95,246,255,0.55)'; g.lineWidth = 1.2; g.stroke()
-      g.fillStyle = laut ? HELL : BLASS; g.fillRect(mx - 6, ky - 1, 12, 2); if (plus) g.fillRect(mx - 1, ky - 6, 2, 12)
-    }
+  text(g, 'LAUTSTÄRKE', KEIL_X0, oben + 10, 11, BLASS, 'left', 600)
+  text(g, stumm ? 'STUMM' : laut ? `${laut.wert} %` : '–', KEIL_X1, oben + 11, 14, stumm ? ROT : HELL, 'right', 600)
+  for (let i = 0; i < n; i++) { // ansteigender Keil, der gefüllte Teil zeigt die Lautstärke
+    const hb = 8 + (y1 - y0 - 8) * (i / (n - 1)), voll = laut && (i + 0.5) / n <= f
+    g.fillStyle = voll ? (i >= n - 4 ? GOLD : farbe) : leer
+    g.fillRect(KEIL_X0 + i * bb + 0.5, y1 - hb, Math.max(1, bb - 2), hb)
+  }
+  for (const [mx, plus] of [[LAUT_MINUS, false], [LAUT_PLUS, true]]) {
+    const ky = y1 - 15
+    g.beginPath(); g.arc(mx, ky, 15, 0, Math.PI * 2); g.fillStyle = 'rgba(95,246,255,0.06)'; g.fill(); g.strokeStyle = 'rgba(95,246,255,0.55)'; g.lineWidth = 1.2; g.stroke()
+    g.fillStyle = laut ? HELL : BLASS; g.fillRect(mx - 6, ky - 1, 12, 2); if (plus) g.fillRect(mx - 1, ky - 6, 2, 12)
   }
   g.restore()
 }
@@ -438,9 +400,8 @@ function statusZeile(g, b, h, d) {
 function tonMitStatus(g, b, h, d, t, lage) {
   const sd = { ...(d.werkstatt ?? {}), loki: d.loki, verbunden: !d.beispiel && !d.veraltet, kamera: d.kamera }
   if (lage === 'kopf') {
-    const art = d.lautArt ?? LAUT_ART
-    tonwellen(g, b, h, d.ton, t, d.loki, d.tonStatus, d.medien, true, LAUT_BREITE[art])
-    lautRegler(g, h, d.lautstaerke ?? null, art)
+    tonwellen(g, b, h, d.ton, t, d.loki, d.tonStatus, d.medien, true, LAUT_BREITE)
+    lautRegler(g, h, d.lautstaerke ?? null)
     const x1 = b - 110; g.fillStyle = 'rgba(4,19,26,1)'; g.fillRect(110, 6, x1 - 110, 24) // Platz zwischen „AUDIO“ und „PC-TON“
     statusSymbole(g, 96, x1 - 120, 18, sd, 16, true)
     const j = new Date(), zwei = (n) => String(n).padStart(2, '0')
