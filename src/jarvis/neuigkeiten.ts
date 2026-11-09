@@ -5,7 +5,7 @@
 // gesammelt), eigene Karten (Konto „Alex“) nicht, nach jeder Meldung ein Seitenhieb.
 
 export type Neuigkeit =
-  | { art: 'bestellung'; kanal: string; stueck: number; cent: number; artikel: string[] }
+  | { art: 'bestellung'; id?: number; kanal: string; stueck: number; cent: number; artikel: string[] }
   | { art: 'aufgabe' | 'amazon'; titel: string; von: string | null; faellig: string | null }
   | { art: 'freigabe'; titel: string }
   | { art: 'knapp'; name: string; variante: string | null; bestand: number }
@@ -31,6 +31,15 @@ export const EIGENES_KONTO = '71f61d5f-318c-426c-8563-d0565fc53a1d'
 /** Sammelkarte der Montags-Auswertung („Abarbeiten: Vorschläge freigeben“, bis Werkstatt 0.148.0 „Marketing: …“) –
  *  keine eigene Aufgabe: die Vorschläge selbst kommen schon als Freigaben (die Werkstatt-App blendet sie ebenfalls aus) */
 export const istFreigabeSammelkarte = (titel: string) => /^\s*(abarbeiten|marketing)\s*:\s*vorschläge freigeben/i.test(titel)
+
+/** Was tagsüber angesagt wurde, steht am nächsten Morgen nicht mehr als „neu“ in der Lage: Kennungen wie in lageSchluessel (morgenlage.ts). Freigaben zählt lageErgaenzen in dienst.ts. */
+export function lageKennungen(n: Neuigkeit): string[] {
+  if (n.art === 'bestellung') return n.id ? [`bestellung:${n.id}`] : []
+  if (n.art === 'aufgabe' || n.art === 'amazon') return [`aufgabe:${n.titel}`, `amazon:${n.titel}`]
+  if (n.art === 'knapp') return [`lager:${n.variante ? `${n.name} ${n.variante}` : n.name}`]
+  if (n.art === 'selbsttest') return ['selbsttest:rot']
+  return []
+}
 
 /** gewünschte Arten, eigene Karten und die Freigabe-Sammelkarte weg */
 export function auswaehlen(liste: Neuigkeit[], gruppen: NeuGruppe[], eigenesKonto = EIGENES_KONTO): Neuigkeit[] {

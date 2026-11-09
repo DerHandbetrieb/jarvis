@@ -13,7 +13,7 @@ function ereignisseDerLage(lage) {
   const e = lage?.ereignisse
   if (!e || !Array.isArray(e.bestellungen) || !Array.isArray(e.karten) || !Array.isArray(e.freigaben)) return null
   const aus = []
-  for (const b of e.bestellungen) aus.push({ schluessel: `bestellung:${b.id}`, ereignis: { art: 'bestellung', kanal: String(b.kanal ?? ''), stueck: Number(b.stueck) || 0, cent: Number(b.cent) || 0, artikel: (b.artikel ?? []).map(String).slice(0, 3) } })
+  for (const b of e.bestellungen) aus.push({ schluessel: `bestellung:${b.id}`, ereignis: { art: 'bestellung', id: Number(b.id) || undefined, kanal: String(b.kanal ?? ''), stueck: Number(b.stueck) || 0, cent: Number(b.cent) || 0, artikel: (b.artikel ?? []).map(String).slice(0, 3) } })
   for (const k of e.karten) aus.push({ schluessel: `karte:${k.id}`, ereignis: { art: k.amazon ? 'amazon' : 'aufgabe', titel: String(k.titel ?? ''), von: k.von ?? null, faellig: k.faellig ?? null } })
   for (const f of e.freigaben) aus.push({ schluessel: `freigabe:${f.id}`, ereignis: { art: 'freigabe', titel: String(f.titel ?? '') } })
   for (const l of Array.isArray(lage.lagerKnapp) ? lage.lagerKnapp : []) aus.push({ schluessel: `knapp:${l.name}|${l.variante ?? ''}`, ereignis: { art: 'knapp', name: String(l.name ?? ''), variante: l.variante ?? null, bestand: Number(l.bestand) || 0 } })

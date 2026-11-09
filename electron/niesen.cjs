@@ -4,8 +4,10 @@
 // 1 Fehlalarm in 320 anderen Geräuschen, 0 in 347 Sprach-Stücken; ca. 20 ms Rechenzeit je Stück.
 // Damit das Modell ein Niesen ganz im Fenster sieht, startet die Aufnahme erst bei einem Lautstärke-Sprung, mit
 // 0,5 s Vorlauf. Bei Stille rechnet nichts.
+// Schwelle 0,5 seit 09.11.2026 (Rückmeldung Auftraggeber: zu viele Fehlalarme; im Protokoll Werte 0,28–0,37 ohne Niesen).
+// Gemessen ESC-50: 17 von 40 Niesern, 0 Fehlalarme in 319 Geräuschen (vorher mit 0,2: 30 von 40, 2 Fehlalarme). Lieber ein Niesen verpassen.
 const RATE = 16000, VORLAUF = RATE / 2, FENSTER = RATE * 3
-const SCHWELLE = 0.2, LAUT = 0.015, PAUSE_MS = 120_000, NOTIZ = 0.05
+const SCHWELLE = 0.5, LAUT = 0.015, PAUSE_MS = 120_000, NOTIZ = 0.05
 
 const lautstaerke = (s) => { let e = 0; for (let i = 0; i < s.length; i++) e += s[i] * s[i]; return Math.sqrt(e / Math.max(1, s.length)) }
 

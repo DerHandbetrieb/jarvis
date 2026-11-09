@@ -73,7 +73,7 @@ export type WerkstattBruecke = {
 export type WerkstattLage = {
   stand: string
   geholt: number
-  aufgaben: { offen: number; neu: number; wichtigste: { titel: string; faellig: string | null }[]; amazonProbleme: string[] }
+  aufgaben: { offen: number; neu: number; wichtigste: { titel: string; faellig: string | null; art?: string | null }[]; amazonProbleme: string[] }
   lagerKnapp: { name: string; variante: string | null; bestand: number; meldebestand: number }[]
   verkauf: {
     gestern: { tag: string; bestellungen: number; stueck: number; umsatzCent: number; kanaele: { kanal: string; bestellungen: number; stueck: number; umsatzCent: number }[] }
@@ -82,7 +82,7 @@ export type WerkstattLage = {
   }
   freigaben: number
   selbsttest: { am: string; rot: number } | null
-  offeneBestellungen?: { anzahl: number; liste: { kanal: string; artikel: string[] }[] }
+  offeneBestellungen?: { anzahl: number; liste: { id?: number; kanal: string; artikel: string[] }[] }
 }
 export const werkstattBruecke = (): WerkstattBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.werkstatt ?? null : null)
 

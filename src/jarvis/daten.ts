@@ -22,15 +22,17 @@ type WerkstattTeil = Pick<LageEingabe, 'aufgaben' | 'probleme' | 'lager' | 'verk
 export function ausWerkstatt(l: WerkstattLage | null, jetzt: Date): WerkstattTeil {
   if (!l || !(jetzt.getTime() - l.geholt < HOECHSTENS_ALT)) return { aufgaben: null, probleme: null, lager: null, verkauf: null, freigaben: null, offen: null }
   // Selbsttest zählt nur, wenn er aus den letzten 24 Stunden stammt
+  const nachproduzieren = l.aufgaben.wichtigste.filter((w) => w.art === 'nachproduzieren').length
   const testRot = !!l.selbsttest && l.selbsttest.rot > 0 && jetzt.getTime() - new Date(l.selbsttest.am).getTime() < 24 * 3_600_000
   return {
     // die Freigabe-Sammelkarte nicht als „wichtigste Aufgabe“ vorlesen – die Freigaben hat ein eigener Baustein
-    aufgaben: { anzahl: l.aufgaben.offen, neu: l.aufgaben.neu, wichtigste: l.aufgaben.wichtigste.filter((w) => !istFreigabeSammelkarte(w.titel)).slice(0, 3).map((w) => w.titel) },
+    // alle Karten (nicht nur die obersten 3), sonst rutschen alte nach und gelten als neu; Nachproduzieren hat einen eigenen Baustein (Lager knapp), darum nicht unter Abarbeiten
+    aufgaben: { anzahl: Math.max(0, l.aufgaben.offen - nachproduzieren), neu: l.aufgaben.neu, wichtigste: l.aufgaben.wichtigste.filter((w) => !istFreigabeSammelkarte(w.titel) && w.art !== 'nachproduzieren').map((w) => w.titel) },
     probleme: { amazon: l.aufgaben.amazonProbleme, selbsttestRot: testRot },
     lager: { namen: l.lagerKnapp.map((k) => (k.variante ? `${k.name} ${k.variante}` : k.name)) },
     verkauf: { bestellungen: l.verkauf.gestern.bestellungen, stueck: l.verkauf.gestern.stueck, umsatzCent: l.verkauf.gestern.umsatzCent },
     freigaben: l.freigaben,
-    offen: l.offeneBestellungen ? { anzahl: Number(l.offeneBestellungen.anzahl) || 0, liste: (l.offeneBestellungen.liste ?? []).map((b) => ({ kanal: b.kanal, artikel: (b.artikel ?? []).map(artikelGesprochen) })) } : null,
+    offen: l.offeneBestellungen ? { anzahl: Number(l.offeneBestellungen.anzahl) || 0, liste: (l.offeneBestellungen.liste ?? []).map((b) => ({ id: b.id, kanal: b.kanal, artikel: (b.artikel ?? []).map(artikelGesprochen) })) } : null,
   }
 }
 

@@ -16,7 +16,7 @@ const LAGE: WerkstattLage = {
 describe('Werkstatt-Daten für die Morgen-Lage', () => {
   it('rechnet die Antwort der Serverfunktion in die Bausteine um', () => {
     expect(ausWerkstatt(LAGE, JETZT)).toEqual({
-      aufgaben: { anzahl: 11, neu: 2, wichtigste: ['Kerzenständer nachproduzieren', 'Tassen schließen', 'Etsy-Fotos'] },
+      aufgaben: { anzahl: 11, neu: 2, wichtigste: ['Kerzenständer nachproduzieren', 'Tassen schließen', 'Etsy-Fotos', 'Vierte'] },
       probleme: { amazon: ['Amazon-Problem: Bild fehlt'], selbsttestRot: true },
       lager: { namen: ['Tasse Emma', 'Kerzenständer Beton'] },
       verkauf: { bestellungen: 3, stueck: 4, umsatzCent: 12349 },
@@ -30,7 +30,13 @@ describe('Werkstatt-Daten für die Morgen-Lage', () => {
   })
   it('die Freigabe-Sammelkarte ist keine „wichtigste Aufgabe“ (Werkstatt 0.148.0)', () => {
     const l = { ...LAGE, aufgaben: { ...LAGE.aufgaben, wichtigste: [{ titel: 'Abarbeiten: Vorschläge freigeben', faellig: null }, { titel: 'Marketing: Vorschläge freigeben (3)', faellig: null }, ...LAGE.aufgaben.wichtigste] } }
-    expect(ausWerkstatt(l, JETZT).aufgaben?.wichtigste).toEqual(['Kerzenständer nachproduzieren', 'Tassen schließen', 'Etsy-Fotos'])
+    expect(ausWerkstatt(l, JETZT).aufgaben?.wichtigste).toEqual(['Kerzenständer nachproduzieren', 'Tassen schließen', 'Etsy-Fotos', 'Vierte'])
+  })
+  it('Karten der Art „nachproduzieren“ zählen nicht unter Abarbeiten (09.11.2026)', () => {
+    const l = { ...LAGE, aufgaben: { ...LAGE.aufgaben, offen: 3, wichtigste: [{ titel: 'Lampe produzieren', faellig: null, art: 'nachproduzieren' }, { titel: 'Recherche', faellig: null, art: 'todo' }] } }
+    const a = ausWerkstatt(l, JETZT).aufgaben
+    expect(a?.wichtigste).toEqual(['Recherche'])
+    expect(a?.anzahl).toBe(2)
   })
   it('alter Selbsttest (über 24 Stunden) gilt nicht als Störung', () => {
     expect(ausWerkstatt({ ...LAGE, selbsttest: { am: '2026-11-01T03:00:00Z', rot: 2 } }, JETZT).probleme?.selbsttestRot).toBe(false)

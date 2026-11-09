@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react'
 import { bruecke, jarvisEinstellungen, kameraBruecke, MIKROFON_SCHWELLE, setzeJarvis, stationBruecke, werkstattBruecke, type MikrofonStufe, type JarvisEinstellungen, type Stimme } from './desktop'
 import { befehl, codewort, istNachfrage, istWiederholung, type Befehl } from './befehle'
 import { ziehe } from './fundus'
-import { lageSchluessel, morgenLage, SPITZEN, SPRUECHE, type BausteinSchluessel } from './morgenlage'
+import { BAUSTEINE, LAGE_STAND, lageSchluessel, morgenLage, SPITZEN, SPRUECHE, type BausteinSchluessel, type LageEingabe } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
 import { BEGRUESSUNGEN, naechsteBegruessung, sequenzGruss } from './begruessung'
@@ -13,7 +13,7 @@ import { waehle, stand } from './rotation'
 import { NIES_SPRUECHE } from './niesenSprueche'
 import { nachschub } from './nachschub'
 import { ALLE as FUNDUS_ALLE } from './fundus'
-import { ansage, auswaehlen, type Neuigkeit, type Spitzenbereich } from './neuigkeiten'
+import { ansage, auswaehlen, type Neuigkeit, type Spitzenbereich, lageKennungen } from './neuigkeiten'
 import { NEU_SPITZEN } from './neuSpitzen'
 import { ohneLangeNummern, PAUSE, PAUSE_KAPITEL_MS, PAUSE_SATZ_MS } from './sprechtext'
 import { istWetterFrage, wetterAntwort } from './wetterAntwort'
@@ -193,10 +193,37 @@ function lageBekannt(): Set<string> | null {
 }
 function lageMerken(schluessel: string[]) {
   try {
-    const alt = lageGemerkt(), neu: Record<string, string[]> = { [heute()]: schluessel }
+    const alt = lageGemerkt(), neu: Record<string, string[]> = { [heute()]: [...new Set([...(alt[heute()] ?? []).filter((x) => !x.startsWith('freigaben:')), ...schluessel])] }
     for (const [t, k] of Object.entries(alt).filter(([t]) => t !== heute()).sort(([a], [b]) => tageSeit(a) - tageSeit(b)).slice(0, 2)) neu[t] = k
     localStorage.setItem(LAGE_SPEICHER, JSON.stringify(neu))
   } catch { /* Speicher voll/gesperrt – dann morgen eben die volle Lage */ }
+}
+
+/** jüngster Merkzettel (auch der von heute) – dort landet, was Loki zusätzlich gesagt hat */
+function lageJuengster(g: Record<string, string[]>): string | null {
+  return Object.keys(g).sort((a, b) => tageSeit(a) - tageSeit(b))[0] ?? null
+}
+/** Tagsüber Angesagtes vermerken, damit es am nächsten Morgen nicht als „neu“ wiederkommt */
+function lageErgaenzen(liste: Neuigkeit[]) {
+  try {
+    const g = lageGemerkt(), tag = lageJuengster(g)
+    if (!tag) return
+    const k = new Set(g[tag]); liste.flatMap(lageKennungen).forEach((x) => k.add(x))
+    const frei = liste.filter((n) => n.art === 'freigabe').length
+    if (frei) { const bisher = Math.max(0, ...[...k].filter((x) => x.startsWith('freigaben:')).map((x) => Number(x.slice(10)) || 0)); [...k].filter((x) => x.startsWith('freigaben:')).forEach((x) => k.delete(x)); k.add(`freigaben:${bisher + frei}`) }
+    g[tag] = [...k]
+    localStorage.setItem(LAGE_SPEICHER, JSON.stringify(g))
+  } catch { /* dann kommt es morgen eben noch einmal */ }
+}
+/** Merkzettel von vor 09.11.2026 kannten nur die obersten 3 Karten und Bestellungen ohne Nummer: einmal vervollständigen, sonst gälte alles Alte als neu */
+function lageNachtragen(e: LageEingabe) {
+  try {
+    const g = lageGemerkt(), alte = Object.keys(g).filter((t) => !g[t].includes(LAGE_STAND))
+    if (!alte.length || e.aufgaben == null) return
+    for (const t of alte) g[t] = [...new Set([...g[t].filter((x) => !x.startsWith('freigaben:')), ...lageSchluessel(e)])]
+    localStorage.setItem(LAGE_SPEICHER, JSON.stringify(g))
+    protokoll('Morgen-Lage: Merkzettel vervollständigt')
+  } catch { /* beim nächsten Mal wieder */ }
 }
 
 /** voll = ausdrücklich verlangt („Loki, Lage“, Knopf): alles; sonst (Guten Morgen, Rechnerstart) nur Neues seit dem Vortag */
@@ -212,10 +239,12 @@ export async function morgenLageVortragen(voll = false) {
   if (modell && modell.stand !== 'unbekannt') setzeJarvis({ zuletztModellPruefung: heute() })
   // nur Neues gegenüber der Lage eines früheren Tages (Wunsch Auftraggeber 08.11.2026); höchstens 7 Tage zurück, sonst volle Lage
   const eingabe = { jetzt: new Date(), anrede: e.anrede || 'Sir', humor: e.humor, bausteine, ...daten, waehler: lageWaehler }
-  const saetze = morgenLage({ ...eingabe, bekannt: voll ? null : lageBekannt() })
+  lageNachtragen(eingabe)
+  const bekannt = voll ? null : lageBekannt()
+  const saetze = morgenLage({ ...eingabe, bekannt })
   if (modell?.stand === 'neuer') saetze.push(`Für mein Sprachmodell gibt es eine neuere Fassung. In den Einstellungen genügt ein Klick auf „Sprachmodell aktualisieren“.${e.humor ? ' Ein Klick, Sir. Ich traue Ihnen das zu. Beinahe.' : ''}`)
   // erst nach vollständigem Vortrag als „heute erledigt“ merken (Prüf-Agent)
-  if (await sprechen(saetze)) { setzeJarvis({ zuletztLage: heute() }); if (daten.aufgaben != null || daten.verkauf != null) lageMerken(lageSchluessel(eingabe)) } // ohne Werkstatt-Daten nichts merken (Prüf-Agent)
+  if (await sprechen(saetze)) { setzeJarvis({ zuletztLage: heute() }); if (daten.aufgaben != null || daten.verkauf != null) lageMerken(lageSchluessel(eingabe, bekannt)) } // ohne Werkstatt-Daten nichts merken (Prüf-Agent)
 }
 
 const ZWEITES_MAL = [
@@ -482,7 +511,7 @@ async function neuAnsagen() {
     if (!saetze.length) return
     protokoll(`Neuigkeiten angesagt (${jetzt.length}${weg ? ', Zusammenfassung' : ''})`)
     // bei einem Fehler wieder einreihen; abgebrochen („Loki, stopp“, stumm) = bewusst nicht hören wollen → nicht wiederholen
-    try { await sprechen(saetze) } catch { neuSchlange.unshift(...jetzt) }
+    try { if (await sprechen(saetze)) lageErgaenzen(jetzt.map((x) => x.n)) } catch { neuSchlange.unshift(...jetzt) }
   } finally { neuLaeuft = false }
 }
 
@@ -624,6 +653,9 @@ export async function rechnerStart() {
       await morgenLageVortragen()
       // Was vor der Lage aufgelaufen ist, stand in ihr – eine Person und alles, was währenddessen neu kam, wird noch gemeldet
       if (jarvisEinstellungen().zuletztLage === heute()) neuSchlange = neuSchlange.filter((x) => istKamera(x.n) || x.zeit >= lageBeginn)
+    } else { // heute schon vorgetragen (Neustart): Merkzettel gleich vervollständigen statt erst morgen früh
+      const daten = await ladeLageDaten(new Set(BAUSTEINE.map((x) => x.schluessel)))
+      lageNachtragen({ jetzt: new Date(), anrede: '', humor: false, bausteine: new Set(), ...daten })
     }
   } finally { startphase = false }
 }

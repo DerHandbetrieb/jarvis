@@ -19,7 +19,7 @@ describe('Neuigkeiten aus der Werkstatt', () => {
     expect(n.abgleichen(lage({ bestellungen: [best(1)] }))).toEqual([])
     const neu = n.abgleichen(lage({ bestellungen: [best(1), best(2)], karten: [{ id: 'k', titel: 'Amazon-Problem: Bild', von: 'u2', amazon: true, faellig: null }] }))
     expect(neu).toEqual([
-      { art: 'bestellung', kanal: 'Etsy', stueck: 2, cent: 3980, artikel: ['2× Klettertasse'] },
+      { art: 'bestellung', id: 2, kanal: 'Etsy', stueck: 2, cent: 3980, artikel: ['2× Klettertasse'] },
       { art: 'amazon', titel: 'Amazon-Problem: Bild', von: 'u2', faellig: null },
     ])
   })
