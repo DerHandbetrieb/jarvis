@@ -96,6 +96,8 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     gehoer: (a) => ipcRenderer.invoke('jarvis-gehoer', { an: !!a?.an, nurWorte: !!a?.nurWorte, art: a?.art === 'klein' ? 'klein' : 'turbo', worte: String(a?.worte ?? '').slice(0, 1000) }),
     zuhoeren: (an) => ipcRenderer.invoke('jarvis-zuhoeren', !!an),
     nutzerAktiv: () => ipcRenderer.send('jarvis-nutzer-aktiv'),
+    /** aktuelle Meldungen des Deutschlandfunks (Feed, nur lesen) */
+    nachrichten: () => ipcRenderer.invoke('dlf-nachrichten'),
     vorwaermen: (modell) => ipcRenderer.send('jarvis-vorwaermen', String(modell ?? '')),
     frage: (modell, nachrichten) => ipcRenderer.invoke('jarvis-frage', { modell: String(modell), nachrichten }),
     modellPruefen: (modell) => ipcRenderer.invoke('jarvis-modell-pruefen', String(modell)),

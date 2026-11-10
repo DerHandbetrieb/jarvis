@@ -80,7 +80,7 @@ const OLLAMA_HALTEN = '3m' // danach gibt Ollama den Grafikspeicher frei (Wunsch
 // Reihenfolge mit Absicht: „Loki“ steht nicht direkt vor einem Befehlswort – ein Echo der Liste ergäbe sonst „Loki, Lage“ (Prüf-Agent)
 // Befehlswörter gehören dazu (06.11.2026): Kurze Befehle haben kaum Satzzusammenhang, „Zeig“ kam als „Zeuge“ an. Nicht in
 // natürlicher Reihenfolge schreiben: ist_wortliste() verwirft drei Listenwörter hintereinander als Einbildung.
-const GRUNDWORTE = 'Zeig, Neuigkeiten, Kamera, Etsy, Amazon, Loki, Bestellungen, Freigaben, Werbung, Abarbeiten, Carport, Auswertung, Umsatz, Marketing, Lager, Selbsttest, Emma, Obersontheim, Kerzenständer, Nachproduzieren, Lage'
+const GRUNDWORTE = 'Zeig, Neuigkeiten, Kamera, Etsy, Amazon, Loki, Bestellungen, Freigaben, Werbung, Abarbeiten, Carport, Auswertung, Umsatz, Marketing, Lager, Selbsttest, Emma, Obersontheim, Kerzenständer, Nachproduzieren, Lage, Nachrichten, Deutschlandfunk'
 let hoerArt = 'turbo' // turbo = Grafikkarte, klein = Whisper small auf dem Prozessor
 let worte = GRUNDWORTE
 /** längste Wartezeit je Satz: gemessen 0,11 s im Mittel – großzügig 8 s + 0,5 s je Sekunde Ton (Grafikkarte kann gerade

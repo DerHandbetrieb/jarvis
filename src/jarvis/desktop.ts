@@ -38,6 +38,8 @@ export type JarvisBruecke = {
   vorwaermen?: (modell: string) => void
   /** er hat L.O.K.I. angesprochen (für den Abwesenheits-Modus) */
   nutzerAktiv?: () => void
+  /** Deutschlandfunk-Nachrichten (10.11.2026) */
+  nachrichten?: () => Promise<import('./nachrichten').NachrichtenAntwort | null>
   /** Modell-Prüfung (monatlich, 04.11.2026): stand aktuell | neuer | fehlt | unbekannt */
   modellPruefen?: (modell: string) => Promise<{ stand: 'aktuell' | 'neuer' | 'fehlt' | 'unbekannt'; text: string } | null>
   /** neue Fassung über Ollama herunterladen (kann einige Minuten dauern) */
@@ -158,6 +160,10 @@ export type JarvisEinstellungen = {
   /** Kamera-Wache: Person oder Auto am linken Objektiv ansagen (04.11.2026, Autos 06.11.2026) */
   kameraMelden: boolean
   niesen: boolean
+  /** Deutschlandfunk-Nachrichten einmal am Tag nach der Morgen-Lage vorlesen (10.11.2026) */
+  nachrichten: boolean
+  /** Tag, an dem die Nachrichten nach der Lage schon kamen (JJJJ-M-T) */
+  zuletztNachrichten: string
   /** Sprechtempo – nur für Piper, Loki hat sein Tempo aus der Vorlage */
   tempo: number
   bausteine: BausteinSchluessel[]
@@ -177,7 +183,7 @@ export type JarvisEinstellungen = {
 }
 
 const STANDARD: JarvisEinstellungen = {
-  an: false, anrede: 'Sir', humor: true, stimme: 'loki', hoeren: 'turbo', mikrofonStufe: 'normal', wortliste: '', niesen: true, neuigkeiten: true, neuGruppen: NEU_GRUPPEN.map((g) => g.schluessel), kameraMelden: true, tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8,
+  an: false, anrede: 'Sir', humor: true, stimme: 'loki', hoeren: 'turbo', mikrofonStufe: 'normal', wortliste: '', niesen: true, neuigkeiten: true, neuGruppen: NEU_GRUPPEN.map((g) => g.schluessel), kameraMelden: true, tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8, nachrichten: true, zuletztNachrichten: '',
 }
 const SCHLUESSEL = 'jarvis.einstellungen'
 const zuhoerer = new Set<() => void>()

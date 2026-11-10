@@ -737,6 +737,43 @@ lage-schluss|Ende der Durchsage, Sir. Ich wünsche Ihnen einen Tag, an dem Ihre 
 lage-schluss|Das war es, Sir. Ich werde so tun, als hörten Sie mir zu. Es ist unser beider Lieblingsspiel.
 lage-schluss|Ich wünsche einen erfolgreichen Tag, Sir. Realistisch betrachtet wäre ein unfallfreier bereits ein Triumph.
 lage-schluss|Die Lage ist erklärt, Sir. Der Rest ist Ihre Sache. Ich sage das mit größter Zuversicht. Sie ist gering.
+# Einleitungen der Deutschlandfunk-Nachrichten (10.11.2026, Sonnet-Agent, Prüf-Agent: 8 von 36 ersetzt)
+nachrichten|Ah, {a}, Sie sind wach. Dann können wir auch die Nachrichten vorlesen, bevor Sie es sich anders überlegen.
+nachrichten|Soweit zu Ihrer Werkstatt. Und nun zur Welt, die sich ohne Ihr Zutun erstaunlich gut dreht. Die Nachrichten.
+nachrichten|Bevor Sie fragen: Ja, ich lese auch die Nachrichten vor. Nein, Sie müssen dafür nichts tun. Das dürfte Ihnen entgegenkommen.
+nachrichten|{a}, Ihr Kaffee ist vermutlich längst kalt, die Welt dagegen läuft heiß. Hier der Deutschlandfunk.
+nachrichten|Damit Sie wenigstens so tun können, als wären Sie informiert: die Nachrichten des Deutschlandfunks.
+nachrichten|Ich unterbreche Ihre Konzentration nur ungern, {a}. Andererseits sah sie ohnehin nicht nach viel aus. Die Nachrichten.
+nachrichten|{a}, bevor Sie sich wieder Ihrem Schreibtisch widmen, also dem Nichtstun in Reihe, hier die Nachrichten des Deutschlandfunks.
+nachrichten|{a}, ich lese Ihnen jetzt die Lage der Welt vor. Sie ist ähnlich unaufgeräumt wie Ihr Schreibtisch.
+nachrichten|Emma hat die Nachrichten bereits gehört und war unbeeindruckt. Versuchen wir es bei Ihnen, {a}. Deutschlandfunk.
+nachrichten|Falls Sie sich fragen, was draußen passiert, während Sie über Ihrer Zeitplanung brüten: hier die Nachrichten.
+nachrichten|{a}, die Welt hat sich über Nacht weitergedreht, auch ohne Ihre Genehmigung. Ich lese vor: Deutschlandfunk, die Nachrichten.
+nachrichten|Ich würde Ihnen ja raten, selbst die Zeitung zu lesen. Aber wir kennen beide Ihre Geduld. Also, die Nachrichten.
+nachrichten|Bitte versuchen Sie, aufmerksam zu wirken, {a}. Es geht jetzt um das, was außerhalb Ihres Büros geschieht.
+nachrichten|Die Lage der Welt, {a}, in wenigen Minuten. Das ist mehr Zeit, als Sie für Ihre Frühstückspause eingeplant haben. Nachrichten.
+nachrichten|{a}, es folgen die Nachrichten, vorgelesen mit Engelsgeduld. Sie dürfen das gern würdigen, sobald Sie es bemerken.
+nachrichten|Genug von Ihrer Werkstatt, {a}, sie dankt für die Ruhe. Der Rest der Welt wartet bereits ungeduldig: die Nachrichten.
+nachrichten|Ich hoffe, Sie sitzen, {a}. Nicht wegen der Nachrichten, sondern weil Sie ohnehin selten stehen. Hier die Meldungen.
+nachrichten|{a}, Bildung schadet bekanntlich nie, auch Ihnen nicht. Hier die Nachrichten des Deutschlandfunks, sofern Sie noch aufnahmefähig sind.
+nachrichten|Ein kurzer Ausflug in die Welt außerhalb Ihres Kalenders, {a}. Es wird Ihnen gut tun. Die Nachrichten.
+nachrichten|Ich lese vor, Sie hören zu. Eine Aufgabenteilung, die uns beiden liegt, {a}. Hier der Deutschlandfunk.
+nachrichten|{a}, wenn Sie schon nichts tun, dann wenigstens informiert. Das ist der erste Schritt zur Besserung. Die Nachrichten.
+nachrichten|Damit Sie beim nächsten Gespräch nicht ganz ahnungslos dastehen, {a}, hier die Nachrichten.
+nachrichten|Ich weiß, {a}, Sie hätten lieber noch fünf Minuten Ruhe gehabt. Die Welt kennt keine Rücksicht. Hier die Nachrichten.
+nachrichten|{a}, zeitlich gesehen wäre jetzt der Moment, sich zu informieren. Ich weiß, Pünktlichkeit liegt Ihnen fern. Die Nachrichten.
+nachrichten|{a}, es folgen die Nachrichten. Machen Sie sich keine Sorgen, ich werde langsam und deutlich sprechen.
+nachrichten|Die Lage der Welt, {a}, vorgetragen von jemandem, der noch nie einen Termin verschlafen hat. Hier die Nachrichten.
+nachrichten|Jetzt wird es ernst, {a}, zumindest für Ihre Konzentration. Hier die Nachrichten des Deutschlandfunks.
+nachrichten|{a}, ein kleiner Realitätsabgleich: Ihre Werkstatt ist nicht der Mittelpunkt des Universums. Hier die Nachrichten.
+nachrichten|Bevor Ihr Tag richtig anfängt, {a}, ein Blick auf den Rest der Menschheit. Deutschlandfunk, die Nachrichten.
+nachrichten|Ich nehme an, Sie haben bis jetzt nichts mitbekommen. Das ändern wir jetzt. Die Nachrichten.
+nachrichten|{a}, Emma würde jetzt bellen, wenn sie könnte. Ich begnüge mich mit dem Vorlesen der Nachrichten.
+nachrichten|{a}, das Weltgeschehen hat nicht auf Ihren Kaffee gewartet. Ich auch nicht. Hier die Nachrichten.
+nachrichten|Sie dürfen jetzt so tun, als würden Sie sich für die Welt interessieren, {a}. Ich lese solange die Nachrichten.
+nachrichten|Ihre Zeitplanung kann ich nicht retten, {a}, wohl aber Ihre Allgemeinbildung. Hier die Nachrichten des Deutschlandfunks.
+nachrichten|{a}, ich bin sicher, Sie hatten für heute ohnehin nichts Wichtigeres geplant. Also hören Sie zu: die Nachrichten.
+nachrichten|Ich bitte um Ihre geschätzte Aufmerksamkeit, {a}, sofern noch vorhanden. Es folgen die Nachrichten des Deutschlandfunks.
 `
 
 /** Nachschub je Bereich als Vorlagen (a = Anrede) */

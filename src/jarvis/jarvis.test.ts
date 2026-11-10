@@ -311,10 +311,11 @@ describe('Benutzte Sprüche nach hinten (rotation.ts, 04.11.2026)', () => {
     const { FUNDUS } = await import('./fundus')
     const { SPITZEN } = await import('./morgenlage')
     const bereiche = new Set([...Object.keys(FUNDUS), 'begruessung', ...['bestellung', 'aufgabe', 'problem', 'knapp', 'freigabe', 'zurueck', 'kamera', 'kamera-zurueck', 'auto', 'auto-zurueck'].map((b) => `neu-${b}`),
-      ...Object.keys(SPITZEN).map((k) => `lage-${k}`), 'lage-sprueche'])
+      ...Object.keys(SPITZEN).map((k) => `lage-${k}`), 'lage-sprueche', 'nachrichten'])
     for (const z of NACHSCHUB_TEXT.split(/\r?\n/).filter((x) => x.trim() && !x.trimStart().startsWith('#'))) {
       const [b, t] = [z.slice(0, z.indexOf('|')), z.slice(z.indexOf('|') + 1)]
       expect(bereiche.has(b), z).toBe(true)
+      if (b === 'nachrichten') continue // Nachrichten-Einleitung: Anrede nicht in jedem Satz, bis 25 Wörter (eigener Test in nachrichten.test.ts)
       if (!b.startsWith('lage-')) expect(t, z).toContain('{a}') // Morgen-Lage: Anrede als festes „Sir“
       else expect(t, z).not.toContain('{a}')
       expect(/\d|`|\$\{/.test(t), z).toBe(false)

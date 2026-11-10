@@ -85,6 +85,7 @@ export function codewort(eingabe: string): Erkannt {
 
 export type Befehl =
   | { art: 'lage' }
+  | { art: 'nachrichten' }
   | { art: 'oeffnen'; pfad: string; name: string }
   | { art: 'stopp' }
   | { art: 'still' }
@@ -114,6 +115,12 @@ export function befehl(rest: string): Befehl {
   // nur der ganze Satz – „Halt mal …“ oder „Wann ist Pause?“ sind keine Befehle (Prüf-Agent)
   if (/^(stopp|stop|halt|ruhe|danke das reicht|schon gut)$/.test(t)) return { art: 'stopp' }
   if (/^(sei still|nicht zuhoeren|hoer auf zuzuhoeren|mikrofon aus|pause)$/.test(t)) return { art: 'still' }
+  // Deutschlandfunk (10.11.2026) – vor „Lage“, weil „was gibt es Neues in der Welt“ sonst die Lage wäre
+  if (!/\b(whatsapp|whats app|mail|email|sms|kunde\w*|etsy|amazon|schreib\w*|antwort\w*|eine nachricht)\b/.test(t) && (
+    /^((die|den|der) )?(nachrichten|news|schlagzeilen|weltnachrichten)( (bitte|vorlesen|lesen|vom deutschlandfunk|von heute|aktuell))*$/.test(t) ||
+    /\b(lies|les|lese|vorlesen|sag|erzaehl\w*|gib|spiel\w*)\b.*\b(nachrichten|news|schlagzeilen)\b/.test(t) ||
+    /\b(aktuellen|neuesten|heutigen) (nachrichten|schlagzeilen)\b|\bwas gibt es (fuer )?nachrichten\b|\bdeutschlandfunk\b|\bweltgeschehen\b|\bneues in der welt\b/.test(t)
+  )) return { art: 'nachrichten' }
   if (/\b(lage|morgenlage|bericht|zusammenfassung|was steht an|was gibt es neues)\b/.test(t)) return { art: 'lage' }
   // Kamera groß im Wallpaper: „Loki, zeig den Carport“, „Kamera weg“ (links = Objektiv 1, rechts = Objektiv 2)
   if (/\b(kamera|carport|bild)\b.*\b(weg|klein|schliessen)\b|\b(mach|schliess|schliesse)\b.*\b(kamera|carport)\b.*\b(zu|aus|klein|weg)\b/.test(t)) return { art: 'kamera', kanal: null }

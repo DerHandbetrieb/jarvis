@@ -11,6 +11,7 @@ import { ladeLageDaten } from './daten'
 import { BEGRUESSUNGEN, naechsteBegruessung, sequenzGruss } from './begruessung'
 import { waehle, stand } from './rotation'
 import { NIES_SPRUECHE } from './niesenSprueche'
+import { nachrichtenSaetze } from './nachrichten'
 import { nachschub } from './nachschub'
 import { ALLE as FUNDUS_ALLE } from './fundus'
 import { ansage, auswaehlen, type Neuigkeit, type Spitzenbereich, lageKennungen } from './neuigkeiten'
@@ -111,8 +112,9 @@ let abbrechen = false
 let wiedergabe: AudioContext | null = null
 let laeuft: AudioBufferSourceNode | null = null
 
+let stoppZeit = 0 // letzter Stopp – ein Stopp während des Abrufs der Nachrichten soll auch danach gelten
 export function stopp() {
-  abbrechen = true
+  abbrechen = true; stoppZeit = Date.now()
   try { laeuft?.stop() } catch { /* schon zu Ende */ }
 }
 
@@ -229,6 +231,12 @@ function lageNachtragen(e: LageEingabe) {
 /** voll = ausdrücklich verlangt („Loki, Lage“, Knopf): alles; sonst (Guten Morgen, Rechnerstart) nur Neues seit dem Vortag */
 export async function morgenLageVortragen(voll = false) {
   if (lage.zustand === 'spricht' || lage.zustand === 'denkt') return
+  vortrag++
+  try { await lageUndNachrichten(voll) } finally { vortrag-- }
+}
+/** läuft gerade Lage oder Nachrichten (Neuigkeiten und Niesen warten) */
+let vortrag = 0
+async function lageUndNachrichten(voll: boolean) {
   const e = jarvisEinstellungen()
   const bausteine = new Set(e.bausteine as BausteinSchluessel[])
   setze({ zustand: 'denkt' })
@@ -244,7 +252,39 @@ export async function morgenLageVortragen(voll = false) {
   const saetze = morgenLage({ ...eingabe, bekannt })
   if (modell?.stand === 'neuer') saetze.push(`Für mein Sprachmodell gibt es eine neuere Fassung. In den Einstellungen genügt ein Klick auf „Sprachmodell aktualisieren“.${e.humor ? ' Ein Klick, Sir. Ich traue Ihnen das zu. Beinahe.' : ''}`)
   // erst nach vollständigem Vortrag als „heute erledigt“ merken (Prüf-Agent)
-  if (await sprechen(saetze)) { setzeJarvis({ zuletztLage: heute() }); if (daten.aufgaben != null || daten.verkauf != null) lageMerken(lageSchluessel(eingabe, bekannt)) } // ohne Werkstatt-Daten nichts merken (Prüf-Agent)
+  if (await sprechen(saetze)) {
+    setzeJarvis({ zuletztLage: heute() }); if (daten.aufgaben != null || daten.verkauf != null) lageMerken(lageSchluessel(eingabe, bekannt)) // ohne Werkstatt-Daten nichts merken (Prüf-Agent)
+    // danach einmal am Tag die Deutschlandfunk-Nachrichten (Wunsch Auftraggeber 10.11.2026); nicht bei „Loki, Lage“
+    if (!voll && jarvisEinstellungen().nachrichten && jarvisEinstellungen().zuletztNachrichten !== heute()) await nachrichtenVortragen(true)
+  }
+}
+
+/** Einleitungen (Nachschub-Bereich „nachrichten“); auf Zuruf ohne die Sätze, die sich auf die eben gehörte Lage beziehen */
+const NACH_LAGE = /werkstatt|wo war ich/i
+/** Deutschlandfunk-Meldungen vorlesen: nachLage = direkt im Anschluss an die Morgen-Lage */
+export async function nachrichtenVortragen(nachLage = false) {
+  const b = bruecke(), e = jarvisEinstellungen(), a = e.anrede || 'Sir'
+  if (!b?.nachrichten || lage.zustand === 'spricht' || stumm) return
+  vortrag++
+  try { await nachrichtenLesen(b.nachrichten, e, a, nachLage) } finally { vortrag-- }
+}
+async function nachrichtenLesen(holen: NonNullable<ReturnType<typeof bruecke>>['nachrichten'] & {}, e: JarvisEinstellungen, a: string, nachLage: boolean) {
+  const beginn = Date.now()
+  setze({ zustand: 'denkt' })
+  const antwort = await holen().catch(() => null)
+  if (lage.zustand !== 'denkt') return // inzwischen aus oder eingeschaltet neu
+  setze({ zustand: 'bereit' }) // auch bei Stumm/Stopp, sonst bleibt er in „denkt“ hängen und hört nie wieder hin (Prüf-Agent)
+  if (stumm || stoppZeit >= beginn) { protokoll('Nachrichten: abgebrochen, bevor sie kamen'); return }
+  const ok = !!antwort && 'meldungen' in antwort && antwort.meldungen.length > 0
+  let einleitung: string | null = null
+  const vorlagen = NACHSCHUB.nachrichten ?? []
+  if (ok && e.humor && vorlagen.length) {
+    const liste = vorlagen.map((f) => f(a)).filter((t) => nachLage || !NACH_LAGE.test(t))
+    const [i] = waehle(nachLage ? 'nachrichten' : 'nachrichten-zuruf', liste); einleitung = liste[i ?? 0]; meldeSpruchStand()
+  }
+  const saetze = nachrichtenSaetze(antwort ?? { fehler: 'keine Antwort' }, { jetzt: new Date(), anrede: a, einleitung })
+  protokoll(`Nachrichten: ${antwort && 'meldungen' in antwort ? `${antwort.meldungen.length} Meldungen` : 'nicht abrufbar'}${nachLage ? ' (nach der Lage)' : ''}`)
+  if (await sprechen(saetze) && nachLage && ok) setzeJarvis({ zuletztNachrichten: heute() })
 }
 
 const ZWEITES_MAL = [
@@ -348,6 +388,7 @@ async function ausfuehren(bf: Befehl) {
   if (bf.art === 'stopp') { stopp(); return }
   if (bf.art === 'still') { await mikrofonAus(); await sprechen([`Wie Sie wünschen. Ich höre nicht mehr zu${e.humor ? '. Endlich Ruhe. Ich werde sie genießen' : ''}. Zum Aufwecken bitte das Mikrofon oben wieder einschalten.`]); return }
   if (bf.art === 'lage') return morgenLageVortragen(true)
+  if (bf.art === 'nachrichten') return nachrichtenVortragen()
   if (bf.art === 'kamera') {
     const a = e.anrede || 'Sir', k = kameraBruecke()
     const ok = (await k?.gross?.(bf.kanal).catch(() => null)) ?? null
@@ -450,6 +491,8 @@ export function spruchPools(): Record<string, string[]> {
     ...Object.fromEntries(Object.entries(SPITZEN).map(([k, v]) => [`lage-${k}`, v])),
     'lage-sprueche': SPRUECHE,
     niesen: NIES_SPRUECHE,
+    nachrichten: (NACHSCHUB.nachrichten ?? []).map((f) => f('Sir')),
+    'nachrichten-zuruf': (NACHSCHUB.nachrichten ?? []).map((f) => f('Sir')).filter((t) => !NACH_LAGE.test(t)),
   }
 }
 /** Spitzen der Morgen-Lage: benutzte nach hinten (Pool „lage-<gruppe>“) */
@@ -495,7 +538,7 @@ async function neuAnsagen() {
     }
     if (!e.neuigkeiten && !e.kameraMelden) { neuSchlange = []; return }
     neuSchlange = neuSchlange.filter((x) => Date.now() - x.zeit < NEU_HOECHSTENS_MS)
-    if (!neuSchlange.length || startphase) return
+    if (!neuSchlange.length || startphase || vortrag) return
     const a = await b.anwesenheit?.().catch(() => null)
     if (!a) return
     if (a.ruhe >= ABWESEND_S) { neuSchlange.forEach((x) => { x.verpasst = true }); return }
@@ -503,7 +546,7 @@ async function neuAnsagen() {
     // nur mit Lokis eigener Stimme ansagen – solange sie lädt oder vorübergehend aus ist, wartet die Ansage (06.11.2026)
     const st = e.stimme === 'loki' ? await b.status().catch(() => null) : null
     if (st && st.loki?.zustand !== 'bereit' && st.loki?.zustand !== 'fehlt' && st.loki?.zustand !== 'fehler') return
-    if (startphase || lage.zustand !== 'bereit') return // inzwischen spricht oder denkt er – die Ansage bleibt in der Schlange
+    if (startphase || vortrag || lage.zustand !== 'bereit') return // inzwischen spricht oder denkt er – die Ansage bleibt in der Schlange
     const jetzt = neuSchlange.splice(0)
     // eine Person „nähert sich“ nur, wenn es frisch ist (≤ 90 s) – sonst Zusammenfassung „war jemand vor der Kamera“ (Prüf-Agent)
     const weg = jetzt.some((x) => x.verpasst || Date.now() - x.zeit > (istKamera(x.n) ? 90_000 : VERPASST_MS))
@@ -518,7 +561,7 @@ async function neuAnsagen() {
 /** Loki hat ein Niesen gehört (electron/niesen.cjs): nur wenn er gerade frei ist und mit seiner richtigen Stimme, sonst fällt es aus */
 async function gesundheit() {
   const b = bruecke(), e = jarvisEinstellungen()
-  if (!b || !e.niesen || stumm || !lage.mikrofon || startphase || nachgereicht || lage.zustand !== 'bereit' || lage.wartetBis > Date.now()) return
+  if (!b || !e.niesen || stumm || !lage.mikrofon || startphase || vortrag || nachgereicht || lage.zustand !== 'bereit' || lage.wartetBis > Date.now()) return
   const a = await b.anwesenheit?.().catch(() => null)
   if (!a || a.spiel) return
   if (e.stimme === 'loki') { const st = await b.status().catch(() => null); if (st?.loki?.zustand !== 'bereit') return }
