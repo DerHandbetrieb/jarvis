@@ -341,7 +341,10 @@ if (!app.requestSingleInstanceLock()) {
     const werkstatt = erstelleWerkstatt({
       konfig: leseKonfig(fs.existsSync(konfigDatei) ? fs.readFileSync(konfigDatei, 'utf8') : ''),
       speicher: verschluesselt(path.join(app.getPath('userData'), 'werkstatt-sitzung.bin')),
-      takt: 2 * 60_000, // alle 2 Minuten (Neuigkeiten, 04.11.2026) – gemessen klein gegen 500.000 freie Aufrufe/Monat
+      // alle 10 Minuten und nur, solange er in der letzten halben Stunde am PC war (10.11.2026, Hinweis aus der Werkstatt: Free-Plan
+      // knapp, jarvis-lage gibt 10 Minuten lang dieselbe Antwort). Ohne frische Messung der Ruhezeit gilt er als anwesend.
+      takt: 10 * 60_000,
+      aktiv: () => Date.now() - anwesenheit.gemessen > 60_000 || anwesenheit.ruhe < 30 * 60,
     })
     // Neuigkeiten: jede frische Lage mit dem Bekannten abgleichen, nur Neues ans Hauptfenster (das sagt es an)
     const neuDatei = path.join(app.getPath('userData'), 'neuigkeiten.json')
@@ -363,8 +366,8 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('werkstatt-verbinden', async (e, d) => { if (!vonFenster(e)) return null; await werkstatt.verbinden(String(d?.email ?? ''), String(d?.passwort ?? '')); return werkstatt.status() })
     ipcMain.handle('werkstatt-code', async (e, c) => { if (!vonFenster(e)) return null; await werkstatt.code(String(c ?? '')); return werkstatt.status() })
     ipcMain.handle('werkstatt-trennen', async (e) => { if (!vonFenster(e)) return null; await werkstatt.trennen(); return werkstatt.status() })
-    // höchstens 2 Minuten alt, sonst frisch (Morgen-Lage, Anzeigen); „Jetzt aktualisieren“ holt immer frisch
-    ipcMain.handle('werkstatt-lage', async (e, erzwingen) => (vonFenster(e) ? werkstatt.aktuelleLage(erzwingen ? 0 : 120_000) : null))
+    // höchstens 10 Minuten alt, sonst frisch (Morgen-Lage, Anzeigen) – die Serverfunktion antwortet ohnehin 10 Minuten gleich; „Jetzt aktualisieren“ holt immer frisch
+    ipcMain.handle('werkstatt-lage', async (e, erzwingen) => (vonFenster(e) ? werkstatt.aktuelleLage(erzwingen ? 0 : 10 * 60_000) : null))
 
     // Kamera (Etappe 5/6): Standbild der Reolink im Hauptprozess; Zugangsdaten verschlüsselt, die Oberfläche sieht sie nie
     const kamera = erstelleKamera({ speicher: verschluesselt(path.join(app.getPath('userData'), 'kamera.bin')), protokoll: kameraLog })

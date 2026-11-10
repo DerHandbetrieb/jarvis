@@ -13,7 +13,7 @@ const ZEITGRENZE = 15_000
 const ZWISCHEN_GILT = 10 * 60_000 // so lange darf man sich mit dem QR-/Code-Schritt Zeit lassen
 
 /** Zustände: aus (nicht verbunden), einrichten (QR-Code scannen), code (Code eingeben), verbunden, fehler */
-function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date.now(), takt = 5 * 60_000, protokoll = console.error, zeitgrenze = ZEITGRENZE }) {
+function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date.now(), takt = 5 * 60_000, aktiv = () => true, pruefTakt = 60_000, protokoll = console.error, zeitgrenze = ZEITGRENZE }) {
   let sitzung = null // { access_token, refresh_token, expires_at (ms), user_id }
   let zwischen = null // nach dem Passwort, vor dem Code: { access_token, faktorId, bis }
   let zustand = { zustand: 'aus', fehler: '', qr: '', schluessel: '', stand: null }
@@ -183,7 +183,10 @@ function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date
     })()
     return abruf
   }
-  function starten() { stoppen(); void holeLage(); timer = setInterval(() => void holeLage(), takt) }
+  // Abruf höchstens alle `takt` und nur, solange der PC benutzt wird (aktiv); jede Minute nachsehen, damit nach der Rückkehr
+  // schnell frische Daten da sind (10.11.2026: Supabase-Kontingent knapp, jarvis-lage antwortet ohnehin 10 Minuten gleich)
+  const faellig = () => aktiv() && (!lage || jetzt() - lage.geholt >= takt - 5000)
+  function starten() { stoppen(); void holeLage(); timer = setInterval(() => { if (faellig()) void holeLage() }, Math.min(takt, pruefTakt)) }
   function stoppen() { if (timer) clearInterval(timer); timer = null }
 
   /** beim Programmstart: gespeicherte Sitzung laden (bleibt verbunden); defekte Datei wird gelöscht */
