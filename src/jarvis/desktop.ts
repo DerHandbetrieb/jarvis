@@ -51,7 +51,7 @@ export type JarvisBruecke = {
   /** Anwesenheit: Sekunden ohne Maus/Tastatur, Vollbild-Spiel läuft (Neuigkeiten, 04.11.2026) */
   anwesenheit?: () => Promise<{ ruhe: number; spiel: boolean } | null>
   /** neue Ereignisse aus der Werkstatt abholen (schon mit dem Bekannten abgeglichen; der Hauptprozess hält sie bis dahin) */
-  holeNeuigkeiten?: () => Promise<{ n: Neuigkeit; zeit: number }[] | null>
+  holeNeuigkeiten?: () => Promise<{ n: Neuigkeit; zeit: number; verpasst?: boolean }[] | null>
   ton: (stueck: Float32Array) => void
   beiErkannt: (fn: (d: { text: string; sekunden: number; art?: Hoeren }) => void) => () => void
   beiNiesen: (fn: () => void) => () => void
@@ -67,7 +67,7 @@ export type WerkstattBruecke = {
   verbinden: (email: string, passwort: string) => Promise<WerkstattStatus | null>
   code: (code: string) => Promise<WerkstattStatus | null>
   trennen: () => Promise<WerkstattStatus | null>
-  /** erzwingen = frisch holen statt aus dem Zwischenspeicher (bis 2 Minuten alt) */
+  /** erzwingen = frisch holen statt aus dem Zwischenspeicher (bis 10 Minuten alt) */
   lage: (erzwingen?: boolean) => Promise<WerkstattLage | null>
   beiAenderung: (fn: (s: WerkstattStatus) => void) => () => void
 }

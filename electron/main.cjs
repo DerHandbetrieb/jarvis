@@ -344,7 +344,8 @@ if (!app.requestSingleInstanceLock()) {
       // alle 10 Minuten und nur, solange er in der letzten halben Stunde am PC war (10.11.2026, Hinweis aus der Werkstatt: Free-Plan
       // knapp, jarvis-lage gibt 10 Minuten lang dieselbe Antwort). Ohne frische Messung der Ruhezeit gilt er als anwesend.
       takt: 10 * 60_000,
-      aktiv: () => Date.now() - anwesenheit.gemessen > 60_000 || anwesenheit.ruhe < 30 * 60,
+      ruheTakt: 50 * 60_000, // abwesend: knapp unter einer Stunde, damit das HUD nicht „keine aktuellen Daten“ zeigt
+      aktiv: () => Date.now() - anwesenheit.gemessen > 60_000 || anwesenheit.ruhe < 10 * 60,
     })
     // Neuigkeiten: jede frische Lage mit dem Bekannten abgleichen, nur Neues ans Hauptfenster (das sagt es an)
     const neuDatei = path.join(app.getPath('userData'), 'neuigkeiten.json')
@@ -354,10 +355,14 @@ if (!app.requestSingleInstanceLock()) {
     } })
     // Neues bleibt hier liegen, bis die Oberfläche es abholt – auch während L.O.K.I. lädt oder aus ist (höchstens 24 h, 200 Stück).
     // Sonst wäre es schon „bekannt“, aber nie angesagt (Prüf-Agent).
-    let neuPuffer = []
+    let neuPuffer = [], letzteLage = 0
     werkstatt.beiLage((l) => {
       const t = Date.now()
-      neuPuffer = [...neuPuffer, ...neuigkeiten.abgleichen(l).map((n) => ({ n, zeit: t }))].filter((x) => t - x.zeit < 24 * 3600_000).slice(-200)
+      // lag die vorige Lage länger zurück (er war weg, nur stündlich abgefragt), kann das Neue schon älter sein → als verpasst
+      // kennzeichnen, damit es gesammelt („Während Sie weg waren …“) statt einzeln als „gerade eben“ kommt (Prüf-Agent)
+      const verpasst = letzteLage > 0 && t - letzteLage > 15 * 60_000
+      letzteLage = t
+      neuPuffer = [...neuPuffer, ...neuigkeiten.abgleichen(l).map((n) => ({ n, zeit: t, verpasst }))].filter((x) => t - x.zeit < 24 * 3600_000).slice(-200)
     })
     ipcMain.handle('jarvis-neuigkeiten-holen', (e) => { if (!vonFenster(e)) return null; const p = neuPuffer; neuPuffer = []; return p })
     werkstatt.beiAenderung((s) => { if (!hauptfenster.isDestroyed()) hauptfenster.webContents.send('werkstatt-aenderung', s) })

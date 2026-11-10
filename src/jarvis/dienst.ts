@@ -534,7 +534,7 @@ async function neuAnsagen() {
       const gruppen = [...e.neuGruppen, ...(e.kameraMelden ? ['kamera' as const] : [])]
       const neu = geholt.filter((x) => (istKamera(x.n) ? e.kameraMelden : e.neuigkeiten) && auswaehlen([x.n], gruppen).length)
       protokoll(`Neuigkeiten: ${geholt.length} neu, ${neu.length} zum Ansagen (${neu.map((x) => x.n.art).join(', ') || '–'})`)
-      neuSchlange.push(...neu.map((x) => ({ n: x.n, zeit: x.zeit, verpasst: false })))
+      neuSchlange.push(...neu.map((x) => ({ n: x.n, zeit: x.zeit, verpasst: !!x.verpasst })))
     }
     if (!e.neuigkeiten && !e.kameraMelden) { neuSchlange = []; return }
     neuSchlange = neuSchlange.filter((x) => Date.now() - x.zeit < NEU_HOECHSTENS_MS)

@@ -302,15 +302,35 @@ describe('Abfragetakt (10.11.2026, Supabase-Kontingent)', () => {
       const zahl = () => g.aufrufe.filter((a) => a.pfad.includes('jarvis-lage')).length
       const sp = speicher()
       await sp.schreiben(JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_at: 1e12, user_id: 'loki' }))
-      const w = erstelleWerkstatt({ konfig: KONFIG, speicher: sp, holen: g.holen, jetzt: () => zeit, takt: 600_000, aktiv: () => an, protokoll: () => {} })
+      const w = erstelleWerkstatt({ konfig: KONFIG, speicher: sp, holen: g.holen, jetzt: () => zeit, takt: 600_000, ruheTakt: 3_000_000, aktiv: () => an, protokoll: () => {} })
       await w.laden()
       await vi.waitFor(() => expect(zahl()).toBe(1))
       const minute = async (n) => { for (let i = 0; i < n; i++) { zeit += 60_000; await vi.advanceTimersByTimeAsync(60_000) } }
       await vi.waitFor(() => expect(w.lage()).not.toBeNull())
       await minute(5); expect(zahl()).toBe(1) // vor Ablauf von 10 Minuten nichts
       await minute(5); expect(zahl()).toBe(2) // nach 10 Minuten
-      an = false; await minute(60); expect(zahl()).toBe(2) // weg vom PC: nichts
-      an = true; await minute(1); expect(zahl()).toBe(3) // zurück: gleich frisch
+      an = false; await minute(30); expect(zahl()).toBe(2) // weg vom PC: seltener
+      await minute(20); expect(zahl()).toBe(3) // nach 50 Minuten einmal
+      an = true; await minute(10); expect(zahl()).toBe(4) // zurück: nach Ablauf von 10 Minuten seit dem letzten
+      await minute(1); expect(zahl()).toBe(4)
+      await w.trennen()
+    } finally { vi.useRealTimers() }
+  })
+})
+
+describe('Abfragetakt nach Fehlern (10.11.2026)', () => {
+  it('fragt nach einem Fehler nicht jede Minute neu', async () => {
+    vi.useFakeTimers()
+    try {
+      let zeit = 0, n = 0
+      const g = gegenstelle({ '/functions/v1/jarvis-lage': () => { n++; return n === 1 ? [200, LAGE] : [500, {}] } })
+      const sp = speicher()
+      await sp.schreiben(JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_at: 1e12, user_id: 'loki' }))
+      const w = erstelleWerkstatt({ konfig: KONFIG, speicher: sp, holen: g.holen, jetzt: () => zeit, takt: 600_000, protokoll: () => {} })
+      await w.laden()
+      await vi.waitFor(() => expect(w.lage()).not.toBeNull())
+      for (let i = 0; i < 25; i++) { zeit += 60_000; await vi.advanceTimersByTimeAsync(60_000) }
+      expect(n).toBe(3) // Start, nach 10 und nach 20 Minuten – nicht 15-mal
       await w.trennen()
     } finally { vi.useRealTimers() }
   })

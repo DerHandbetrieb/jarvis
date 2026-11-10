@@ -13,7 +13,7 @@ const ZEITGRENZE = 15_000
 const ZWISCHEN_GILT = 10 * 60_000 // so lange darf man sich mit dem QR-/Code-Schritt Zeit lassen
 
 /** Zustände: aus (nicht verbunden), einrichten (QR-Code scannen), code (Code eingeben), verbunden, fehler */
-function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date.now(), takt = 5 * 60_000, aktiv = () => true, pruefTakt = 60_000, protokoll = console.error, zeitgrenze = ZEITGRENZE }) {
+function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date.now(), takt = 5 * 60_000, ruheTakt = takt, aktiv = () => true, pruefTakt = 60_000, protokoll = console.error, zeitgrenze = ZEITGRENZE }) {
   let sitzung = null // { access_token, refresh_token, expires_at (ms), user_id }
   let zwischen = null // nach dem Passwort, vor dem Code: { access_token, faktorId, bis }
   let zustand = { zustand: 'aus', fehler: '', qr: '', schluessel: '', stand: null }
@@ -162,6 +162,7 @@ function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date
   function holeLage() {
     if (!sitzung) return Promise.resolve(lage)
     if (abruf) return abruf
+    versucht = jetzt()
     const meiner = durchgang
     abruf = (async () => {
       try {
@@ -183,9 +184,11 @@ function erstelleWerkstatt({ konfig, speicher, holen = fetch, jetzt = () => Date
     })()
     return abruf
   }
-  // Abruf höchstens alle `takt` und nur, solange der PC benutzt wird (aktiv); jede Minute nachsehen, damit nach der Rückkehr
-  // schnell frische Daten da sind (10.11.2026: Supabase-Kontingent knapp, jarvis-lage antwortet ohnehin 10 Minuten gleich)
-  const faellig = () => aktiv() && (!lage || jetzt() - lage.geholt >= takt - 5000)
+  // Abruf alle `takt`, solange der PC benutzt wird (aktiv), sonst alle `ruheTakt` (hält das Gedächtnis der Neuigkeiten frisch);
+  // jede Minute nachsehen, damit nach der Rückkehr schnell frische Daten da sind. Gezählt ab dem letzten Versuch – nach einem
+  // Fehler also nicht jede Minute neu (Prüf-Agent). 10.11.2026: Supabase-Kontingent knapp, jarvis-lage antwortet 10 Minuten gleich.
+  let versucht = -Infinity
+  const faellig = () => { const t = aktiv() ? takt : ruheTakt; return jetzt() - versucht >= t - 5000 && (!lage || jetzt() - lage.geholt >= t - 5000) }
   function starten() { stoppen(); void holeLage(); timer = setInterval(() => { if (faellig()) void holeLage() }, Math.min(takt, pruefTakt)) }
   function stoppen() { if (timer) clearInterval(timer); timer = null }
 
