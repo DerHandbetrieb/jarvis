@@ -138,9 +138,18 @@ const frostEbene = () => { const d = document.createElement('div'); document.bod
 /** Zustand von L.O.K.I. für den Reaktor: hört zu / denkt / spricht / aus */
 const reaktorZustand = (l) => (!l || !l.mikrofon || ['aus', 'fehler'].includes(l.zustand) ? 'aus' : l.zustand === 'denkt' ? 'denkt' : l.zustand === 'spricht' ? 'spricht' : 'hoert')
 
+// Bildrate selbst begrenzen (10.11.2026, Rückmeldung Auftraggeber: Wallpaper braucht über 20 % Grafikkarte). Gemessen:
+// Die Einstellung „25 B/s“ in Wallpaper Engine bremst die Web-Seite nicht – sie zeichnete 60-mal je Sekunde. Die Last
+// hängt an der Bildrate (in Electron gemessen: 60 B/s ≈ 21 %, 30 ≈ 11 %, 20 ≈ 7 %). In Wallpaper Engine selbst kommt eine
+// feste Last je angezeigtem Bild dazu (Kopie der ganzen Fläche auf den Desktop): gemessen 25 B/s ≈ 19 %, 10 ≈ 14 %, 1 ≈ 3 %.
+const BILDRATE = 25
+let letztesBild = -1e9
 function schleife(ms, meine = lauf) {
   if (pausiert || meine !== lauf) return
   requestAnimationFrame((n) => schleife(n, meine))
+  // fester Takt (Prüf-Agent): bei 60 Hz abwechselnd jedes zweite und dritte Bild, im Mittel BILDRATE
+  if (ms - letztesBild < 1000 / BILDRATE - 1) return
+  letztesBild = ms - letztesBild > 2000 / BILDRATE ? ms : letztesBild + 1000 / BILDRATE
   const t = ms / 1000, loki = antwort?.loki ?? null
   const tonJetzt = performance.now() - letzterTon < 2000 ? ton : null
   zeichneSzene(g, szene, t, { wetter: antwort?.wetter ?? null, eis: antwort?.eis, versatz: VERSATZ, loki: reaktorZustand(loki), pegel: 0.6 + 0.4 * Math.abs(Math.sin(t * 7)), ton: tonJetzt }) // Reaktor pulsiert im Beat

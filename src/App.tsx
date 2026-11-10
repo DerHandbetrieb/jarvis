@@ -2,7 +2,6 @@
 // Bewusst schlicht – die eigentliche Gestaltung (Start-Sequenz, drei Bildschirme) folgt mit vier Entwürfen zur Wahl.
 import JarvisKnopf from './jarvis/JarvisKnopf'
 import JarvisEinstellungen from './jarvis/JarvisEinstellungen'
-import AutosAmHof from './jarvis/AutosAmHof'
 import { NachfrageHost } from './ui/Nachfrage'
 
 export default function App() {
@@ -15,7 +14,6 @@ export default function App() {
         </div>
         <JarvisKnopf klasse="rounded-full border border-neutral-300 bg-white p-2 hover:bg-neutral-50" />
       </header>
-      <AutosAmHof />
       <JarvisEinstellungen />
       <NachfrageHost />
     </div>

@@ -44,6 +44,7 @@ if (frage.get('eis')) probeWetter.eis = Number(frage.get('eis')) // Prüfhilfe ?
 if (frage.get('kante')) KANTE.art = frage.get('kante')
 if (frage.get('spiegel')) SPIEGEL.abstand = Number(frage.get('spiegel'))
 const tafeln = erstelleTafeln(document.getElementById('tafeln'), 0, { ...(frage.get('gross') ? { skala: Number(frage.get('gross')) } : {}), aufteilung: PROBE_AUFTEILUNG[frage.get('rechts')] ?? null })
+window.tafeln = tafeln // Prüfhilfe: GPU-Messung (scratchpad/gpu-tafeln.cjs)
 const beispiel = ausHud({ wetter: { ort: 'Obersontheim', grad: 9.4, wolken: 70 }, pv: { akku: 64, akkuW: -1200, netzW: -850, pvW: 4300, hausW: 2250, zustand: 0, inselbetrieb: false, zeit: Date.now(), tag: { punkte: beispielTag(), summen: null, zeit: 1, beispiel: true } } }, new Date(), sequenzDaten, () => 'BEWÖLKT')
 addEventListener('keydown', (e) => {
   loki = { 1: 'hoert', 2: 'denkt', 3: 'spricht', 4: 'aus' }[e.key] ?? loki
@@ -55,6 +56,9 @@ function schleife(ms) {
   window.letzteZeit = ms / 1000
   if (stopp) return
   requestAnimationFrame(schleife)
+  const fpsZiel = Number(new URLSearchParams(location.search).get("fps")) || 0 // Prüfhilfe: Bildrate begrenzen
+  if (fpsZiel && ms - (window.fpsLetztes ?? -1e9) < 1000 / fpsZiel - 1) return
+  window.fpsLetztes = ms - (window.fpsLetztes ?? -1e9) > 2000 / fpsZiel ? ms : window.fpsLetztes + 1000 / fpsZiel
   const a = performance.now()
   const pegel = loki === 'spricht' ? 0.5 + 0.5 * Math.abs(Math.sin(ms / 130) * Math.sin(ms / 370)) : 0
   // Prüfhilfe ?beat=120: simulierter Bass-Schlag (Schläge pro Minute) für den Reaktor

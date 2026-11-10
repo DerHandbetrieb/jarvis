@@ -4,7 +4,7 @@
 // (5173 gehört der Werkstatt-App, damit beide gleichzeitig laufen können).
 // Immer bereit (Entscheidung Auftraggeber 03.11.2026): startet mit Windows unsichtbar (Argument --autostart), lebt als
 // Symbol im Infobereich unten rechts; das X versteckt nur das Fenster, beendet wird über das Symbol.
-const { app, BrowserWindow, Menu, Notification, Tray, desktopCapturer, ipcMain, nativeImage, net, protocol, safeStorage, screen, shell, session } = require('electron')
+const { app, BrowserWindow, Menu, Tray, desktopCapturer, ipcMain, nativeImage, net, protocol, safeStorage, screen, shell, session } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const { pathToFileURL } = require('node:url')
@@ -23,8 +23,6 @@ const { wetterAusStation } = require('./himmel.cjs')
 const { erstelleDlfNachrichten } = require('./dlfnachrichten.cjs')
 const { erstelleNeuigkeiten } = require('./neuigkeiten.cjs')
 const { erstelleKamerawache } = require('./kamerawache.cjs')
-const { erstelleAutotest } = require('./autotest.cjs')
-const { erstelleAutobesuche } = require('./autobesuche.cjs')
 const { erstelleMedientasten } = require('./medientasten.cjs')
 const { erstelleLautstaerke } = require('./lautstaerke.cjs')
 const { Readable } = require('node:stream')
@@ -439,34 +437,8 @@ if (!app.requestSingleInstanceLock()) {
     // Kamera-Wache (04.11.2026): linkes Objektiv, nur Personen (Interview). Meldungen laufen über dieselbe Warteschlange
     // wie die Werkstatt-Neuigkeiten – dort gelten „nur wenn er am PC ist“, nie dazwischenreden, Verpasstes gesammelt.
     let kameraAlarm = 0, kameraAlarmArt = 'person'
-    // Machbarkeitstest Auto-Erkennung (07.11.2026, Freigabe Auftraggeber): bei Auto-Meldung drei Standbilder ablegen, befristet
-    const autoOrdner = path.join(app.getPath('userData'), 'auto-test')
-    const autotest = erstelleAutotest({ ordner: autoOrdner, bild: (kanal) => kamera.standbild(kanal), protokoll: kameraLog })
-    // Autos benennen (07.11.2026): Besuche aus den Testbildern, Namen in auto-test/namen.json; Erinnerung per Windows-Mitteilung
-    const autobesuche = erstelleAutobesuche({ ordner: autoOrdner })
-    const autosGeaendert = () => { if (!hauptfenster.isDestroyed()) hauptfenster.webContents.send('autos-aenderung') }
-    ipcMain.handle('autos-liste', (e) => (vonFenster(e) ? { besuche: ((b) => [...b.filter((x) => !x.erledigt), ...b.filter((x) => x.erledigt).slice(0, 40)])(autobesuche.besuche()), bekannte: autobesuche.bekannte(), offen: autobesuche.offen() } : null))
-    ipcMain.handle('autos-bild', (e, d) => (vonFenster(e) ? autobesuche.bild(String(d?.id ?? ''), Number(d?.nr)) : null))
-    ipcMain.handle('autos-benennen', (e, d) => {
-      if (!vonFenster(e)) return false
-      let ok = false
-      try { ok = autobesuche.benennen(String(d?.id ?? ''), d?.name == null ? null : String(d.name), !!d?.keinAuto) } catch (f) { kameraLog('Autos: Speichern fehlgeschlagen', f?.message ?? f) }
-      if (ok) kameraLog('Autos: Besuch benannt')
-      return ok
-    })
-    let autoMitteilung = null // nur eine auf einmal stehen lassen (Windows sammelt sie sonst)
-    const autoErinnern = () => {
-      const n = autobesuche.offen()
-      if (!n || !Notification.isSupported()) return
-      try {
-        autoMitteilung?.close()
-        autoMitteilung = new Notification({ title: 'L.O.K.I. · Auto am Carport', body: n === 1 ? 'Ein neues Auto wurde fotografiert. Klicken, um es zu benennen.' : `${n} Autos warten darauf, benannt zu werden. Klicken zum Benennen.`, silent: true })
-        autoMitteilung.on('click', () => { zeigen(); if (!hauptfenster.isDestroyed()) hauptfenster.webContents.send('autos-zeigen') })
-        autoMitteilung.show()
-      } catch (f) { kameraLog('Autos: Mitteilung fehlgeschlagen', f?.message ?? f) }
-    }
     // Nur das linke Objektiv (Kanal 0) zeigt den Hof; das rechte zeigt nur den Garten (Korrektur Auftraggeber 07.11.2026) –
-    // darum keine Wache rechts. kameraEreignis(kanal) bleibt allgemein (Fotos/Alarmbild vom auslösenden Objektiv).
+    // darum keine Wache rechts. kameraEreignis(kanal) bleibt allgemein (Alarmbild vom auslösenden Objektiv).
     let kameraAlarmKanal = 0, autoGemeldetZeit = -Infinity
     const kameraEreignis = (kanal) => (e) => {
       const seite = kanal === 1 ? 'rechts' : 'links', name = kanal === 1 ? 'rechtes Objektiv' : 'linkes Objektiv'
@@ -478,14 +450,6 @@ if (!app.requestSingleInstanceLock()) {
       kameraLog(`Kamera-Wache: ${e.art === 'auto' ? 'Auto' : 'Person'} erkannt (${name})`)
       // Personen höchstens 2 Stunden aufheben (sonst nach einer Nacht lauter „jemand war da“, Prüf-Agent)
       const einreihen = (n) => { neuPuffer = [...neuPuffer.filter((x) => !['person', 'auto'].includes(x.n.art) || e.zeit - x.zeit < 2 * 3600_000), { n, zeit: e.zeit }].slice(-200) }
-      // Auto während der Testwoche: erst nach dem Ablegen der Fotos (vom selben Objektiv) einreihen, damit Loki „fotografiert“ nur sagt, wenn es stimmt
-      if (e.art === 'auto' && autotest.erlaubt()) {
-        void autotest.autoGemeldet(e.zeit, kanal).then((n) => {
-          einreihen(n > 0 ? { art: 'auto', seite, foto: true } : { art: 'auto', seite })
-          if (n > 0) { autosGeaendert(); autoErinnern() }
-        })
-        return
-      }
       einreihen({ art: e.art, seite })
     }
     const kamerawache = erstelleKamerawache({ abfragen: () => kamera.aiStand(0), protokoll: kameraLog, beimEreignis: kameraEreignis(0) })

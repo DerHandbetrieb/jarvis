@@ -377,13 +377,6 @@ describe('Auto an der Kamera (06.11.2026)', () => {
     expect(ansage([n], { anrede: 'Sir', humor: true, weg: true, spitze: (b: string) => { bereiche.push(b); return null } }).join(' ')).toContain('ein Auto auf dem Grundstück')
     expect(bereiche).toEqual(['auto', 'auto-zurueck'])
   })
-  it('erinnert ans Benennen, wenn Fotos abgelegt wurden', async () => {
-    const { ansage } = await import('./neuigkeiten')
-    const n = { art: 'auto', seite: 'links', foto: true } as const
-    expect(ansage([n], { anrede: 'Sir', humor: false, weg: false })).toEqual(['Sir, ein Auto fährt auf das Grundstück.', 'Ich habe es fotografiert. Einen Namen dürfen Sie ihm im Loki-Fenster geben.'])
-    expect(ansage([n], { anrede: 'Sir', humor: false, weg: true }).join(' ')).toContain('wartet im Loki-Fenster auf einen Namen')
-    expect(ansage([{ art: 'auto', seite: 'links' }], { anrede: 'Sir', humor: false, weg: false }).join(' ')).not.toContain('fotografiert')
-  })
 })
 
 describe('Kamera auf Zuruf', () => {

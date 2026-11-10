@@ -1249,8 +1249,8 @@ export function zeichneSzene(g, s, t, opt = {}) {
   const rotZiel = opt.loki === 'aus' ? 1 : 0, dt = Math.min(0.1, Math.max(0, t - (s.letztesT ?? t))); s.letztesT = t
   s.rot += Math.sign(rotZiel - s.rot) * Math.min(Math.abs(rotZiel - s.rot), dt / 0.6)
   if (mit('aurora')) aurora(g, s, t, an.aurora)
-  sternschnuppen(g, s, t)
-  bergnebel(g, s.nebel2, t, an.grund) // Nebelschwaden in Bergen und Wäldern ziehen langsam (Wunsch Auftraggeber 05.11.2026)
+  if (mit('schnuppen')) sternschnuppen(g, s, t)
+  if (mit('bergnebel')) bergnebel(g, s.nebel2, t, an.grund) // Nebelschwaden in Bergen und Wäldern ziehen langsam (Wunsch Auftraggeber 05.11.2026)
   // aufsteigender Rauch hinter dem Reaktor entfernt (Rückmeldung Auftraggeber 05.11.2026: Reaktor soll klar bleiben)
   if (mit('wasser')) wasser(g, s, t, an.reaktor, an.grund, s.wetter?.sichtbar?.eis ?? 0)
   // Wetter hinter Reaktor und Fenstern: Regen, Schnee, Nebel nach dem echten Wetter (opt.wetter = { code, grad })
@@ -1269,11 +1269,11 @@ export function zeichneSzene(g, s, t, opt = {}) {
 
   const denkt = opt.loki === 'denkt' ? 1 : 0
   const hell = an.runen * (0.85 + 0.15 * Math.sin(t * 0.63))
-  mittelRing(g, s, t * ((Math.PI * 2) / 240) * (1 + denkt * 3) + an.ringDreh, hell * an.ring)
+  if (mit('ring')) mittelRing(g, s, t * ((Math.PI * 2) / 240) * (1 + denkt * 3) + an.ringDreh, hell * an.ring)
   s.zuenden = an.zuenden < 1 ? { welle: an.zuenden, aussen: an.vonAussen } : null
   s.versatz = opt.versatz ?? 0
-  seitenRunen(g, s, s.bahnLinks, t, -6, hell * an.seiten, 4) // links nach oben, rechts nach unten – gegenläufig wie die Mitte
-  seitenRunen(g, s, s.bahnRechts, t, 6, hell * an.seiten, 12)
+  if (mit('runen')) seitenRunen(g, s, s.bahnLinks, t, -6, hell * an.seiten, 4) // links nach oben, rechts nach unten – gegenläufig wie die Mitte
+  if (mit('runen')) seitenRunen(g, s, s.bahnRechts, t, 6, hell * an.seiten, 12)
   /* Frost: eigene Ebene über allem (hud5/frost.js), Stärke aus s.wetter.sichtbar.frost */
   g.restore()
 }

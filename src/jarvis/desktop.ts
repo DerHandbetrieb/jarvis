@@ -97,16 +97,6 @@ export type KameraBruecke = {
   gross?: (kanal: number | null) => Promise<boolean | null>
   entfernen: () => Promise<KameraStatus | null>
 }
-/** Autos benennen (07.11.2026): Besuche aus den Testbildern der Kamera-Wache */
-export type AutoBesuch = { id: string; zeit: string; bilder: number[]; name: string | null; keinAuto: boolean; erledigt: boolean }
-export type AutosBruecke = {
-  liste: () => Promise<{ besuche: AutoBesuch[]; bekannte: string[]; offen: number } | null>
-  bild: (id: string, nr: number) => Promise<string | null>
-  benennen: (id: string, name: string | null, keinAuto?: boolean) => Promise<boolean>
-  beiAenderung: (fn: () => void) => () => void
-  beimZeigen: (fn: () => void) => () => void
-}
-export const autosBruecke = (): AutosBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.autos ?? null : null)
 export const kameraBruecke = (): KameraBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.kamera ?? null : null)
 
 /** PV-Anlage FENECON (05.11.2026): nur lesen; Passwort wird nur weitergereicht, verschlüsselt im Hauptprozess gespeichert */
