@@ -74,12 +74,15 @@ export function erstelleScheibe(huelle, versatz = 0, art = 'a', quelle = null) {
   return { flaeche, nebel, ng: nebel.getContext('2d'), nx, nb, vorlagen: nebelVorlagen(), nebelZahl: 0, spuren, spurNr: 0, tropfen, quelle, versatz, zeit: null, sichtbar: false, bild: 0 }
 }
 
-/** neuer Tropfen trifft auf: klein, wächst durch weiteren Regen, bis er schwer genug zum Rutschen ist */
+/** neuer Tropfen: gleich in fertiger Größe, blendet weich ein (Rückmeldung 11.11.2026: stückweises Wachsen sah ruckelig aus).
+ *  Größe, Form und Linsen-Leinwand werden nur hier festgelegt – danach ändert sich nur noch transform/opacity (kein Flackern). */
 function landen(t, sc, jetzt) {
   t.x = zufall(sc.nx + 12, sc.nx + sc.nb - 12); t.y = zufall(10, UNTEN * 0.85)
-  t.r = zufall(5, 12); t.ziel = zufall(8, 24) // ab etwa 15 rutscht er los
-  t.v = 0; t.laeuft = false; t.haengtPause = 0; t.geboren = jetzt; t.aktiv = true; t.dx = 0; t.ziehX = 0; t.lauf = 0; t.spurAb = 0; t.tropfAb = 0
-  t.form = [zufall(44, 54), zufall(44, 54), zufall(46, 54), zufall(46, 54), zufall(50, 58), zufall(50, 58), zufall(42, 50), zufall(42, 50)]
+  t.r = t.r0 = zufall(7, 22); t.haengtBis = jetzt + zufall(2, 12) // große Tropfen laufen nach einer Weile los, kleine bleiben hängen
+  t.v = 0; t.laeuft = false; t.trocknet = 0; t.haengtPause = 0; t.geboren = jetzt; t.aktiv = true; t.dx = 0; t.ziehX = 0; t.lauf = 0; t.spurAb = 0; t.tropfAb = 0
+  const f = [zufall(44, 54), zufall(44, 54), zufall(46, 54), zufall(46, 54), zufall(50, 58), zufall(50, 58), zufall(42, 50), zufall(42, 50)]
+  Object.assign(t.el.style, { width: t.r0 * 2 + 'px', height: t.r0 * 2 + 'px', transformOrigin: '50% 62%', borderRadius: `${f[0]}% ${f[1]}% ${f[2]}% ${f[3]}% / ${f[4]}% ${f[5]}% ${f[6]}% ${f[7]}%` })
+  const lg = Math.max(8, Math.round(t.r0 * 4)); if (t.linse.width !== lg) { t.linse.width = lg; t.linse.height = lg }
 }
 
 function wischen(sc, x0, y0, x1, y1, r) {
@@ -110,9 +113,8 @@ export function scheibeZeichnen(sc, staerke, t) {
   for (const tr of sc.tropfen) {
     if (!tr.aktiv) { if (aktiv < soll && Math.random() < dt * (0.4 + st)) { landen(tr, sc, t); aktiv++ } else continue }
     if (!tr.laeuft) {
-      tr.r = Math.min(tr.ziel, tr.r + dt * st * zufall(0.3, 1.4)) // wächst durch weiteren Regen
-      if (st <= 0) tr.r -= dt * 0.25 // verdunstet
-      if (tr.r > 15 && Math.random() < dt * 0.35) { tr.laeuft = true; tr.v = 0 }
+      if (st <= 0 && !tr.trocknet) tr.trocknet = t // Regen vorbei: hängende Tropfen trocknen langsam weg (blenden aus)
+      if (tr.r > 14 && t > tr.haengtBis) { tr.laeuft = true; tr.v = 0 }
     } else {
       // rutscht: schwerer = schneller; bleibt an „Unebenheiten“ kurz hängen (ruckweise) und schlängelt leicht
       const vmax = 25 + (tr.r - 12) * 16
@@ -125,7 +127,7 @@ export function scheibeZeichnen(sc, staerke, t) {
       tr.lauf += Math.hypot(tr.x - x0, tr.y - y0)
       if (tr.y !== y0) wischen(sc, x0, y0, tr.x, tr.y, tr.r)
       // zurück bleiben: sehr feine, unregelmäßige Tröpfchen und eine schmale nasse Spur
-      if (tr.lauf - tr.tropfAb > zufall(10, 34)) { tr.tropfAb = tr.lauf; nebelTropfen(sc, tr.x + zufall(-0.4, 0.4) * tr.r, tr.y - tr.r * zufall(0.6, 1.1), true); tr.r -= 0.05 }
+      if (tr.lauf - tr.tropfAb > zufall(10, 34)) { tr.tropfAb = tr.lauf; nebelTropfen(sc, tr.x + zufall(-0.4, 0.4) * tr.r, tr.y - tr.r * zufall(0.6, 1.1), true); tr.r = Math.max(tr.r0 * 0.75, tr.r - 0.03) }
       if (tr.lauf - tr.spurAb > 26) {
         tr.spurAb = tr.lauf
         const s = sc.spuren[sc.spurNr++ % sc.spuren.length], b = tr.r * zufall(0.28, 0.42)
@@ -135,20 +137,16 @@ export function scheibeZeichnen(sc, staerke, t) {
       // schluckt andere Tropfen, auf die er trifft
       for (const o of sc.tropfen) if (o !== tr && o.aktiv && !o.laeuft && Math.hypot(o.x - tr.x, o.y - tr.y) < tr.r + o.r * 0.7) { tr.r = Math.min(26, Math.hypot(tr.r, o.r)); o.aktiv = false; o.el.style.opacity = '0' }
     }
-    if (tr.r < 2.5 || tr.y > UNTEN + tr.r) { tr.aktiv = false; tr.el.style.opacity = '0'; continue }
-    // Form: hängend etwas abgeflacht und unten schwerer, laufend tropfenförmig (unten breit, oben schmal)
-    const lauf = tr.laeuft ? Math.min(1, tr.v / 120) : 0
-    const b = tr.r * 2 * (1 - lauf * 0.12), h = tr.r * 2 * (0.94 + lauf * 0.55)
-    const f = tr.form, oben = 50 + lauf * 18
-    tr.el.style.width = b + 'px'; tr.el.style.height = h + 'px'
-    tr.el.style.borderRadius = `${f[0]}% ${f[1]}% ${f[2]}% ${f[3]}% / ${oben + f[4] - 54}% ${oben + f[5] - 54}% ${100 - oben - f[6] + 46}% ${100 - oben - f[7] + 46}%`
-    const ein = Math.min(1, (t - tr.geboren) / 0.25)
-    tr.el.style.transform = `translate(${tr.x - b / 2}px, ${tr.y - h * 0.62}px) scale(${ein})`
-    tr.el.style.opacity = String(Math.max(0, Math.min(1, (UNTEN - 6 - tr.y) / 40)))
+    const trocken = tr.trocknet ? Math.max(0, 1 - (t - tr.trocknet) / 25) : 1
+    if (trocken <= 0 || tr.y > UNTEN + tr.r) { tr.aktiv = false; tr.el.style.opacity = '0'; continue }
+    // Form nur über transform: hängend rund, laufend etwas länglich (unten schwer); geschluckte Tropfen machen ihn größer
+    const lauf = tr.laeuft ? Math.min(1, tr.v / 120) : 0, k = tr.r / tr.r0
+    tr.el.style.transform = `translate(${tr.x - tr.r0}px, ${tr.y - tr.r0 * 1.24}px) scale(${k * (1 - lauf * 0.12)}, ${k * (0.96 + lauf * 0.5)})`
+    const ein = Math.min(1, (t - tr.geboren) / 0.9) // weich einblenden
+    tr.el.style.opacity = String(ein * ein * trocken * Math.max(0, Math.min(1, (UNTEN - 6 - tr.y) / 40)))
     // Linse: weiter Ausschnitt der Szene, auf dem Kopf (jedes zweite Bild genügt)
     if (sc.quelle && (sc.bild + Math.floor(tr.x)) % 2 === 0) {
-      const lb = Math.max(4, Math.round(b)), lh = Math.max(4, Math.round(h))
-      if (tr.linse.width !== lb || tr.linse.height !== lh) { tr.linse.width = lb; tr.linse.height = lh }
+      const lb = tr.linse.width, lh = tr.linse.height
       const w = tr.r * 14, sx = tr.x - sc.versatz - w / 2, sy = tr.y - w * 0.6
       tr.lg.setTransform(-1, 0, 0, -1, lb, lh)
       try { tr.lg.drawImage(sc.quelle, sx, sy, w, w * 1.2, 0, 0, lb, lh) } catch { /* Rand der Leinwand */ }
