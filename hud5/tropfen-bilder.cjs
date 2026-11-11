@@ -9,7 +9,7 @@ app.whenReady().then(async () => {
   f.setSize(5760, 1080); f.webContents.setFrameRate(30)
   for (const art of (process.env.TROPFEN || 'a,b,c,d').split(',')) {
     await f.loadURL(`http://localhost:5179/vorschau.html?station=regen&tropfen=${art}&regen=0.9`)
-    await new Promise((r) => setTimeout(r, 14000))
+    await new Promise((r) => setTimeout(r, Number(process.env.WARTEN || 14000)))
     const bild = await f.webContents.capturePage({ x: 0, y: 0, width: 5760, height: 1080 })
     const g = bild.getSize(), k = g.width / 5760
     fs.writeFileSync(path.join(ziel, `tropfen-${art}.png`), bild.crop({ x: Math.round(3840 * k), y: 0, width: Math.round(1920 * k), height: Math.round(1080 * k) }).toPNG())

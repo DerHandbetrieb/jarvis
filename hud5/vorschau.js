@@ -71,7 +71,7 @@ function schleife(ms) {
   const fv = s.wetter?.sichtbar?.frost ?? 0; if (fv > 0 && !window.frostE) { const d = document.createElement('div'); c.parentElement.appendChild(d); window.frostE = erstelleFrost(d, zoom ? 1920 : 0) } if (window.frostE) { frostStellen(window.frostE, fv); frostGrad(window.frostE, Number(new URLSearchParams(location.search).get('grad') ?? -4)) }
   // Prüfhilfe ?tropfen=a|b|c|d (Regentropfen auf der Scheibe, Entwürfe 11.11.2026), ?regen=0..1 Stärke
   const tropfenArt = new URLSearchParams(location.search).get('tropfen')
-  if (tropfenArt) { if (!window.scheibe) { const d = document.createElement('div'); c.parentElement.appendChild(d); window.scheibe = erstelleScheibe(d, zoom ? 1920 : 0, tropfenArt) } scheibeZeichnen(window.scheibe, Number(new URLSearchParams(location.search).get('regen') ?? s.wetter?.sichtbar?.regen ?? 0.8), ms / 1000, 4) }
+  if (tropfenArt) { if (!window.scheibe) { const d = document.createElement('div'); c.parentElement.appendChild(d); window.scheibe = erstelleScheibe(d, zoom ? 1920 : 0, tropfenArt, c) } scheibeZeichnen(window.scheibe, Number(new URLSearchParams(location.search).get('regen') ?? s.wetter?.sichtbar?.regen ?? 0.8), ms / 1000) }
   if (new URLSearchParams(location.search).has('kamgross')) kameraGross(tafeln, 0)
   zeichneTafeln(tafeln, { ...beispiel, ton, loki: { zustand: { hoert: 'bereit', denkt: 'denkt', spricht: 'spricht', aus: 'aus' }[loki], mikrofon: loki !== 'aus', whatsapp: Number(new URLSearchParams(location.search).get('wa') ?? 0) }, medien: probeLied }, ms / 1000)
   const dauer = performance.now() - a

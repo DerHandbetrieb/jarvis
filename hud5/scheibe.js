@@ -1,118 +1,159 @@
-// Regentropfen auf der Scheibe (Entwürfe 11.11.2026, Wunsch Auftraggeber: bei Regen Tropfen, die vorn über den Monitor
-// laufen, als hingen sie an einer Glasscheibe; was dahinter liegt, wird im Tropfen unscharf). Daten: nur die Regenstärke,
-// die die Szene schon aus der eigenen Wetterstation ableitet (s.wetter.sichtbar.regen) – kein Supabase.
-// Aufbau wie der Frost: eine Ebene über allem; jeder Tropfen ist ein kleines Element mit backdrop-filter (verschwimmt das
-// Dahinterliegende), Glanzlicht und Schatten. Bewegt wird nur über transform – das rechnet die Grafikkarte billig.
-// Unten bleibt die Taskleiste frei (48 Bildpunkte): Tropfen verblassen vorher.
+// Regentropfen außen an der Scheibe (zweite Fassung 11.11.2026). Korrektur Auftraggeber: Er steht INNEN und schaut hinaus,
+// die Tropfen hängen außen am Glas – die erste Fassung sah aus wie von draußen auf eine beregnete Scheibe; die
+// zurückbleibenden Perlen wirkten unecht. Daten: nur die Regenstärke aus der eigenen Wetterstation (kein Supabase).
+//
+// Vorbilder (Recherche 11.11.2026): Ein Tropfen ist eine kleine Linse – er zeigt einen weiten Ausschnitt der Landschaft
+// auf dem Kopf, ist heller als das Glas daneben und hat einen dunklen Rand; kein Schatten zum Betrachter hin. Tropfen
+// hängen, wachsen, bis sie schwer genug sind, rutschen dann ruckweise und leicht schlängelnd, schlucken was im Weg liegt
+// und lassen eine schmale nasse Spur mit sehr feinen, unregelmäßigen Tröpfchen zurück; den feinen Sprühnebel auf der
+// Scheibe wischen sie dabei weg.
+//
+// Aufbau: (1) Sprühnebel = eine durchsichtige Leinwand mit winzigen Tröpfchen, in die laufende Tropfen ihre Bahn wischen.
+// (2) Jeder größere Tropfen = Element mit backdrop-filter (Fenster und Szene dahinter verschwimmen) und einer kleinen
+// Leinwand, die den Szenen-Ausschnitt gespiegelt (auf dem Kopf) zeigt. (3) Nasse Spuren = schmale, unscharfe Streifen,
+// die langsam trocknen. Bewegt wird über transform. Unten bleibt die Taskleiste frei.
 import { B, H } from './szene.js'
 
 const UNTEN = H - 48
-export const ENTWUERFE = {
-  // A: wenige große Perlen, hängen lange, rutschen dann ruckweise und lassen kleine Tröpfchen zurück
-  a: { name: 'Große Perlen', anzahl: 34, gr: [30, 64], haengen: [2, 9], tempo: [70, 170], spur: 0.5, rinnsal: false, schraeg: 0, blur: 7, beschlag: 0 },
-  // B: beschlagene Scheibe – viele feine Perlen, die meisten bleiben stehen, ab und zu läuft einer los
-  b: { name: 'Beschlagene Scheibe', anzahl: 26, gr: [18, 40], haengen: [4, 14], tempo: [60, 140], spur: 0.35, rinnsal: false, schraeg: 0, blur: 6, beschlag: 140 },
-  // C: Rinnsale – laufende Tropfen ziehen eine nasse, unscharfe Bahn hinter sich her
-  c: { name: 'Rinnsale', anzahl: 32, gr: [24, 48], haengen: [1, 5], tempo: [140, 320], spur: 0, rinnsal: true, schraeg: 0, blur: 7, beschlag: 0 },
-  // D: Schräg im Wind – Tropfen werden seitlich getrieben, länglich, schneller
-  d: { name: 'Schräg im Wind', anzahl: 40, gr: [18, 40], haengen: [0.3, 2.5], tempo: [220, 420], spur: 0.25, rinnsal: false, schraeg: 0.45, blur: 6, beschlag: 0 },
+const NEBEL_S = 1 // Sprühnebel in voller Auflösung: halb aufgelöst wirkten die Tröpfchen grau und verwaschen wie Schnee
+const zufall = (a, b) => a + Math.random() * (b - a)
+export const ENTWUERFE = { a: { name: 'Tropfen außen an der Scheibe' } }
+
+/** kleine Vorlagen für Nebel-Tröpfchen: dunkler Rand, heller Kern – wie winzige Linsen */
+function nebelVorlagen() {
+  return [0.9, 1.2, 1.5, 1.9, 2.4].map((r) => {
+    const c = document.createElement('canvas'), s = Math.ceil(r * 2 + 2); c.width = c.height = s
+    const g = c.getContext('2d'), m = s / 2, v = g.createRadialGradient(m - r * 0.15, m - r * 0.2, 0, m, m, r)
+    // fast durchsichtig: winziger heller Lichtpunkt, feiner dunkler Rand – aus der Nähe wie Struktur auf dem Glas, nicht wie Flocken
+    v.addColorStop(0, 'rgba(235,252,255,0.22)'); v.addColorStop(0.3, 'rgba(200,235,245,0.04)'); v.addColorStop(0.72, 'rgba(0,8,12,0.10)'); v.addColorStop(0.9, 'rgba(0,8,12,0.26)'); v.addColorStop(1, 'rgba(0,0,0,0)')
+    g.fillStyle = v; g.beginPath(); g.ellipse(m, m, r, r * zufall(0.85, 1.05), 0, 0, Math.PI * 2); g.fill()
+    return { c, r }
+  })
 }
 
-const zufall = (a, b) => a + Math.random() * (b - a)
-function tropfenElement(blur) {
+function tropfenElement() {
   const d = document.createElement('div')
   Object.assign(d.style, {
-    position: 'absolute', left: '0', top: '0', willChange: 'transform, opacity', pointerEvents: 'none',
-    // jede Perle etwas anders geformt (Wasser auf Glas ist nie ganz rund)
-    borderRadius: `${46 + Math.random() * 8}% ${46 + Math.random() * 8}% ${44 + Math.random() * 8}% ${44 + Math.random() * 8}% / ${52 + Math.random() * 8}% ${52 + Math.random() * 8}% ${42 + Math.random() * 6}% ${42 + Math.random() * 6}%`,
-    backdropFilter: `blur(${blur}px) brightness(1.18) contrast(1.08) saturate(1.2)`, webkitBackdropFilter: `blur(${blur}px) brightness(1.18) contrast(1.08) saturate(1.2)`,
-    // Glanzlicht oben links (Fensterlicht), heller Saum unten (Lichtbrechung), dunkler Rand oben (Schatten der Linse)
-    background: 'radial-gradient(circle at 32% 26%, rgba(255,255,255,0.85) 0 4%, rgba(255,255,255,0) 11%), radial-gradient(ellipse 60% 30% at 50% 86%, rgba(220,250,255,0.32), rgba(255,255,255,0) 70%), radial-gradient(circle at 50% 50%, rgba(255,255,255,0) 62%, rgba(0,10,15,0.28) 100%)',
-    boxShadow: 'inset 0 3px 4px rgba(0,0,0,0.5), inset 0 -3px 5px rgba(210,245,255,0.35), 0 3px 5px rgba(0,0,0,0.3)',
+    position: 'absolute', left: '0', top: '0', willChange: 'transform, opacity', pointerEvents: 'none', overflow: 'hidden', opacity: '0',
+    backdropFilter: 'blur(7px) brightness(1.28) saturate(1.1)', webkitBackdropFilter: 'blur(7px) brightness(1.28) saturate(1.1)',
   })
-  return d
+  const linse = document.createElement('canvas') // Landschaft auf dem Kopf
+  Object.assign(linse.style, { position: 'absolute', inset: '0', width: '100%', height: '100%', opacity: '0.7', mixBlendMode: 'screen' })
+  const rand = document.createElement('div') // dunkler Brechungsrand, heller Lichtsaum unten innen – kein Schatten nach außen
+  Object.assign(rand.style, { position: 'absolute', inset: '0', borderRadius: 'inherit',
+    background: 'radial-gradient(ellipse 50% 22% at 50% 80%, rgba(225,250,255,0.28), rgba(225,250,255,0) 75%), radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 0 56%, rgba(0,12,16,0.22) 74%, rgba(0,6,9,0.62) 93%, rgba(0,0,0,0.35) 100%)',
+    boxShadow: 'inset 0 0 0 0.6px rgba(0,0,0,0.35)' })
+  d.appendChild(linse); d.appendChild(rand)
+  return { el: d, linse, lg: linse.getContext('2d') }
 }
 
-/** Ebene anlegen. huelle: Element über Szene und Fenstern; versatz 1920 = nur mittlerer Bildschirm */
-export function erstelleScheibe(huelle, versatz = 0, art = 'a') {
-  const e = ENTWUERFE[art] ?? ENTWUERFE.a
+/** Ebene anlegen. huelle: Element über Szene und Fenstern; versatz 1920 = nur mittlerer Bildschirm; quelle: Szenen-Leinwand */
+export function erstelleScheibe(huelle, versatz = 0, art = 'a', quelle = null) {
+  void art
   const flaeche = document.createElement('div')
   Object.assign(flaeche.style, { position: 'absolute', left: '0', top: '0', width: B + 'px', height: H + 'px', transformOrigin: '0 0', pointerEvents: 'none', overflow: 'hidden' })
   Object.assign(huelle.style, { position: 'absolute', inset: '0', overflow: 'hidden', pointerEvents: 'none' })
   huelle.appendChild(flaeche)
   const passen = () => { const f = (huelle.clientHeight || innerHeight) / H; flaeche.style.transform = `scale(${f}) translateX(${-versatz}px)` }
   passen(); addEventListener('resize', passen)
-  const tropfen = [], spuren = [], perlen = []
-  for (let i = 0; i < e.anzahl; i++) { const el = tropfenElement(e.blur); flaeche.appendChild(el); tropfen.push({ el, aktiv: false }) }
-  // zurückgelassene Tröpfchen (feste Menge, reihum wiederverwendet)
-  const spurZahl = Math.round(e.anzahl * e.spur * 4)
-  for (let i = 0; i < spurZahl; i++) { const el = tropfenElement(Math.max(2, e.blur - 2)); el.style.opacity = '0'; flaeche.appendChild(el); spuren.push({ el, bis: 0, x: 0, y: 0, r: 0 }) }
-  // Rinnsal: eine längliche, nasse Bahn je Tropfen
-  if (e.rinnsal) for (const t of tropfen) {
+  // Sprühnebel (nur der sichtbare Bereich: bei einem Bildschirm nur die Mitte)
+  const nx = versatz, nb = versatz ? 1920 : B
+  const nebel = document.createElement('canvas'); nebel.width = Math.round(nb * NEBEL_S); nebel.height = Math.round(UNTEN * NEBEL_S)
+  Object.assign(nebel.style, { position: 'absolute', left: nx + 'px', top: '0', width: nb + 'px', height: UNTEN + 'px', opacity: '0' })
+  flaeche.appendChild(nebel)
+  const spuren = []
+  for (let i = 0; i < 70; i++) {
     const el = document.createElement('div')
-    Object.assign(el.style, { position: 'absolute', left: '0', top: '0', transformOrigin: '50% 100%', willChange: 'transform, opacity', borderRadius: '40%', pointerEvents: 'none',
-      backdropFilter: 'blur(4px) brightness(1.14) saturate(1.15)', webkitBackdropFilter: 'blur(4px) brightness(1.14) saturate(1.15)', background: 'linear-gradient(to right, rgba(0,10,15,0.18), rgba(220,250,255,0) 30%, rgba(220,250,255,0) 65%, rgba(220,250,255,0.22)), linear-gradient(to bottom, rgba(220,250,255,0), rgba(220,250,255,0.12))', boxShadow: 'inset 1px 0 1px rgba(0,0,0,0.25), inset -1px 0 1px rgba(220,250,255,0.25)' })
-    flaeche.insertBefore(el, flaeche.firstChild); t.bahn = el
+    Object.assign(el.style, { position: 'absolute', left: '0', top: '0', opacity: '0', willChange: 'opacity', pointerEvents: 'none', borderRadius: '45%',
+      backdropFilter: 'blur(2.5px) brightness(1.12)', webkitBackdropFilter: 'blur(2.5px) brightness(1.12)',
+      background: 'linear-gradient(to right, rgba(0,10,14,0.22), rgba(0,0,0,0) 35%, rgba(0,0,0,0) 70%, rgba(225,250,255,0.16))' })
+    flaeche.appendChild(el); spuren.push({ el, bis: 0, dauer: 1 })
   }
-  // Beschlag: viele winzige, stehende Perlen (einmal verteilt, Sichtbarkeit folgt der Regenstärke)
-  for (let i = 0; i < e.beschlag; i++) {
-    const el = tropfenElement(1.5), r = zufall(3, 8)
-    Object.assign(el.style, { width: r * 2 + 'px', height: r * 2 + 'px', opacity: '0', transform: `translate(${zufall(0, B)}px, ${zufall(0, UNTEN - 30)}px)` })
-    flaeche.appendChild(el); perlen.push({ el, schwelle: Math.random() })
-  }
-  return { flaeche, e, tropfen, spuren, spurNr: 0, perlen, staerke: -1, zeit: null, sichtbar: false }
+  const tropfen = []
+  for (let i = 0; i < 60; i++) { const t = tropfenElement(); flaeche.appendChild(t.el); tropfen.push({ ...t, aktiv: false }) }
+  return { flaeche, nebel, ng: nebel.getContext('2d'), nx, nb, vorlagen: nebelVorlagen(), nebelZahl: 0, spuren, spurNr: 0, tropfen, quelle, versatz, zeit: null, sichtbar: false, bild: 0 }
 }
 
-function neu(t, e, jetzt, oben = false) {
-  t.r = zufall(e.gr[0], e.gr[1]) / 2
-  t.x = zufall(20, B - 20); t.y = oben ? zufall(-40, 200) : zufall(20, UNTEN * 0.75)
-  t.v = 0; t.vmax = zufall(e.tempo[0], e.tempo[1]) * (0.7 + t.r / 25)
-  t.bisHaengen = jetzt + zufall(e.haengen[0], e.haengen[1]); t.geboren = jetzt; t.aktiv = true; t.wackel = Math.random() * 10; t.lauf = 0; t.spurAb = 0
-  t.el.style.width = t.r * 2 + 'px'; t.el.style.height = t.r * 2.15 + 'px'
+/** neuer Tropfen trifft auf: klein, wächst durch weiteren Regen, bis er schwer genug zum Rutschen ist */
+function landen(t, sc, jetzt) {
+  t.x = zufall(sc.nx + 12, sc.nx + sc.nb - 12); t.y = zufall(10, UNTEN * 0.85)
+  t.r = zufall(5, 12); t.ziel = zufall(8, 24) // ab etwa 15 rutscht er los
+  t.v = 0; t.laeuft = false; t.haengtPause = 0; t.geboren = jetzt; t.aktiv = true; t.dx = 0; t.ziehX = 0; t.lauf = 0; t.spurAb = 0; t.tropfAb = 0
+  t.form = [zufall(44, 54), zufall(44, 54), zufall(46, 54), zufall(46, 54), zufall(50, 58), zufall(50, 58), zufall(42, 50), zufall(42, 50)]
 }
 
-/** je Bild: staerke 0..1 (Regen), t Sekunden, wind optional (m/s, für Entwurf D) */
-export function scheibeZeichnen(sc, staerke, t, wind = 3) {
-  const { e, tropfen, spuren, perlen } = sc
+function wischen(sc, x0, y0, x1, y1, r) {
+  const g = sc.ng, k = NEBEL_S
+  g.save(); g.globalCompositeOperation = 'destination-out'; g.lineCap = 'round'; g.lineWidth = r * 2.1 * k
+  g.beginPath(); g.moveTo((x0 - sc.nx) * k, y0 * k); g.lineTo((x1 - sc.nx) * k, y1 * k); g.stroke(); g.restore()
+}
+function nebelTropfen(sc, x, y, klein = false) {
+  const v = sc.vorlagen[klein ? Math.floor(Math.random() * 2) : Math.floor(Math.random() * sc.vorlagen.length)], k = NEBEL_S
+  sc.ng.drawImage(v.c, (x - sc.nx) * k - v.c.width / 2, y * k - v.c.height / 2)
+}
+
+/** je Bild: staerke 0..1 (Regen der Station), t Sekunden */
+export function scheibeZeichnen(sc, staerke, t) {
   const dt = sc.zeit == null ? 0 : Math.min(0.1, Math.max(0, t - sc.zeit)); sc.zeit = t
-  const st = Math.round(Math.max(0, Math.min(1, staerke)) * 100) / 100
+  const st = Math.max(0, Math.min(1, staerke))
   if (st <= 0 && !sc.sichtbar) return
-  sc.sichtbar = st > 0 || tropfen.some((x) => x.aktiv)
-  const soll = Math.round(e.anzahl * st)
-  let aktiv = tropfen.filter((x) => x.aktiv).length
-  for (const tr of tropfen) {
-    if (!tr.aktiv) {
-      if (aktiv < soll && Math.random() < dt * 1.5) { neu(tr, e, t, Math.random() < 0.3); aktiv++ } else { tr.el.style.opacity = '0'; if (tr.bahn) tr.bahn.style.opacity = '0'; continue }
-    }
-    const ein = Math.min(1, (t - tr.geboren) / 0.35) // auftreffen: kurz wachsen
-    if (t > tr.bisHaengen) { // rinnt: beschleunigt, wackelt seitlich, Wind schiebt (D)
-      tr.v = Math.min(tr.vmax, tr.v + dt * tr.vmax * 2.2)
-      tr.y += tr.v * dt
-      tr.x += (Math.sin(t * 3 + tr.wackel) * 6 + e.schraeg * (40 + wind * 25)) * dt * (tr.v / tr.vmax)
-      tr.lauf += tr.v * dt
-      // ab und zu wieder hängen bleiben (Stopp-und-Los wie echte Tropfen)
-      if (!e.rinnsal && Math.random() < dt * 0.25) { tr.bisHaengen = t + zufall(0.3, 2); tr.v = 0 }
-      // kleine Tröpfchen zurücklassen
-      if (spuren.length && tr.lauf - tr.spurAb > zufall(35, 90)) {
-        tr.spurAb = tr.lauf; tr.r *= 0.985
-        const s = spuren[sc.spurNr++ % spuren.length]; s.r = tr.r * zufall(0.25, 0.45); s.x = tr.x + zufall(-2, 2); s.y = tr.y - tr.r; s.bis = t + zufall(3, 7)
-        s.el.style.width = s.r * 2 + 'px'; s.el.style.height = s.r * 2.1 + 'px'; s.el.style.transform = `translate(${s.x - s.r}px, ${s.y - s.r}px)`
+  sc.bild++
+  // Sprühnebel: bei Regen kommen ständig feine Tröpfchen dazu, ohne Regen trocknet die Scheibe langsam ab
+  const nebelSoll = st * 5200
+  if (st > 0 && sc.nebelZahl < nebelSoll) { const n = Math.ceil(dt * (120 + 600 * st)); for (let i = 0; i < n; i++) nebelTropfen(sc, zufall(sc.nx, sc.nx + sc.nb), zufall(0, UNTEN)); sc.nebelZahl += n }
+  if (st > 0 && Math.random() < dt * 0.5) sc.nebelZahl *= 0.97 // nachfüllen, wo gewischt wurde
+  const no = Number(sc.nebel.style.opacity) || 0, nziel = st > 0 ? 1 : 0
+  if (no !== nziel) { const neu = Math.max(0, Math.min(1, no + Math.sign(nziel - no) * dt / (nziel ? 3 : 40))); sc.nebel.style.opacity = String(neu); if (neu === 0) { sc.ng.clearRect(0, 0, sc.nebel.width, sc.nebel.height); sc.nebelZahl = 0 } }
+  const soll = Math.round(sc.tropfen.length * st)
+  let aktiv = 0
+  for (const tr of sc.tropfen) if (tr.aktiv) aktiv++
+  for (const tr of sc.tropfen) {
+    if (!tr.aktiv) { if (aktiv < soll && Math.random() < dt * (0.4 + st)) { landen(tr, sc, t); aktiv++ } else continue }
+    if (!tr.laeuft) {
+      tr.r = Math.min(tr.ziel, tr.r + dt * st * zufall(0.3, 1.4)) // wächst durch weiteren Regen
+      if (st <= 0) tr.r -= dt * 0.25 // verdunstet
+      if (tr.r > 15 && Math.random() < dt * 0.35) { tr.laeuft = true; tr.v = 0 }
+    } else {
+      // rutscht: schwerer = schneller; bleibt an „Unebenheiten“ kurz hängen (ruckweise) und schlängelt leicht
+      const vmax = 25 + (tr.r - 12) * 16
+      if (Math.random() < dt * 0.5) tr.haengtPause = t + zufall(0.15, 1.2)
+      tr.v = t < tr.haengtPause ? 0 : Math.min(vmax, tr.v + dt * vmax * 1.6)
+      if (Math.random() < dt * 1.2) tr.ziehX = zufall(-1, 1) * tr.r * 0.5
+      const x0 = tr.x, y0 = tr.y
+      tr.dx += (tr.ziehX - tr.dx) * Math.min(1, dt * 3)
+      tr.y += tr.v * dt; tr.x += (tr.dx * tr.v / Math.max(1, vmax)) * dt * 2
+      tr.lauf += Math.hypot(tr.x - x0, tr.y - y0)
+      if (tr.y !== y0) wischen(sc, x0, y0, tr.x, tr.y, tr.r)
+      // zurück bleiben: sehr feine, unregelmäßige Tröpfchen und eine schmale nasse Spur
+      if (tr.lauf - tr.tropfAb > zufall(10, 34)) { tr.tropfAb = tr.lauf; nebelTropfen(sc, tr.x + zufall(-0.4, 0.4) * tr.r, tr.y - tr.r * zufall(0.6, 1.1), true); tr.r -= 0.05 }
+      if (tr.lauf - tr.spurAb > 26) {
+        tr.spurAb = tr.lauf
+        const s = sc.spuren[sc.spurNr++ % sc.spuren.length], b = tr.r * zufall(0.28, 0.42)
+        s.dauer = zufall(5, 12); s.bis = t + s.dauer
+        Object.assign(s.el.style, { width: b * 2 + 'px', height: '30px', transform: `translate(${tr.x - b}px, ${tr.y - tr.r - 30}px)` })
       }
+      // schluckt andere Tropfen, auf die er trifft
+      for (const o of sc.tropfen) if (o !== tr && o.aktiv && !o.laeuft && Math.hypot(o.x - tr.x, o.y - tr.y) < tr.r + o.r * 0.7) { tr.r = Math.min(26, Math.hypot(tr.r, o.r)); o.aktiv = false; o.el.style.opacity = '0' }
     }
-    const streck = e.schraeg ? 1 + tr.v / tr.vmax * 0.6 : 1 + tr.v / tr.vmax * 0.25 // schnell = länglich
-    const winkel = e.schraeg ? -Math.atan2(e.schraeg * (40 + wind * 25), Math.max(1, tr.v)) * (tr.v / tr.vmax) : 0
-    const ausblenden = Math.max(0, Math.min(1, (UNTEN - 10 - tr.y) / 60))
-    tr.el.style.transform = `translate(${tr.x - tr.r}px, ${tr.y - tr.r}px) rotate(${winkel}rad) scale(${ein}, ${ein * streck})`
-    tr.el.style.opacity = String(ausblenden)
-    if (tr.bahn) {
-      const lang = Math.min(tr.lauf, 420)
-      tr.bahn.style.width = tr.r * 1.1 + 'px'; tr.bahn.style.height = Math.max(1, lang) + 'px'
-      tr.bahn.style.transform = `translate(${tr.x - tr.r * 0.55}px, ${tr.y - lang}px)`
-      tr.bahn.style.opacity = String(ausblenden * Math.min(1, lang / 40))
+    if (tr.r < 2.5 || tr.y > UNTEN + tr.r) { tr.aktiv = false; tr.el.style.opacity = '0'; continue }
+    // Form: hängend etwas abgeflacht und unten schwerer, laufend tropfenförmig (unten breit, oben schmal)
+    const lauf = tr.laeuft ? Math.min(1, tr.v / 120) : 0
+    const b = tr.r * 2 * (1 - lauf * 0.12), h = tr.r * 2 * (0.94 + lauf * 0.55)
+    const f = tr.form, oben = 50 + lauf * 18
+    tr.el.style.width = b + 'px'; tr.el.style.height = h + 'px'
+    tr.el.style.borderRadius = `${f[0]}% ${f[1]}% ${f[2]}% ${f[3]}% / ${oben + f[4] - 54}% ${oben + f[5] - 54}% ${100 - oben - f[6] + 46}% ${100 - oben - f[7] + 46}%`
+    const ein = Math.min(1, (t - tr.geboren) / 0.25)
+    tr.el.style.transform = `translate(${tr.x - b / 2}px, ${tr.y - h * 0.62}px) scale(${ein})`
+    tr.el.style.opacity = String(Math.max(0, Math.min(1, (UNTEN - 6 - tr.y) / 40)))
+    // Linse: weiter Ausschnitt der Szene, auf dem Kopf (jedes zweite Bild genügt)
+    if (sc.quelle && (sc.bild + Math.floor(tr.x)) % 2 === 0) {
+      const lb = Math.max(4, Math.round(b)), lh = Math.max(4, Math.round(h))
+      if (tr.linse.width !== lb || tr.linse.height !== lh) { tr.linse.width = lb; tr.linse.height = lh }
+      const w = tr.r * 14, sx = tr.x - sc.versatz - w / 2, sy = tr.y - w * 0.6
+      tr.lg.setTransform(-1, 0, 0, -1, lb, lh)
+      try { tr.lg.drawImage(sc.quelle, sx, sy, w, w * 1.2, 0, 0, lb, lh) } catch { /* Rand der Leinwand */ }
     }
-    if (tr.y > UNTEN || tr.x < -40 || tr.x > B + 40) tr.aktiv = false
   }
-  for (const s of spuren) { const rest = s.bis - t; s.el.style.opacity = rest > 0 ? String(Math.min(1, rest / 1.5) * Math.max(0, Math.min(1, (UNTEN - 10 - s.y) / 60))) : '0' }
-  if (perlen.length && Math.abs(st - sc.staerke) > 0.01) for (const p of perlen) p.el.style.opacity = p.schwelle < st ? '0.85' : '0'
-  sc.staerke = st
+  for (const s of sc.spuren) { const rest = s.bis - t; s.el.style.opacity = rest > 0 ? String(Math.min(0.9, rest / s.dauer)) : '0' }
+  sc.sichtbar = st > 0 || sc.tropfen.some((x) => x.aktiv) || (Number(sc.nebel.style.opacity) || 0) > 0
 }
