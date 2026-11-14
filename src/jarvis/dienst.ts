@@ -10,7 +10,6 @@ import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
 import { BEGRUESSUNGEN, naechsteBegruessung, sequenzGruss } from './begruessung'
 import { waehle, stand } from './rotation'
-import { NIES_SPRUECHE } from './niesenSprueche'
 import { nachrichtenSaetze } from './nachrichten'
 import { nachschub } from './nachschub'
 import { ALLE as FUNDUS_ALLE } from './fundus'
@@ -234,7 +233,7 @@ export async function morgenLageVortragen(voll = false) {
   vortrag++
   try { await lageUndNachrichten(voll) } finally { vortrag-- }
 }
-/** läuft gerade Lage oder Nachrichten (Neuigkeiten und Niesen warten) */
+/** läuft gerade Lage oder Nachrichten (Neuigkeiten warten) */
 let vortrag = 0
 async function lageUndNachrichten(voll: boolean) {
   const e = jarvisEinstellungen()
@@ -490,7 +489,6 @@ export function spruchPools(): Record<string, string[]> {
     ...Object.fromEntries(([...Object.keys(NEU_SPITZEN), 'kamera', 'kamera-zurueck', 'auto', 'auto-zurueck'] as Spitzenbereich[]).map((b) => [`neu-${b}`, neuListe(b)])),
     ...Object.fromEntries(Object.entries(SPITZEN).map(([k, v]) => [`lage-${k}`, v])),
     'lage-sprueche': SPRUECHE,
-    niesen: NIES_SPRUECHE,
     nachrichten: (NACHSCHUB.nachrichten ?? []).map((f) => f('Sir')),
     'nachrichten-zuruf': (NACHSCHUB.nachrichten ?? []).map((f) => f('Sir')).filter((t) => !NACH_LAGE.test(t)),
   }
@@ -558,20 +556,6 @@ async function neuAnsagen() {
   } finally { neuLaeuft = false }
 }
 
-/** Loki hat ein Niesen gehört (electron/niesen.cjs): nur wenn er gerade frei ist und mit seiner richtigen Stimme, sonst fällt es aus */
-async function gesundheit() {
-  const b = bruecke(), e = jarvisEinstellungen()
-  if (!b || !e.niesen || stumm || !lage.mikrofon || startphase || vortrag || nachgereicht || lage.zustand !== 'bereit' || lage.wartetBis > Date.now()) return
-  const a = await b.anwesenheit?.().catch(() => null)
-  if (!a || a.spiel) return
-  if (e.stimme === 'loki') { const st = await b.status().catch(() => null); if (st?.loki?.zustand !== 'bereit') return }
-  if (startphase || lage.zustand !== 'bereit') return
-  const [nr] = waehle('niesen', NIES_SPRUECHE)
-  const satz = e.humor ? NIES_SPRUECHE[nr ?? 0] : 'Gesundheit, {a}.'
-  await sprechen([satz.replaceAll('{a}', e.anrede || 'Sir')])
-  if (e.humor) meldeSpruchStand()
-}
-
 // ---------- Start ----------
 let aus: (() => void)[] = []
 // Laufnummer: nur der neueste Ein-/Ausschaltvorgang darf den Zustand ändern – Aus (und gleich wieder Ein), während
@@ -584,7 +568,7 @@ export async function einschalten() {
   const meiner = ++lauf
   setze({ zustand: 'laedt', fehler: '' })
   aus.forEach((f) => f())
-  aus = [b.beiFortschritt((f) => setze({ fortschritt: f })), b.beiErkannt((d) => void erkannt(d.text, d.sekunden, d.art ?? '')), b.beiNiesen(() => void gesundheit()), ...neuigkeitenStarten()]
+  aus = [b.beiFortschritt((f) => setze({ fortschritt: f })), b.beiErkannt((d) => void erkannt(d.text, d.sekunden, d.art ?? '')), ...neuigkeitenStarten()]
   try {
     // Lokis Stimme lädt parallel im Hintergrund; wer sie jetzt braucht, wartet auf sie (jarvis-sprechen)
     if (jarvisEinstellungen().stimme === 'loki') void b.stimme(true).catch(() => null)

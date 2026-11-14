@@ -129,7 +129,6 @@ export default function JarvisEinstellungen() {
             )}
             <label className="mt-2 flex items-center gap-2 font-medium text-neutral-700"><input type="checkbox" checked={e.kameraMelden} onChange={(x) => setzeJarvis({ kameraMelden: x.target.checked })} /> Kamera: Person oder Auto am linken Objektiv ansagen (die Kamera erkennt beides selbst; im Dauer-HUD wird das Bild hervorgehoben)</label>
             <p className="mt-1 pl-6 text-neutral-500">Nur Neues, nur wenn Sie am PC sind (Maus oder Tastatur in den letzten 10 Minuten) – Verpasstes kommt gesammelt. Ihre eigenen Karten (Konto „Alex“) sagt L.O.K.I. nicht an. Abgleich alle 10 Minuten (nur wenn Sie am PC sind), Bestellungen kommen bis zu 20 Minuten später (Billbee).</p>
-            <label className="mt-2 flex items-center gap-2 font-medium text-neutral-700"><input type="checkbox" checked={e.niesen} onChange={(x) => setzeJarvis({ niesen: x.target.checked })} /> Niesen: L.O.K.I. wünscht Gesundheit (läuft nur auf diesem PC)</label>
             <label className="mt-2 flex items-center gap-2 font-medium text-neutral-700"><input type="checkbox" checked={e.nachrichten} onChange={(x) => setzeJarvis({ nachrichten: x.target.checked })} /> Nachrichten: nach der Morgen-Lage die aktuellen Meldungen des Deutschlandfunks vorlesen (einmal am Tag)</label>
             <p className="mt-1 pl-6 text-neutral-500">Jederzeit auch mit „Loki, Nachrichten“. Unterbrechen per Klick auf den Reaktor oder „Stopp“ – während L.O.K.I. spricht, hört er nicht zu.</p>
           </div>

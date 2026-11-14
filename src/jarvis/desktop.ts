@@ -54,7 +54,6 @@ export type JarvisBruecke = {
   holeNeuigkeiten?: () => Promise<{ n: Neuigkeit; zeit: number; verpasst?: boolean }[] | null>
   ton: (stueck: Float32Array) => void
   beiErkannt: (fn: (d: { text: string; sekunden: number; art?: Hoeren }) => void) => () => void
-  beiNiesen: (fn: () => void) => () => void
   beiFortschritt: (fn: (d: { name: string; anteil: number }) => void) => () => void
 }
 
@@ -149,7 +148,6 @@ export type JarvisEinstellungen = {
   neuGruppen: NeuGruppe[]
   /** Kamera-Wache: Person oder Auto am linken Objektiv ansagen (04.11.2026, Autos 06.11.2026) */
   kameraMelden: boolean
-  niesen: boolean
   /** Deutschlandfunk-Nachrichten einmal am Tag nach der Morgen-Lage vorlesen (10.11.2026) */
   nachrichten: boolean
   /** Tag, an dem die Nachrichten nach der Lage schon kamen (JJJJ-M-T) */
@@ -173,7 +171,7 @@ export type JarvisEinstellungen = {
 }
 
 const STANDARD: JarvisEinstellungen = {
-  an: false, anrede: 'Sir', humor: true, stimme: 'loki', hoeren: 'turbo', mikrofonStufe: 'normal', wortliste: '', niesen: true, neuigkeiten: true, neuGruppen: NEU_GRUPPEN.map((g) => g.schluessel), kameraMelden: true, tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8, nachrichten: true, zuletztNachrichten: '',
+  an: false, anrede: 'Sir', humor: true, stimme: 'loki', hoeren: 'turbo', mikrofonStufe: 'normal', wortliste: '', neuigkeiten: true, neuGruppen: NEU_GRUPPEN.map((g) => g.schluessel), kameraMelden: true, tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8, nachrichten: true, zuletztNachrichten: '',
 }
 const SCHLUESSEL = 'jarvis.einstellungen'
 const zuhoerer = new Set<() => void>()
