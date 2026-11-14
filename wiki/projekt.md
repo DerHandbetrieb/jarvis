@@ -38,7 +38,8 @@ Verwandt: [Technik](technik.md), [Charakter und Stimme](charakter-und-stimme.md)
 - `stimme/` und `gehoer/` – Python-Hintergrund-Programme (Qwen3-TTS, faster-whisper).
 - `hud5/` – Szene und Inhalte des Dauer-HUD; `dauerhud/seite.js` – Wallpaper; `dauer-hud.html`.
 - `recherche/` – Recherchen mit Quellen (bleiben dort, Code-Kommentare verweisen darauf).
-- Liegen gebliebene Entwürfe: `startsequenz/`, `start-sequenz.html`, `vorschau/start-sequenz/`, `hud5/intro*.js`, `hud5/scheibe.js`, `hud5/whatsapp-probe.cjs` (siehe [Code-Vorschläge](code-vorschlaege.md)).
+- `dauerhud/lageDaten.js` (früher `startsequenz/`) rechnet die Werkstatt-Werte für das HUD um.
+- Reste der Start-Sequenz und alte Entwürfe am 14.11.2026 aufgeräumt (in Git weiter abrufbar, z. B. über den Tag `vor-wissenssystem`). Übrig als reine Vorschau: `vorschau/` (u. a. `vorschau/start-sequenz/`).
 
 ## Befehle
 

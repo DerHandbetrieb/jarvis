@@ -6,6 +6,7 @@ Wichtige Entscheidungen des Auftraggebers mit Datum und Grund, neueste oben. Ver
 
 ## Gültig
 
+- **14.11.2026** Code-Vorschläge 1–4 freigegeben und umgesetzt (0.33.1): Reste der Start-Sequenz (Fenster, IPC, Einstellungen) und alte Entwurfsdateien entfernt.
 - **14.11.2026** Projekt auf das Wissenssystem (Wiki, Dreaming) umgestellt – wie in der Werkstatt-App.
 - **14.11.2026** Nieserkennung ganz entfernt (0.33.0): löste auch mit Schwelle 0,5 ohne Anlass aus. Nicht wieder vorschlagen.
 - **11.11.2026** Regentropfen auf der Scheibe verworfen („wir lassen es einfach weg“), nachdem auch eine realistischere Fassung (Tropfen außen, Blick von innen) nicht überzeugte. Nicht wieder vorschlagen.
