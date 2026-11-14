@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><title>Bestellfrist im HUD – vier Entwürfe</title>
+<style>
+body{background:#03080c;color:#e8fdff;font-family:Bahnschrift,"Segoe UI",Arial,sans-serif;margin:24px}
+h1{font-size:20px;font-weight:600;color:#5ff6ff;margin:0 0 6px}
+p.info{color:rgba(165,230,240,.7);margin:0 0 20px;font-size:14px}
+.raster{display:grid;grid-template-columns:repeat(2,max-content);gap:28px}
+.feld h2{font-size:15px;color:#f2b04a;margin:0 0 4px;font-weight:600}
+.feld p{font-size:13px;color:rgba(165,230,240,.7);margin:0 0 8px;max-width:450px}
+canvas{background:linear-gradient(160deg,rgba(10,40,52,.55),rgba(3,12,18,.85));border:1px solid rgba(95,246,255,.25);width:450px;height:365px}
+</style></head><body>
+<h1>Offene Bestellungen mit Frist – vier Entwürfe (Feld links unten, 450 × 365)</h1>
+<p class="info">Beispieldaten, angenommen „heute“ = Mo 16.11.2026, 10:30. Frist = 2 Zähltage (Mo–Sa, ohne Sonntag und Feiertage BW).</p>
+<div class="raster">
+  <div class="feld"><h2>A · Drei Abschnitte</h2><p>Wie die Werkstatt-Übersicht: Überfällig, Muss heute raus, Hat noch Zeit untereinander, mit Zwischenzeile.</p><canvas id="a"></canvas></div>
+  <div class="feld"><h2>B · Frist-Spalte</h2><p>Eine Liste nach Frist sortiert; vorne ein Farbstreifen und die Frist („ÜBERFÄLLIG“, „HEUTE“, „DI 17.11.“).</p><canvas id="b"></canvas></div>
+  <div class="feld"><h2>C · Zähler oben</h2><p>Oben drei große Zahlen als Ampel, darunter die Liste. Auf einen Blick: Muss heute etwas raus?</p><canvas id="c"></canvas></div>
+  <div class="feld"><h2>D · Tages-Spalten</h2><p>Spalten je Frist-Tag wie eine kleine Zeitleiste: Überfällig, Heute, Di, Mi … mit Kärtchen.</p><canvas id="d"></canvas></div>
+</div>
+<h1 style="margin-top:36px">Neu: schmaler PC-Status-Balken unten links (ganze Breite 1240 × 44) – vier Entwürfe</h1>
+<p class="info">Die Felder links werden dafür in der Höhe gestaucht (760 → 700, Abstand 16). Werte hier sind Beispiele.</p>
+<div id="balken"></div>
+<h1 style="margin-top:36px">So sähe die linke Seite gestaucht aus (verkleinert, Felder als Rahmen)</h1>
+<canvas id="uebersicht" style="width:930px;height:570px"></canvas>
+<script>
+const CYAN='#5ff6ff',GOLD='#f2b04a',ROT='#ff5a4a',ORANGE='#ff9a3c',HELL='#e8fdff',BLASS='rgba(165,230,240,0.62)'
+const SCHRIFT='Bahnschrift, "Segoe UI", Arial, sans-serif'
+const HEUTE='2026-11-16'
+const plus=(t,n)=>{const d=new Date(t+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
+const wt=(t)=>new Date(t+'T12:00:00Z').getUTCDay()
+const frist=(t)=>{let n=0;while(n<2){t=plus(t,1);if(wt(t)!==0)n++}return t}
+const WT=['SO','MO','DI','MI','DO','FR','SA']
+const kurz=(t)=>`${WT[wt(t)]} ${t.slice(8,10)}.${t.slice(5,7)}.`
+const ROH=[
+ ['2026-11-11','ETSY','1× Balkenlampe Eiche',8900],
+ ['2026-11-12','AMAZON','2× Chalk 250 g',2380],
+ ['2026-11-13','SHOP','1× Wurzelholz-Schale',4500],
+ ['2026-11-13','AMAZON','1× Chalk 500 g',1690],
+ ['2026-11-14','KASUWA','1× Runen-Untersetzer 4er',3200],
+ ['2026-11-15','ETSY','1× Tischleuchte Nuss',12900],
+ ['2026-11-16','AMAZON','3× Chalk 250 g',3570],
+ ['2026-11-16','SHOP','1× Schneidebrett Esche',5900],
+]
+const L=ROH.map(([am,kanal,artikel,cent])=>{const f=frist(am);return{am,kanal,artikel,cent,frist:f,art:f<HEUTE?'ueber':f===HEUTE?'heute':'spaeter'}}).sort((a,b)=>a.frist<b.frist?-1:a.frist>b.frist?1:a.am<b.am?-1:1)
+const FARBE={ueber:ROT,heute:ORANGE,spaeter:CYAN}
+const euro=(c)=>`${Math.round(c/100).toLocaleString('de-DE')} €`
+function leinwand(id){const c=document.getElementById(id);c.width=900;c.height=730;const g=c.getContext('2d');g.scale(2,2);return g}
+function text(g,t,x,y,gr,f,a='left',w=400){g.font=`${w} ${gr}px ${SCHRIFT}`;g.fillStyle=f;g.textAlign=a;g.fillText(t,x,y)}
+function kuerzen(g,t,b){if(g.measureText(t).width<=b)return t;while(t.length>1&&g.measureText(t+'…').width>b)t=t.slice(0,-1);return t+'…'}
+function kopf(g,titel,rechts,b){text(g,titel,28,24,14,CYAN,'left',600);if(rechts)text(g,rechts,b-14,24,14,GOLD,'right',600);g.strokeStyle='rgba(95,246,255,0.35)';g.lineWidth=1;g.beginPath();g.moveTo(14,32.5);g.lineTo(b-14,32.5);g.stroke()}
+function linie(g,y,b){g.strokeStyle='rgba(95,246,255,0.08)';g.beginPath();g.moveTo(16,y);g.lineTo(b-16,y);g.stroke()}
+const B=450,H=365,ABHOLUNG='ABHOLUNG HEUTE'
+function zeile(g,x,y,b,item,xa=0){const d=item.am.slice(8,10)+'.'+item.am.slice(5,7)+'.';text(g,d,22+xa,y,12,BLASS);text(g,item.kanal.slice(0,7),70+xa,y,11,CYAN,'left',600);g.font=`400 13px ${SCHRIFT}`;text(g,kuerzen(g,item.artikel,b-230-xa),134+xa,y,13,HELL);text(g,euro(item.cent),b-16,y,13,GOLD,'right',600)}
+
+// A
+{const g=leinwand('a');kopf(g,'OFFENE BESTELLUNGEN',`${L.length} OFFEN · ${ABHOLUNG}`,B);let y=50
+ for(const [art,titel] of [['ueber','ÜBERFÄLLIG'],['heute','MUSS HEUTE RAUS'],['spaeter','HAT NOCH ZEIT']]){const t=L.filter(x=>x.art===art);if(!t.length)continue
+  text(g,`${titel} · ${t.length}`,22,y+4,11,FARBE[art],'left',700);g.strokeStyle=FARBE[art];g.globalAlpha=.4;g.beginPath();g.moveTo(22+g.measureText(`${titel} · ${t.length}`).width+8,y);g.lineTo(B-16,y);g.stroke();g.globalAlpha=1;y+=20
+  for(const x of t){zeile(g,0,y+4,B,x);if(art==='spaeter')text(g,'',0,0,1,HELL);y+=24}y+=6}}
+
+// B
+{const g=leinwand('b');kopf(g,'OFFENE BESTELLUNGEN',`${L.length} OFFEN · ${ABHOLUNG}`,B);let y=40
+ for(const x of L){const f=FARBE[x.art];g.fillStyle=f;g.globalAlpha=x.art==='spaeter'?.35:.9;g.fillRect(16,y+4,3,24);g.globalAlpha=1
+  const ft=x.art==='ueber'?'ÜBERFÄLLIG':x.art==='heute'?'HEUTE':kurz(x.frist);text(g,ft,26,y+21,11,f,'left',700)
+  text(g,x.kanal.slice(0,7),112,y+21,11,CYAN,'left',600);g.font=`400 13px ${SCHRIFT}`;text(g,kuerzen(g,x.artikel,B-260),176,y+21,13,HELL);text(g,euro(x.cent),B-16,y+21,13,GOLD,'right',600);linie(g,y+31.5,B);y+=32}}
+
+// C
+{const g=leinwand('c');kopf(g,'OFFENE BESTELLUNGEN',ABHOLUNG,B);const n=(a)=>L.filter(x=>x.art===a).length
+ const kaest=[['ueber','ÜBERFÄLLIG'],['heute','HEUTE RAUS'],['spaeter','HAT ZEIT']];const kb=(B-28-16)/3
+ kaest.forEach(([a,t],i)=>{const x=14+i*(kb+8),f=FARBE[a];g.strokeStyle=f;g.globalAlpha=.5;g.strokeRect(x+.5,42.5,kb,62);g.globalAlpha=.08;g.fillStyle=f;g.fillRect(x,42,kb,62);g.globalAlpha=1;text(g,String(n(a)),x+kb/2,84,34,f,'center',700);text(g,t,x+kb/2,99,10,f,'center',600)})
+ let y=116;for(const x of L.filter(x=>x.art!=='spaeter').concat(L.filter(x=>x.art==='spaeter'))){if(y>H-30)break;g.fillStyle=FARBE[x.art];g.beginPath();g.arc(20,y+16,3,0,7);g.fill();zeile(g,0,y+20,B,x,6);linie(g,y+28.5,B);y+=28}
+}
+
+// D
+{const g=leinwand('d');kopf(g,'OFFENE BESTELLUNGEN',`${L.length} OFFEN · ${ABHOLUNG}`,B)
+ const sp=[{t:'ÜBERFÄLLIG',f:ROT,l:L.filter(x=>x.art==='ueber')},{t:'HEUTE',f:ORANGE,l:L.filter(x=>x.art==='heute')}]
+ for(const fr of [...new Set(L.filter(x=>x.art==='spaeter').map(x=>x.frist))])sp.push({t:kurz(fr),f:CYAN,l:L.filter(x=>x.frist===fr)})
+ const sb=(B-28-(sp.length-1)*6)/sp.length
+ sp.forEach((s,i)=>{const x=14+i*(sb+6);text(g,s.t,x+4,52,10,s.f,'left',700);text(g,String(s.l.length),x+sb-4,52,10,s.f,'right',700);g.fillStyle=s.f;g.globalAlpha=.6;g.fillRect(x,57,sb,2);g.globalAlpha=1
+  s.l.forEach((it,j)=>{const y=66+j*58;g.fillStyle=s.f;g.globalAlpha=.08;g.fillRect(x,y,sb,52);g.globalAlpha=.4;g.strokeStyle=s.f;g.strokeRect(x+.5,y+.5,sb-1,51);g.globalAlpha=1
+   text(g,it.kanal.slice(0,7),x+5,y+14,9,CYAN,'left',600);g.font=`400 11px ${SCHRIFT}`;const w=it.artikel.split(' ');text(g,kuerzen(g,it.artikel,sb-10),x+5,y+30,11,HELL);text(g,euro(it.cent),x+5,y+45,10,GOLD,'left',600)})})}
+
+// ---- PC-Status-Balken ----
+const W=[{k:'CPU',v:23,t:'23 %',z:'4,1 GHz · 52 °C'},{k:'GPU',v:41,t:'41 %',z:'61 °C'},{k:'VRAM',v:62,t:'7,4 / 12 GB'},{k:'RAM',v:57,t:'18,2 / 32 GB'},{k:'SSD C:',v:12,t:'12 %'},{k:'NETZ',v:8,t:'↓ 3,2  ↑ 0,4 MB/s'}]
+const OBEN='GERADE: ollama 18 % CPU · chrome 6 %'
+const BB=1240,BH=44
+const BALKEN=[
+ ['1 · Zahlen-Leiste','Nur Text, sehr ruhig: Wert je Bereich, rechts was gerade am meisten rechnet.',(g)=>{let x=22;for(const w of W){text(g,w.k,x,28,11,CYAN,'left',700);x+=g.measureText(w.k).width+8;const f=w.v>85?ROT:w.v>60?GOLD:HELL;text(g,w.t,x,28,14,f,'left',600);x+=g.measureText(w.t).width+(w.z?10:0);if(w.z){text(g,w.z,x,28,11,BLASS);x+=g.measureText(w.z).width};x+=26}text(g,OBEN,BB-16,28,11,BLASS,'right',600)}],
+ ['2 · Mini-Füllbalken','Jeder Wert mit kurzem Füllbalken; gold ab 60 %, rot ab 85 %.',(g)=>{const n=W.length,sb=(BB-360)/n;W.forEach((w,i)=>{const x=22+i*sb,f=w.v>85?ROT:w.v>60?GOLD:CYAN;text(g,w.k,x,20,10,CYAN,'left',700);text(g,w.t,x+sb-24,20,11,HELL,'right',600);g.fillStyle='rgba(95,246,255,0.12)';g.fillRect(x,27,sb-24,5);g.fillStyle=f;g.fillRect(x,27,(sb-24)*w.v/100,5)});text(g,OBEN,BB-16,28,11,BLASS,'right',600)}],
+ ['3 · Verlaufslinien','Je Bereich die letzte Minute als feine Linie, dazu der aktuelle Wert.',(g)=>{const n=4,sb=(BB-360)/n;W.slice(0,4).forEach((w,i)=>{const x=22+i*sb;text(g,w.k,x,27,11,CYAN,'left',700);text(g,w.t,x+50,27,13,HELL,'left',600);const lx=x+150,lb=sb-170;g.strokeStyle=w.v>60?GOLD:CYAN;g.lineWidth=1.2;g.beginPath();for(let j=0;j<=40;j++){const v=w.v+Math.sin(j*0.7+i)*10+Math.sin(j*0.23)*8;const yy=36-Math.max(0,Math.min(100,v))/100*26;j?g.lineTo(lx+j/40*lb,yy):g.moveTo(lx,yy)}g.stroke()});text(g,OBEN,BB-16,28,11,BLASS,'right',600)}],
+ ['4 · Kleine Ringe','Runde Anzeigen wie der Reaktor, Wert in der Mitte, Name daneben.',(g)=>{let x=30;for(const w of W.slice(0,5)){const f=w.v>85?ROT:w.v>60?GOLD:CYAN;g.lineWidth=3;g.strokeStyle='rgba(95,246,255,0.15)';g.beginPath();g.arc(x,22,14,0,7);g.stroke();g.strokeStyle=f;g.beginPath();g.arc(x,22,14,-Math.PI/2,-Math.PI/2+Math.PI*2*w.v/100);g.stroke();text(g,String(w.v),x,26,10,HELL,'center',700);text(g,w.k,x+22,19,10,CYAN,'left',700);text(g,w.t,x+22,33,11,HELL,'left',600);x+=170}text(g,'↓ 3,2  ↑ 0,4 MB/s',x,27,11,BLASS,'left',600);text(g,OBEN,BB-16,28,11,BLASS,'right',600)}],
+]
+const ziel=document.getElementById('balken')
+for(const [t,b,mal] of BALKEN){const d=document.createElement('div');d.className='feld';d.style.marginBottom='18px';d.innerHTML=`<h2>${t}</h2><p style="max-width:none">${b}</p>`;const c=document.createElement('canvas');c.width=BB*2;c.height=BH*2;c.style.width=BB*0.8+'px';c.style.height=BH*0.8+'px';d.appendChild(c);ziel.appendChild(d);const g=c.getContext('2d');g.scale(2,2);g.strokeStyle='rgba(95,246,255,0.35)';g.lineWidth=1;mal(g)}
+
+// ---- Übersicht gestaucht ----
+{const c=document.getElementById('uebersicht');c.width=1240;c.height=760;const g=c.getContext('2d');const s=700/760
+ const F=[['Warenwert heute',0,0,340,170],['Verlauf 14 Tage',0,185,340,300],['Kanäle',0,500,340,260],['Abarbeiten',355,0,885,380],['Nachproduzieren',355,395,420,365],['Offene Bestellungen mit Frist',790,395,450,365]]
+ for(const [n,x,y,b,h] of F){const yy=Math.round(y*s),hh=Math.round((y+h)*s)-yy;g.strokeStyle='rgba(95,246,255,0.45)';g.strokeRect(x+.5,yy+.5,b-1,hh-1);g.fillStyle='rgba(95,246,255,0.05)';g.fillRect(x,yy,b,hh);text(g,n,x+16,yy+28,20,CYAN,'left',600);text(g,`${b} × ${hh}`,x+16,yy+54,15,BLASS)}
+ g.strokeStyle=GOLD;g.strokeRect(.5,716.5,1239,43);g.fillStyle='rgba(242,176,74,0.08)';g.fillRect(0,716,1240,44);text(g,'PC-STATUS  ·  CPU · GPU · VRAM · RAM · SSD · NETZ · gerade aktiv',16,744,17,GOLD,'left',600)}
+</script></body></html>

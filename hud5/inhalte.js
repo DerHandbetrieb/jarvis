@@ -11,6 +11,7 @@ import { PV_VARIANTE } from './pv-varianten.js'
 import { WETTER_ENTWURF, wetterKopf } from './wetter-entwuerfe.js'
 import { leistenSymbol, knoten } from './pv-zeichen.js'
 import { ikone } from './ikonen.js'
+import { berlinTag, einordnen, istEigenerShop, naechsteAbholung, tagKurz } from './frist.js'
 const CYAN = '#5ff6ff', GOLD = '#f2b04a', ROT = '#ff5a4a', HELL = '#e8fdff', BLASS = 'rgba(165,230,240,0.62)'
 const SCHRIFT = 'Bahnschrift, "Segoe UI", Arial, sans-serif'
 
@@ -518,7 +519,7 @@ export function ausHud(antwort, jetzt, sequenzDaten, wetterText) {
   const wetterDaten = (() => { const st = antwort?.station; const grad = Number.isFinite(st?.grad) ? st.grad : w?.grad; if (!Number.isFinite(grad)) return null
       return { ort: w?.ort ?? 'Obersontheim', grad, code: w?.code, wolken: w?.wolken, text: w ? wetterText?.(w) ?? '' : '', station: st ? { feuchte: st.feuchte, wind: st.wind, boe: st.boe, richtung: st.richtung, druck: st.druck, regenHeute: st.regenHeute, regenRate: st.regenRate, gefuehlt: st.gefuehlt, sonne: st.sonne } : null } })()
   // echte, aber veraltete/unvollständige Daten: keine Zahlen zeigen, die wie aktuelle aussehen (Prüf-Agent)
-  if (roh && !d) return { beispiel: false, veraltet: true, werkstatt: {}, wetter: wetterDaten, kamera: antwort?.kamera ?? null, pv: antwort?.pv ?? null, loki: antwort?.loki ?? null, uhr: jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) }
+  if (roh && !d) return { beispiel: false, veraltet: true, werkstatt: {}, wetter: wetterDaten, kamera: antwort?.kamera ?? null, pv: antwort?.pv ?? null, pc: antwort?.pc ?? null, loki: antwort?.loki ?? null, uhr: jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) }
   const tage = (lage.verkauf?.tage ?? []).map((t) => ({ tag: `${String(t.tag).slice(8, 10)}.${String(t.tag).slice(5, 7)}`, umsatz: (Number(t.umsatzCent) || 0) / 100, bestellungen: Number(t.bestellungen) || 0, stueck: Number(t.stueck) || 0 }))
   // letzter Tag der Liste ist heute (Serverfunktion zählt bis heute, deutsche Zeit) – nur nehmen, wenn das Datum stimmt
   const heuteTag = jetzt.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }), letzter = (lage.verkauf?.tage ?? []).at(-1)
@@ -529,6 +530,7 @@ export function ausHud(antwort, jetzt, sequenzDaten, wetterText) {
     wetter: wetterDaten,
     kamera: antwort?.kamera ?? null,
     pv: antwort?.pv ?? null,
+    pc: antwort?.pc ?? null,
     loki: antwort?.loki ?? null,
     uhr: jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }),
   }
@@ -581,10 +583,10 @@ function statVerlauf(g, b, h, d, t) {
   const v = g.createLinearGradient(0, y0, 0, y1); v.addColorStop(0, 'rgba(95,246,255,0.42)'); v.addColorStop(1, 'rgba(95,246,255,0)')
   g.beginPath(); g.moveTo(x0, y1); p.forEach(([x, y]) => g.lineTo(x, y)); g.lineTo(x1, y1); g.closePath(); g.fillStyle = v; g.fill()
   g.beginPath(); p.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.strokeStyle = CYAN; g.lineWidth = 1.5; g.stroke()
-  // Lichtpunkt läuft die Kurve entlang, der heutige Tag pulsiert golden
-  const f = (t * 0.12) % 1, i = Math.min(p.length - 2, Math.floor(f * (p.length - 1))), w = f * (p.length - 1) - i
-  g.save(); g.shadowColor = CYAN; g.shadowBlur = 12; g.fillStyle = HELL; g.beginPath(); g.arc(p[i][0] + (p[i + 1][0] - p[i][0]) * w, p[i][1] + (p[i + 1][1] - p[i][1]) * w, 3, 0, Math.PI * 2); g.fill(); g.restore()
-  const [ex, ey] = p.at(-1); g.fillStyle = GOLD; g.beginPath(); g.arc(ex, ey, 3.5 + welleZ(t, 3), 0, Math.PI * 2); g.fill()
+  // Lichtpunkt läuft die Kurve entlang, der heutige Tag pulsiert golden (14.11.2026 gedämpft: Wunsch Auftraggeber „nur ganz dezent im Hintergrund“)
+  const f = (t * 0.03) % 1, i = Math.min(p.length - 2, Math.floor(f * (p.length - 1))), w = f * (p.length - 1) - i
+  g.save(); g.shadowColor = CYAN; g.shadowBlur = 6; g.globalAlpha = 0.45; g.fillStyle = HELL; g.beginPath(); g.arc(p[i][0] + (p[i + 1][0] - p[i][0]) * w, p[i][1] + (p[i + 1][1] - p[i][1]) * w, 3, 0, Math.PI * 2); g.fill(); g.restore()
+  const [ex, ey] = p.at(-1); g.fillStyle = GOLD; g.beginPath(); g.arc(ex, ey, 3.5 + 0.6 * welleZ(t, 0.6), 0, Math.PI * 2); g.fill()
   // Höchstwert als feine Linie mit Betrag – die Kurve wächst mit dem stärksten Tag mit
   g.strokeStyle = 'rgba(95,246,255,0.18)'; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(x0, y0 + 0.5); g.lineTo(x1, y0 + 0.5); g.stroke(); g.setLineDash([])
   text(g, `MAX ${euro(m)}`, x0, y0 - 4, 9, BLASS, 'left', 600)
@@ -595,9 +597,9 @@ function statKanaele(g, b, h, d, t) {
   kopf(g, 'KANÄLE · 14 TAGE', `${n} BEST.`, b)
   if (!k.length) { text(g, 'Keine Verkäufe', 22, 70, 13, BLASS); return }
   const r = Math.min((h - 70) / 2, b * 0.2), cx = 26 + r, cy = 34 + (h - 34) / 2
-  let a = -Math.PI / 2 + Math.sin(t * 0.3) * 0.05
+  let a = -Math.PI / 2
   k.forEach((x, i) => { const dd = (x.anteil || 0) * Math.PI * 2; if (dd > 0.09) { g.beginPath(); g.arc(cx, cy, r, a + 0.04, a + dd - 0.04); g.strokeStyle = farben[i]; g.lineWidth = r * 0.3; g.stroke() } a += dd })
-  g.save(); g.strokeStyle = 'rgba(95,246,255,0.35)'; g.lineWidth = 1; g.setLineDash([3, 5]); g.lineDashOffset = -t * 12; g.beginPath(); g.arc(cx, cy, r * 0.62, 0, Math.PI * 2); g.stroke(); g.restore()
+  g.save(); g.strokeStyle = 'rgba(95,246,255,0.35)'; g.lineWidth = 1; g.setLineDash([3, 5]); g.lineDashOffset = -t * 1.5; g.beginPath(); g.arc(cx, cy, r * 0.62, 0, Math.PI * 2); g.stroke(); g.restore()
   const zeile = Math.min(30, (h - 50) / 3)
   k.forEach((x, i) => {
     const y = cy - zeile + i * zeile + 5
@@ -617,7 +619,7 @@ function abarbeitenListe(g, b, h, d, t) {
     const sp = Math.floor(i / pro), x = 8 + sp * sb, y = 40 + (i % pro) * zeile, m = y + zeile / 2
     const f = art === 'amazon_fall' ? GOLD : art === 'hintergrund' ? BLASS : CYAN
     g.strokeStyle = f; g.globalAlpha = 0.8; g.lineWidth = 1.2; g.strokeRect(x + 14.5, m - 6.5, 13, 13); g.globalAlpha = 1
-    if (faellig === 'ÜBERFÄLLIG' || faellig === 'FÄLLIG HEUTE') { g.fillStyle = faellig === 'ÜBERFÄLLIG' ? `rgba(255,90,74,${0.1 + 0.1 * welleZ(t, 2.5)})` : `rgba(242,176,74,${0.1 + 0.12 * welleZ(t, 2.5)})`; g.fillRect(x + 6, y + 2, sb - 12, zeile - 4) }
+    if (faellig === 'ÜBERFÄLLIG' || faellig === 'FÄLLIG HEUTE') { g.fillStyle = faellig === 'ÜBERFÄLLIG' ? `rgba(255,90,74,${0.12 + 0.04 * welleZ(t, 0.6)})` : `rgba(242,176,74,${0.12 + 0.04 * welleZ(t, 0.6)})`; g.fillRect(x + 6, y + 2, sb - 12, zeile - 4) }
     g.font = `600 11px ${SCHRIFT}`; const fb = faellig ? g.measureText(faellig).width + 14 : 0
     g.font = `400 14px ${SCHRIFT}`; text(g, kuerzen(g, String(titel), sb - 60 - fb), x + 38, m + 5, 14, HELL)
     if (faellig) text(g, faellig, x + sb - 12, m + 4, 11, faellig === 'ÜBERFÄLLIG' ? ROT : faellig === 'FÄLLIG HEUTE' ? GOLD : BLASS, 'right', 600)
@@ -637,26 +639,114 @@ function nachproduzieren(g, b, h, d, t) {
     g.font = `400 14px ${SCHRIFT}`; text(g, kuerzen(g, String(name), b - 110), 22, y + 17, 14, HELL)
     text(g, `${ist} / ${soll}`, b - 16, y + 17, 13, ist <= 0 ? ROT : GOLD, 'right', 600)
     if (zeile >= 36) { const bb = b - 38, anteil = Math.min(1, Math.max(0, ist) / Math.max(1, soll)); g.fillStyle = 'rgba(95,246,255,0.1)'; g.fillRect(22, y + 25, bb, 5)
-      g.fillStyle = ist <= 0 ? `rgba(255,90,74,${0.5 + 0.5 * welleZ(t, 3)})` : GOLD; g.fillRect(22, y + 25, Math.max(4, bb * anteil), 5) }
+      g.fillStyle = ist <= 0 ? `rgba(255,90,74,${0.75 + 0.15 * welleZ(t, 0.6)})` : GOLD; g.fillRect(22, y + 25, Math.max(4, bb * anteil), 5) }
   })
   if (l.length > n) text(g, `+ ${l.length - n} WEITERE`, 22, h - 8, 10, BLASS, 'left', 600)
 }
-/** aktuelle Bestellungen, kompakt: Datum, Kanal, Artikel, Betrag */
+/**
+ * Offene Bestellungen nach Bestellfrist (14.11.2026, Wahl Auftraggeber: Entwurf A „Drei Abschnitte“ wie die Werkstatt-
+ * Übersicht): Überfällig (rot) · Muss heute raus (orange) · Hat noch Zeit (türkis), dazu „Wartet auf Zahlung“ (eigener
+ * Shop). Reicht der Platz nicht, wird „Hat noch Zeit“ je Frist-Tag zusammengefasst, dann wird abgeschnitten.
+ */
+const ORANGE = '#ff9a3c'
+const FRIST_GRUPPEN = [['ueberfaellig', 'ÜBERFÄLLIG', ROT], ['heute', 'MUSS HEUTE RAUS', ORANGE], ['spaeter', 'HAT NOCH ZEIT', CYAN], ['zahlung', 'WARTET AUF ZAHLUNG', BLASS]]
+export function bestellPlan(liste, jetzt, platz, zeile = 24, kopfH = 20, luecke = 6) {
+  const alle = liste.map((x) => ({ ...x, ...einordnen(x, jetzt) })).sort((a, b) => (a.frist || '9') < (b.frist || '9') ? -1 : (a.frist || '9') > (b.frist || '9') ? 1 : a.am < b.am ? -1 : 1)
+  const gruppen = FRIST_GRUPPEN.map(([art, titel, farbe]) => ({ art, titel, farbe, liste: alle.filter((x) => x.gruppe === art) })).filter((gr) => gr.liste.length)
+  const hoehe = (gs) => gs.reduce((s, gr) => s + kopfH + gr.zeilen.length * zeile + luecke, 0)
+  // Stufe 1: jede Bestellung eine Zeile
+  let gs = gruppen.map((gr) => ({ ...gr, zeilen: gr.liste.map((x) => ({ x })) }))
+  // Stufe 2: „Hat noch Zeit“ und „Wartet auf Zahlung“ je Tag zusammenfassen
+  if (hoehe(gs) > platz) gs = gs.map((gr) => {
+    if (gr.art === 'spaeter') { const tage = [...new Set(gr.liste.map((x) => x.frist))]; return { ...gr, zeilen: tage.map((f) => ({ tag: f, teil: gr.liste.filter((x) => x.frist === f) })) } }
+    if (gr.art === 'zahlung') return { ...gr, zeilen: [{ tag: '', teil: gr.liste }] }
+    return gr
+  })
+  // Stufe 3 (Prüf-Agent 14.11.2026): jeder Abschnitt bleibt mit Überschrift und mindestens einer Zeile sichtbar. Die
+  // Zeilen werden reihum verteilt (Dringendes zuerst); was nicht passt, steht als
+  // „+ n WEITERE“ in seinem Abschnitt. Nur wenn nicht einmal die Überschriften passen, fällt ein Abschnitt von unten weg.
+  let weg = 0
+  if (hoehe(gs) > platz) {
+    while (gs.length && gs.length * (kopfH + luecke + zeile) > platz) { weg += gs.pop().liste.length }
+    let frei = Math.floor((platz - gs.length * (kopfH + luecke)) / zeile)
+    const anteil = gs.map((gr) => { const n = Math.min(1, gr.zeilen.length); frei -= n; return n })
+    // reihum je eine weitere Zeile, Dringendes zuerst – so bleibt „Muss heute raus“ lesbar, auch wenn viel überfällig ist
+    for (let mehr = true; mehr && frei > 0;) { mehr = false; gs.forEach((gr, i) => { if (frei > 0 && anteil[i] < gr.zeilen.length) { anteil[i]++; frei--; mehr = true } }) }
+    gs = gs.map((gr, i) => {
+      if (gr.zeilen.length <= anteil[i]) return gr
+      const bleibt = gr.zeilen.slice(0, anteil[i] - 1), rest = gr.zeilen.slice(anteil[i] - 1).flatMap((z) => (z.x ? [z.x] : z.teil))
+      return { ...gr, zeilen: [...bleibt, { tag: '', teil: rest, weitere: bleibt.length > 0 }] }
+    })
+  }
+  return { gruppen: gs, weg, anzahl: alle.length }
+}
 function bestellungen2(g, b, h, d, t) {
-  const o = d.offeneBestellungen
-  kopf(g, 'OFFENE BESTELLUNGEN', o ? `${o.anzahl} OFFEN` : '', b)
-  ikone(g, 'paket', b - 118, 18, 18, GOLD, t)
+  const o = d.offeneBestellungen, jetzt = new Date()
+  const ab = naechsteAbholung(jetzt), abText = ab === berlinTag(jetzt) ? 'ABHOLUNG HEUTE' : `ABHOLUNG ${tagKurz(ab)}`
+  kopf(g, 'OFFENE BESTELLUNGEN', o ? `${o.anzahl} OFFEN · ${abText}` : abText, b)
   if (!o) { text(g, 'Noch keine Daten aus Billbee.', 22, 66, 13, BLASS); return }
   const liste = o.liste ?? []
   if (!liste.length) { text(g, 'Alles versendet – die Werkstatt hat Pause. Theoretisch.', 22, 66, 13, BLASS); return }
-  const zeile = 26, n = Math.min(liste.length, Math.floor((h - 44) / zeile))
-  liste.slice(0, n).forEach((x, i) => {
-    const y = 40 + i * zeile + zeile / 2 + 5, am = new Date(x.am)
-    const tag = Number.isFinite(am.getTime()) ? am.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }) : ''
-    text(g, tag, 22, y, 12, BLASS); g.font = `600 11px ${SCHRIFT}`; text(g, kuerzen(g, String(x.kanal).toUpperCase(), 64), 70, y, 11, CYAN, 'left', 600)
-    g.font = `400 13px ${SCHRIFT}`; text(g, kuerzen(g, String(x.artikel || '–'), b - 230), 144, y, 13, HELL); text(g, euro(x.cent / 100), b - 16, y, 13, GOLD, 'right', 600)
+  const plan = bestellPlan(liste, jetzt, h - 48 - 14)
+  let y = 50
+  for (const gr of plan.gruppen) {
+    const titel = `${gr.titel} · ${gr.liste.length}`
+    text(g, titel, 22, y + 4, 11, gr.farbe, 'left', 700)
+    const tb = g.measureText(titel).width
+    g.save(); g.globalAlpha = 0.4; g.strokeStyle = gr.farbe; g.beginPath(); g.moveTo(30 + tb, y + 0.5); g.lineTo(b - 16, y + 0.5); g.stroke(); g.restore()
+    y += 20
+    for (const z of gr.zeilen) {
+      const gy = y + 4
+      if (z.x) {
+        const am = new Date(z.x.am), tag = Number.isFinite(am.getTime()) ? am.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }) : ''
+        text(g, tag, 22, gy, 12, BLASS); g.font = `600 11px ${SCHRIFT}`; text(g, kuerzen(g, (istEigenerShop(z.x.kanal) ? 'SHOP' : String(z.x.kanal)).toUpperCase(), 58), 70, gy, 11, CYAN, 'left', 600)
+        g.font = `400 13px ${SCHRIFT}`; text(g, kuerzen(g, String(z.x.artikel || '–'), b - 230), 134, gy, 13, HELL); text(g, euro(z.x.cent / 100), b - 16, gy, 13, GOLD, 'right', 600)
+      } else {
+        const vorne = z.tag ? `BIS ${tagKurz(z.tag)} · ${z.teil.length}` : z.weitere ? `+ ${z.teil.length} WEITERE` : `${z.teil.length} OFFEN`
+        text(g, vorne, 22, gy, 11, gr.farbe, 'left', 600)
+        g.font = `400 12px ${SCHRIFT}`; text(g, kuerzen(g, z.teil.map((x) => `${x.artikel || '–'} (${istEigenerShop(x.kanal) ? 'Shop' : x.kanal})`).join(' · '), b - 160), 134, gy, 12, HELL)
+      }
+      y += 24
+    }
+    y += 6
+  }
+  const nichtGeladen = Math.max(0, (Number(o.anzahl) || 0) - liste.length), fehlt = plan.weg + nichtGeladen // L.O.K.I. reicht höchstens 30 weiter (Prüf-Agent)
+  const ruhig = !plan.gruppen.some((gr) => gr.art === 'ueberfaellig' || gr.art === 'heute') && !plan.weg
+  const fuss = [ruhig ? 'Nichts überfällig, heute muss nichts raus.' : '', fehlt ? `+ ${fehlt} WEITERE` : ''].filter(Boolean).join('  ·  ')
+  if (fuss) text(g, fuss, 22, h - 8, 10, BLASS, 'left', 600)
+}
+
+/**
+ * PC-Status unten links (14.11.2026, Wahl Auftraggeber: Entwurf 3 „Verlaufslinien“): CPU, GPU, Grafikspeicher, Arbeitsspeicher
+ * je mit aktuellem Wert und einer feinen Linie der letzten Minuten; rechts, was gerade am meisten rechnet.
+ */
+function pcStatus(g, b, h, pc) {
+  const mitte = h / 2 + 5
+  if (!pc) { text(g, 'PC-STATUS · keine Werte', 22, mitte, 11, BLASS, 'left', 600); return }
+  const gb = (v) => (Number(v) / 1024).toLocaleString('de-DE', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
+  const teile = [
+    ['CPU', pc.cpu, pc.cpu != null ? `${pc.cpu} %` : '–', pc.verlauf?.cpu],
+    ['GPU', pc.gpu, pc.gpu != null ? `${pc.gpu} %${pc.gpuGrad != null ? ` · ${pc.gpuGrad} °C` : ''}` : '–', pc.verlauf?.gpu],
+    ['VRAM', pc.vramMb != null && pc.vramGesamtMb ? (pc.vramMb / pc.vramGesamtMb) * 100 : null, pc.vramMb != null && pc.vramGesamtMb ? `${gb(pc.vramMb)} / ${gb(pc.vramGesamtMb)} GB` : '–', pc.verlauf?.vram],
+    ['RAM', pc.ramMb != null && pc.ramGesamtMb ? (pc.ramMb / pc.ramGesamtMb) * 100 : null, pc.ramMb != null && pc.ramGesamtMb ? `${gb(pc.ramMb)} / ${gb(pc.ramGesamtMb)} GB` : '–', pc.verlauf?.ram],
+  ]
+  const rechts = pc.oben ? `GERADE: ${pc.oben}` : ''
+  g.font = `600 11px ${SCHRIFT}`
+  const rb = rechts ? Math.min(300, g.measureText(rechts).width) + 30 : 0, sb = (b - 22 - rb) / teile.length
+  teile.forEach(([name, anteil, wert, verlauf], i) => {
+    const x = 22 + i * sb, farbe = anteil == null ? BLASS : anteil >= 85 ? ROT : anteil >= 60 ? GOLD : CYAN
+    text(g, name, x, mitte, 11, CYAN, 'left', 700)
+    text(g, wert, x + 42, mitte, 13, anteil != null && anteil >= 85 ? ROT : HELL, 'left', 600)
+    const lx = x + 42 + g.measureText(wert).width + 12, lb = x + sb - 18 - lx
+    if (lb > 30 && verlauf?.length > 1) {
+      const y0 = h / 2 - 10, y1 = h / 2 + 10
+      g.strokeStyle = 'rgba(95,246,255,0.12)'; g.lineWidth = 1; g.beginPath(); g.moveTo(lx, y1 + 0.5); g.lineTo(lx + lb, y1 + 0.5); g.stroke()
+      g.strokeStyle = farbe; g.lineWidth = 1.2; g.beginPath()
+      verlauf.forEach((v, j) => { const px = lx + (lb * j) / (verlauf.length - 1), py = y1 - ((y1 - y0) * Math.max(0, Math.min(100, v))) / 100; j ? g.lineTo(px, py) : g.moveTo(px, py) })
+      g.stroke()
+    }
   })
-  if ((o.anzahl ?? liste.length) > n) text(g, `+ ${(o.anzahl ?? liste.length) - n} WEITERE`, 22, h - 8, 10, BLASS, 'left', 600)
+  if (rechts) { g.font = `600 11px ${SCHRIFT}`; text(g, kuerzen(g, rechts, rb - 30), b - 16, mitte, 11, BLASS, 'right', 600) }
 }
 
 export const ZEICHNER = {
@@ -666,6 +756,7 @@ export const ZEICHNER = {
   abarbeiten: (g, b, h, d, t) => abarbeitenListe(g, b, h, d.werkstatt ?? {}, t),
   nachproduzieren: (g, b, h, d, t) => nachproduzieren(g, b, h, d.werkstatt ?? {}, t),
   bestellungen2: (g, b, h, d, t) => bestellungen2(g, b, h, d.werkstatt ?? {}, t),
+  pcStatus: (g, b, h, d) => pcStatus(g, b, h, d.pc ?? null),
   verkaeufe: (g, b, h, d) => verkaeufe(g, b, h, d.werkstatt ?? {}),
   umsatz: (g, b, h, d) => umsatz(g, b, h, d.werkstatt ?? {}),
   ton: (g, b, h, d, t) => tonwellen(g, b, h, d.ton, t, d.loki, d.tonStatus, d.medien),

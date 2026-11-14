@@ -25,6 +25,7 @@ const { erstelleNeuigkeiten } = require('./neuigkeiten.cjs')
 const { erstelleKamerawache } = require('./kamerawache.cjs')
 const { erstelleMedientasten } = require('./medientasten.cjs')
 const { erstelleLautstaerke } = require('./lautstaerke.cjs')
+const { erstellePcStatus } = require('./pcstatus.cjs')
 const { Readable } = require('node:stream')
 let kameraLive = null // Live-Bild fürs Dauer-HUD (04.11.2026)
 const { findeWallpaperEngine, einrichten, zugangAbgleichen } = require('./wallpaper.cjs')
@@ -61,8 +62,10 @@ function hudAuswahl(l) {
     selbsttest: l.selbsttest ? { am: l.selbsttest.am, rot: zahl(l.selbsttest.rot) } : null,
     // Dauer-HUD (05.11.2026, Wunsch Auftraggeber): aktuelle, noch nicht versendete Bestellungen aus Billbee – nur Zeit,
     // Kanal, Status, Stück, Betrag, erster Artikeltitel (keine Kundendaten; die Serverfunktion liefert ohnehin keine)
-    offeneBestellungen: l.offeneBestellungen ? { anzahl: zahl(l.offeneBestellungen.anzahl), liste: (l.offeneBestellungen.liste ?? []).slice(0, 12)
-      .map((b) => ({ am: String(b.am ?? ''), kanal: String(b.kanal ?? ''), status: String(b.status ?? ''), stueck: zahl(b.stueck), cent: zahl(b.cent), artikel: String((b.artikel ?? [])[0] ?? '').slice(0, 60) })) } : null,
+    // 14.11.2026: bis 30 (Feld ordnet nach Frist), „bezahlt“ nur weiterreichen, wenn jarvis-lage es liefert (eigener Shop: Frist ab Zahlung)
+    offeneBestellungen: l.offeneBestellungen ? { anzahl: zahl(l.offeneBestellungen.anzahl), liste: (l.offeneBestellungen.liste ?? []).slice(0, 30)
+      .map((b) => ({ am: String(b.am ?? ''), kanal: String(b.kanal ?? ''), status: String(b.status ?? ''), stueck: zahl(b.stueck), cent: zahl(b.cent), artikel: String((b.artikel ?? [])[0] ?? '').slice(0, 60),
+        ...('bezahlt' in b ? { bezahlt: b.bezahlt ? String(b.bezahlt) : null } : {}) })) } : null,
   }
 }
 
@@ -452,6 +455,9 @@ if (!app.requestSingleInstanceLock()) {
     setTimeout(() => medientasten.vorwaermen(), 15_000) // Meldungen der Medientasten stehen in kamera.log
     // Lautstärke-Regler im Audiofeld (09.11.2026): liest und setzt die Windows-Lautstärke. Das Programm dafür bleibt offen, gefragt wird nur, wenn das Wallpaper läuft
     const lautstaerke = erstelleLautstaerke({ protokoll: kameraLog })
+    // PC-Status-Balken unten links (14.11.2026): Hilfsprogramme laufen nur, solange das Wallpaper fragt
+    const pcStatus = erstellePcStatus({ protokoll: kameraLog })
+    app.on('will-quit', () => pcStatus.beenden())
     app.on('will-quit', () => lautstaerke.beenden())
     setTimeout(() => lautstaerke.vorwaermen(), 15_000)
     const hudServer = erstelleHudServer({
@@ -460,7 +466,7 @@ if (!app.requestSingleInstanceLock()) {
       port: HUD_PORT, schluessel: () => hud.schluessel,
       liveBild: async (kanal, nach) => (kamera.status().eingerichtet ? kameraLive.bildNach(kanal, nach) : null),
       ton: async () => tonWerte(),
-      daten: async () => ({ ...hudDatenJetzt(), lautstaerke: await lautstaerke.lesen() }),
+      daten: async () => ({ ...hudDatenJetzt(), pc: pcStatus.lesen(), lautstaerke: await lautstaerke.lesen() }),
       // roter Knopf im Wallpaper: wie „Mikrofon aus/an“ im Infobereich, beim Stummschalten verstummt Loki auch sofort
       stumm: async () => {
         if (hauptfenster.isDestroyed()) return { ...trayZustand }

@@ -11,8 +11,9 @@ const TAFEL = { links: 490, oben: 165, breite: 1240, hoehe: 760, neigung: 24, ti
 // 05.11.2026 (Wunsch Auftraggeber): Umsatz heute braucht wenig Platz, Verkäufe 14 Tage dafür breiter; Felder bewusst
 // unterschiedlich groß statt alle gleich
 // Umbau 08.11.2026 (Wahl Auftraggeber: links Entwurf 2 „Statistik-Säule“, nur Arbeit; Audio wandert nach rechts)
-const LINKS = [['statHeute', 0, 0, 340, 170], ['statVerlauf', 0, 185, 340, 300], ['statKanaele', 0, 500, 340, 260],
-  ['abarbeiten', 355, 0, 885, 380], ['nachproduzieren', 355, 395, 420, 365], ['bestellungen2', 790, 395, 450, 365]]
+// 14.11.2026 (Wunsch Auftraggeber): Felder in der Höhe gestaucht (760 → 700), unten durchgehend ein schmaler PC-Status-Balken
+const LINKS = [['statHeute', 0, 0, 340, 157], ['statVerlauf', 0, 170, 340, 277], ['statKanaele', 0, 461, 340, 239],
+  ['abarbeiten', 355, 0, 885, 350], ['nachproduzieren', 355, 364, 420, 336], ['bestellungen2', 790, 364, 450, 336], ['pcStatus', 0, 716, 1240, 44]]
 // rechts gespiegelt: Feld bei x 630 landet innen (links) – CAM 01 links, CAM 02 rechts (Rückmeldung 05.11.2026)
 // Umbau 05.11.2026 (Wunsch Auftraggeber): schmaler Streifen für den L.O.K.I.-Systemstatus, unten innen Wetter, unten
 // außen groß die PV-Anlage
@@ -38,7 +39,8 @@ export const SPIEGEL = { abstand: 70, deckkraft: 0.45, unschaerfe: 1.5, auslauf:
 // vergrößert die vordere Kante; mit mehr Bildpunkten bleiben Linien und Schrift scharf
 const AUFLOESUNG = 2
 const GROSS = { b: 1560, h: 878, dreh: 'perspective(2600px) rotateY(-5deg)' } // großes Kamerabild, leicht in der Schräge der Fenster
-const LANGSAM = new Set(['abarbeiten', 'nachproduzieren', 'bestellungen2'])
+// höchstens alle n Sekunden neu zeichnen (14.11.2026: links bewegt sich nur noch wenig – spart Rechenzeit ohne sichtbaren Unterschied)
+const LANGSAM = new Map([['abarbeiten', 0.4], ['nachproduzieren', 0.4], ['statHeute', 0.4], ['statKanaele', 0.4], ['statVerlauf', 0.15], ['bestellungen2', 1]])
 const BEWEGT = new Set(['statHeute', 'statVerlauf', 'statKanaele', 'abarbeiten', 'nachproduzieren', 'bestellungen2', 'ton', 'tonSystemOben', 'tonSystemUnten', 'tonSystemKopf', 'kamera1', 'kamera2', 'energie', 'wetter']) // energie: laufende Lichtpunkte
 
 /** Tafeln anlegen. huelle = Element über der Szenen-Leinwand (gleiche Größe); faktor = Bildschirm-Pixel je Szenen-Pixel.
@@ -160,11 +162,13 @@ export function zeichneTafeln(st, daten, t) {
   const kennung = JSON.stringify([daten.werkstatt, daten.wetter, daten.kamera?.name ?? null, daten.loki, daten.uhr, daten.beispiel, daten.veraltet])
   const alles = kennung !== st.kennung
   st.kennung = kennung
+  const pcNeu = daten.pc !== st.pc // PC-Balken nur bei neuen Werten (daten entsteht nur beim Abruf alle 5 s neu)
+  st.pc = daten.pc
   const sekunde = Math.floor(Date.now() / 1000), neueSekunde = sekunde !== st.sekunde // Uhr mit Sekunden im System-Streifen
   st.sekunde = sekunde
   for (const [id, f] of Object.entries(st.felder)) {
-    const faellig = !LANGSAM.has(id) || !(t - (f.zuletzt ?? -1) < 0.15) // Listen: höchstens alle 150 ms (Prüf-Agent 08.11.2026)
-    if (alles || (BEWEGT.has(id) && faellig) || (neueSekunde && id === 'system')) { feldZeichnen(f, id, daten, t); f.zuletzt = t }
+    const faellig = !LANGSAM.has(id) || !(t - (f.zuletzt ?? -1) < LANGSAM.get(id)) // Listen: gedrosselt (Prüf-Agent 08.11. und 14.11.2026)
+    if (alles || (BEWEGT.has(id) && faellig) || (neueSekunde && id === 'system') || (pcNeu && id === 'pcStatus')) { feldZeichnen(f, id, daten, t); f.zuletzt = t }
     spiegelWellen(f, t)
   }
   if (st.knoepfe) { const an = liedSichtbar(daten.medien) ? 'block' : 'none'; for (const d of st.knoepfe) if (d.style.display !== an) d.style.display = an }

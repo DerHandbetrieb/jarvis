@@ -13,8 +13,7 @@ Offene, noch nicht entschiedene Ideen. Vor dem Bau mit offiziellen Quellen prüf
 - Weitere Bausteine der Morgen-Lage: Börse (keine Anlageberatung), KI-Neuigkeiten aus freien Quellen.
 - Steinrand außen um das HUD (Steinstruktur, Knoten, Moos) mit Verlauf ins Dunkle; Wahl der Kasten-Variante unter dem Reaktor (`?ring=info-e…h`) war offen.
 - Gewitter und Hagel im HUD wieder beleben, sobald eine Quelle sie messen kann (die Station erkennt beides nicht). Wetter-Geräusche nur als Option, Standard aus.
-
-- **Bestellfrist im HUD:** offene Bestellungen nach „Überfällig / Muss heute raus / Hat noch Zeit“ ordnen. Die Werkstatt hat die Regel als reine Funktion (`src/startseite/frist.ts`: `fristFuer`, `einordnen`, `naechsteAbholung` Mo/Mi/Fr; 2 Zähltage Mo–Sa, ohne Sonntag und Feiertage BW; Details `docs/startseite.md` im Werkstatt-Repo). Ab 17.11. schickt die Werkstatt um 18 Uhr eine Push dazu (tag `bestellfrist`). Hinweis aus der Werkstatt-Sitzung 14.11.2026.
+- **Bestellfrist, Rest:** `jarvis-lage` um das Zahlungsdatum (`bezahlt_am`) und offene Bestellungen älter als 14 Tage erweitern (Werkstatt-Projekt); das HUD wertet `bezahlt` schon aus, sobald es kommt.
 
 ## Später
 

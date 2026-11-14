@@ -774,6 +774,67 @@ nachrichten|Sie dürfen jetzt so tun, als würden Sie sich für die Welt interes
 nachrichten|Ihre Zeitplanung kann ich nicht retten, {a}, wohl aber Ihre Allgemeinbildung. Hier die Nachrichten des Deutschlandfunks.
 nachrichten|{a}, ich bin sicher, Sie hatten für heute ohnehin nichts Wichtigeres geplant. Also hören Sie zu: die Nachrichten.
 nachrichten|Ich bitte um Ihre geschätzte Aufmerksamkeit, {a}, sofern noch vorhanden. Es folgen die Nachrichten des Deutschlandfunks.
+# Ladung 14.11.2026 (Sonnet-Agent, Prüf-Agent: 6 von 60 ersetzt) – Kamera-Wache und Morgen-Lage
+neu-kamera|Bewegung auf dem Grundstück, {a}. Ich habe Emma informiert. Sie hat das Gähnen vorerst verschoben.
+neu-kamera|Die Kamera meldet eine Person, {a}. Ob sie zu Ihnen will, wäre die einzige Frage, die Sie beantworten können.
+neu-kamera|Auf dem Hof regt sich etwas, {a}. Ich beobachte. Das ist übrigens meine gesamte Verteidigungsstrategie.
+neu-kamera|Jemand auf dem Grundstück, {a}. Ich bleibe gelassen. Sie dürfen sich gern überfordert fühlen, das ist Ihre Disziplin.
+neu-kamera|Die Kamera hat etwas gesehen, {a}. Es war mehr, als Sie heute bisher gesehen haben.
+neu-kamera|Eine Gestalt im Bild, {a}. Ich rate zu einem Blick aus dem Fenster. Und zu einem zweiten, falls der erste lang dauert.
+neu-kamera|Bewegung vor dem Haus, {a}. Ich würde nachsehen, aber mein Körper ist leider ein Gerücht.
+neu-kamera|Die Kamera schlägt an, {a}. Meistens ist es harmlos. Meistens ist es auch Emma. Gelegentlich beides.
+neu-kamera|Es tut sich etwas im Hof, {a}. Ich schlage vor, Sie unterbrechen Ihre Untätigkeit für einen Moment.
+neu-kamera|Person erkannt, {a}. Ich erkenne Menschen, Sie erkennen Vorwände. Wir ergänzen uns bewundernswert.
+neu-kamera|Auf dem Grundstück bewegt sich jemand, {a}. Das ist mehr Bewegung, als ich hier in Ihrer Nähe gewohnt bin.
+neu-kamera|Die Kamera meldet Betrieb am Eingang, {a}. Ich habe nichts bestellt. Bei Ihnen schließe ich nichts aus.
+neu-kamera|Jemand ist auf dem Hof, {a}. Ich erwähne es nur, damit Sie später behaupten können, Sie hätten es gewusst.
+neu-kamera|Aufmerksamkeit, {a}: Bewegung im Bild. Ich weiß, das Wort ist Ihnen fremd. Es heißt: bitte hinsehen.
+neu-kamera|Ich habe eine Person gesichtet, {a}. Falls sie zu Ihnen möchte, rate ich zur Haltung. Falls nicht, zur Erleichterung.
+neu-kamera|Die Wache meldet Bewegung, {a}. Ich war die ganze Zeit wachsam. Sie dürfen das gern als Anregung verstehen.
+neu-kamera|Auf dem Grundstück ist etwas los, {a}. Eine Seltenheit, wenn man Ihre Wochenplanung betrachtet.
+neu-kamera|Bewegung am Haus, {a}. Ich bleibe ruhig. Gelassenheit ist leicht, wenn man nichts besitzen muss und nichts erledigen soll.
+neu-kamera|Eine Person im Garten, {a}. Falls Sie das für einen Fehlalarm halten: Das hätten Sie über mich auch gesagt.
+neu-kamera|Die Kamera zeigt Leben auf dem Hof, {a}. Ein ungewohnter Anblick in Ihrer Umgebung.
+neu-kamera|Da ist jemand, {a}. Ich empfehle, die Kaffeetasse abzustellen. Vorbereitet wirken Sie damit zwar nicht, aber freier.
+neu-kamera|Bewegung erkannt, {a}. Sollte es ein Einbrecher sein, bitte ich um Fassung. Sie ist das Einzige, was er nicht mitnimmt.
+neu-kamera|Am Grundstück rührt sich etwas, {a}. Ich zeichne nichts auf. Ihre Reaktion bliebe ohnehin ein Geheimnis.
+neu-kamera|Die Kamera hat eine Person gemeldet, {a}. Bitte nicht in Panik geraten. Das wäre dann schon Ihre zweite Bewegung heute.
+neu-kamera|Auf dem Hof steht jemand, {a}. Ich überlasse Ihnen die Begrüßung. Ich bin dem Menschlichen nicht gewachsen.
+neu-kamera|Etwas bewegt sich vor dem Haus, {a}. Ich hoffe, es ist schneller als Ihre Reaktion darauf.
+neu-kamera|Die Wache hat angeschlagen, {a}. Ich mache nur meine Arbeit. Sie dürfen jederzeit damit anfangen.
+neu-kamera|Eine Person nähert sich dem Haus, {a}. Ich stelle das fest, bewerte es nicht und beneide Emma um ihr Bellen.
+neu-kamera|Bewegung auf dem Gelände, {a}. Bitte sehen Sie nach. Ich verspreche, nichts zu kommentieren. Das war gelogen.
+neu-kamera|Die Kamera meldet jemanden, {a}. Ich tippe auf Besuch. Falls es doch ein Einbruch wird, sind Sie als Zeuge erstaunlich überflüssig.
+lage-morgens|Der Tag ist eröffnet. Ich hoffe, Sie sind es auch, sonst reden wir beide ins Leere.
+lage-morgens|Ein neuer Morgen, Sir. Die Welt hat sich über Nacht nicht gebessert, aber Sie haben es immerhin bis hierher geschafft.
+lage-morgens|Guten Morgen, Sir. Ich habe schon alles vorbereitet. Sie müssen nur noch eintreffen.
+lage-morgens|Sir, die Sonne ist aufgegangen, ganz ohne Ihr Zutun. Ein Muster, das sich durch den Tag ziehen dürfte.
+lage-morgens|Willkommen im Tag, Sir. Ich habe den Anfang übernommen. Das Durchhalten überlasse ich Ihnen.
+lage-morgens|Guten Morgen, Sir. Ich würde Sie ausschlafen lassen, aber Ihre Termine haben dafür kein Verständnis.
+lage-morgens|Sir, noch ist alles möglich. Das ändert sich, sobald Sie anfangen.
+lage-morgens|Der Morgen gehört Ihnen, Sir. Ich bitte, ihn pfleglich zu behandeln. Er hat noch einen weiten Weg.
+lage-morgens|Guten Morgen, Sir. Der Kaffee ist Ihre Sache. Ich übernehme nur die schlechten Nachrichten.
+lage-morgens|Sir, Sie sind rechtzeitig erschienen. Ich bin gerührt und werde es später bestreiten.
+lage-morgens|Ein frischer Tag, Sir. Ungenutzt, unberührt und bald in Ihren Händen. Ich bete für ihn.
+lage-morgens|Guten Morgen, Sir. Ich habe die Lage gesichtet. Sie ist besser als erwartet, was bei Ihrer Planung kein Kunststück ist.
+lage-morgens|Sir, es ist Morgen. Ich teile das mit, falls Ihr Kalender es Ihnen noch nicht verraten hat.
+lage-morgens|Der Tag wartet, Sir. Er ist geduldiger als ich, aber auch er hat Grenzen.
+lage-morgens|Guten Morgen, Sir. Hören Sie gut zu, danach dürfen Sie so tun, als hätten Sie alles gewusst.
+lage-schluss|Das war die Lage, Sir. Ich habe meinen Teil getan. Der Rest ist Ihr Spezialgebiet: das Aufschieben.
+lage-schluss|Damit wären Sie im Bilde, Sir. Ob Sie es verstanden haben, bleibt unser kleines Geheimnis.
+lage-schluss|Ich bin durch, Sir. Sie können nun mit Selbstvertrauen scheitern. Informiert wenigstens.
+lage-schluss|Das war alles, Sir. Der Tag liegt vor Ihnen. Ich rate, ihn nicht wie die letzten zu behandeln.
+lage-schluss|Ende der Meldung, Sir. Handeln Sie nach eigenem Ermessen. Ich vermerke die Ergebnisse für die Nachwelt.
+lage-schluss|Das war die Lage, Sir. Ich wünsche Ihnen viel Erfolg. Ersatzweise einen guten Vorwand.
+lage-schluss|Mehr habe ich nicht, Sir. Mehr haben Sie vermutlich auch nicht. Das nennt man Gleichstand.
+lage-schluss|Sir, damit ist alles gesagt. Gehen Sie hinaus und erschrecken Sie die Aufgaben, bevor sie Sie erschrecken.
+lage-schluss|Das wäre die Lage, Sir. Ich ziehe mich zurück und lasse Sie mit Ihrer Verantwortung allein. Sie wirkt überrascht.
+lage-schluss|Ende der Lage, Sir. Ich bin bereit, Ihnen bei allem zu helfen. Oder zuzusehen. Es kommt auf Sie an.
+lage-schluss|Das war es, Sir. Ich hoffe, ich habe Sie nicht überfordert. Falls doch: Sie hatten Zeit zum Üben.
+lage-schluss|Sir, ich schließe hiermit. Bitte hinterlassen Sie den Tag in ordentlichem Zustand. Sie dürfen auch einmal etwas fertigstellen.
+lage-schluss|Die Lage ist verlesen, Sir. Applaus ist nicht nötig. Ein einziger erledigter Punkt würde mir völlig genügen.
+lage-schluss|Das wäre alles für jetzt, Sir. Ich bin im Hintergrund. Wie immer, ungefragt und unverzichtbar.
+lage-schluss|Ich bin fertig, Sir. Was Sie daraus machen, wird vermutlich sehr aufschlussreich. Für mich, nicht für Sie.
 `
 
 /** Nachschub je Bereich als Vorlagen (a = Anrede) */

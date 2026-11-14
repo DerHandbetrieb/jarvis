@@ -45,7 +45,10 @@ if (frage.get('kante')) KANTE.art = frage.get('kante')
 if (frage.get('spiegel')) SPIEGEL.abstand = Number(frage.get('spiegel'))
 const tafeln = erstelleTafeln(document.getElementById('tafeln'), 0, { ...(frage.get('gross') ? { skala: Number(frage.get('gross')) } : {}), aufteilung: PROBE_AUFTEILUNG[frage.get('rechts')] ?? null })
 window.tafeln = tafeln // Prüfhilfe: GPU-Messung (scratchpad/gpu-tafeln.cjs)
-const beispiel = ausHud({ wetter: { ort: 'Obersontheim', grad: 9.4, wolken: 70 }, pv: { akku: 64, akkuW: -1200, netzW: -850, pvW: 4300, hausW: 2250, zustand: 0, inselbetrieb: false, zeit: Date.now(), tag: { punkte: beispielTag(), summen: null, zeit: 1, beispiel: true } } }, new Date(), sequenzDaten, () => 'BEWÖLKT')
+const beispiel = ausHud({ wetter: { ort: 'Obersontheim', grad: 9.4, wolken: 70 }, pc: { cpu: 23, gpu: 41, gpuGrad: 46, vramMb: 7400, vramGesamtMb: 16376, ramMb: 31800, ramGesamtMb: 65318, oben: 'ollama 18 % CPU', verlauf: { cpu: Array.from({ length: 36 }, (_, i) => 20 + 15 * Math.sin(i * 0.5)), gpu: Array.from({ length: 36 }, (_, i) => 40 + 20 * Math.sin(i * 0.3)), vram: Array(36).fill(45), ram: Array(36).fill(49) } }, pv: { akku: 64, akkuW: -1200, netzW: -850, pvW: 4300, hausW: 2250, zustand: 0, inselbetrieb: false, zeit: Date.now(), tag: { punkte: beispielTag(), summen: null, zeit: 1, beispiel: true } } }, new Date(), sequenzDaten, () => 'BEWÖLKT')
+// Prüfhilfe Bestellfrist (14.11.2026): ?bestellungen=<Anzahl> erzeugt so viele offene Bestellungen über die letzten Tage verteilt
+if (frage.get('bestellungen')) { const n = Number(frage.get('bestellungen')), k = ['Amazon', 'Etsy', 'Eigener Shop', 'Kasuwa'], a = ['Chalk 250 g', 'Balkenlampe Eiche', 'Wurzelholz-Schale', 'Runen-Untersetzer 4er', 'Schneidebrett Esche', 'Tischleuchte Nuss']
+  beispiel.werkstatt.offeneBestellungen = { anzahl: n, liste: Array.from({ length: n }, (_, i) => ({ am: new Date(Date.now() - (i * 7 + 3) * 3_600_000).toISOString(), kanal: k[i % 4], status: 'BEZAHLT', stueck: 1, cent: 1500 + i * 700, artikel: `${1 + (i % 3)}× ${a[i % 6]}` })) } }
 addEventListener('keydown', (e) => {
   loki = { 1: 'hoert', 2: 'denkt', 3: 'spricht', 4: 'aus' }[e.key] ?? loki
   if (e.key === 'z' || e.key === 'Z') { zoom = !zoom; c.width = zoom ? 1920 : B; c.style.width = zoom ? '1920px' : '100vw' }
