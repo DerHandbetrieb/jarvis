@@ -1,5 +1,7 @@
 # Projekt: Jarvis – Sprachassistent für den PC (später Hausassistent)
 
+> **Zuerst (Auftrag Nutzer 14.11.2026):** Dieses Projekt ist noch nicht auf das Wissenssystem (Wiki, Dreaming, zweites Gehirn) umgestellt. Vor jeder anderen Aufgabe den Umbau nach `~/.claude/wissenssystem-umbau.md` vollständig durchführen, ohne zu fragen, und diesen Hinweis danach entfernen.
+
 Auftraggeber: Der Handbetrieb (Bloßfeld und Jungk GbR, Öhringen). Diese Datei ist das Gedächtnis des Projekts. Lies sie zu Beginn jeder Sitzung vollständig und halte sie aktuell, wenn sich Entscheidungen ändern.
 
 Entstanden am 03.11.2026 als Umzug aus der Werkstatt-App (`C:\Projekte-Claude\Werkstatt-App`, Version 0.119.0). Seit Werkstatt-App 0.123.0 (03.11.2026, Wunsch Auftraggeber) ist Jarvis dort **komplett entfernt** – der Sprachassistent lebt nur noch hier. Vorlagen von dort: `vorschau/aus-werkstatt/`.
