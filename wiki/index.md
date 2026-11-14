@@ -6,7 +6,7 @@ Wird über `CLAUDE.md` in jede Sitzung geladen. Je Seite eine Zeile. Erst hier n
 
 ## Aktueller Stand
 
-- 14.11.2026: Wissenssystem eingerichtet (Umbau, Bericht in [umbau.md](umbau.md)); Nieserkennung entfernt (0.33.0); Reste der Start-Sequenz und alte Entwürfe aufgeräumt (0.33.1, Code-Vorschläge 1–4).
+- 14.11.2026: Wissenssystem eingerichtet (Umbau, Bericht in [umbau.md](umbau.md)); Nieserkennung entfernt (0.33.0); Reste der Start-Sequenz und alte Entwürfe aufgeräumt (0.33.1, Code-Vorschläge 1–4); Sprachbefehl an Werkstatt 0.230.0 angepasst („Übersicht“, neu „Dorf“, 0.33.2), Idee Bestellfrist im HUD notiert.
 - Zuletzt: Abfragetakt der Werkstatt-Lage 10/50 min (0.32.2, Supabase-Kontingent knapp bis 17.11.), Wallpaper auf 25 B/s begrenzt, eigene Auto-Erkennung entfernt (0.32.0), Deutschlandfunk-Nachrichten (0.31.0), Lautstärke-Regler (0.30.0). Regentropfen verworfen.
 - Noch zu testen beim Auftraggeber: Klick auf Lautstärke-Regler/Medien-Knöpfe in Wallpaper Engine, Auto-Meldung nach Bereichsänderung, Morgen-Lage „nur Neues“ im Alltag.
 - Als Nächstes möglich: weitere [Code-Vorschläge](code-vorschlaege.md) (z. B. 9 Schlüsseldatei, 10 leere catch, 5 kamera.standbild) nach Freigabe; Ideen in [ideen.md](ideen.md).

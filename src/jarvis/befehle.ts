@@ -105,7 +105,9 @@ const SEITEN: { muster: RegExp; pfad: string; name: string }[] = [
   { muster: /\b(maschinen|werkstatt)\b/, pfad: '/maschinen', name: 'Maschinen' },
   { muster: /\b(materialien|material)\b/, pfad: '/materialien', name: 'Materialien' },
   { muster: /\b(einstellungen)\b/, pfad: '/einstellungen', name: 'Einstellungen' },
-  { muster: /\b(start|startseite|uebersicht)\b/, pfad: '/', name: 'Startseite' },
+  // Werkstatt 0.230.0: Startseite heißt „Übersicht“ (Pfad / bleibt), das Wikinger-Dorf liegt unter /dorf
+  { muster: /\b(dorf|wikingerdorf|wikinger dorf)\b/, pfad: '/dorf', name: 'Dorf' },
+  { muster: /\b(start|startseite|uebersicht)\b/, pfad: '/', name: 'Übersicht' },
 ]
 
 /** Fester Befehl aus dem Satz nach „Hey Jarvis“ (oder freie Frage) */
