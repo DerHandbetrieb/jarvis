@@ -13,7 +13,6 @@ Offene, noch nicht entschiedene Ideen. Vor dem Bau mit offiziellen Quellen prüf
 - Weitere Bausteine der Morgen-Lage: Börse (keine Anlageberatung), KI-Neuigkeiten aus freien Quellen.
 - Steinrand außen um das HUD (Steinstruktur, Knoten, Moos) mit Verlauf ins Dunkle; Wahl der Kasten-Variante unter dem Reaktor (`?ring=info-e…h`) war offen.
 - Gewitter und Hagel im HUD wieder beleben, sobald eine Quelle sie messen kann (die Station erkennt beides nicht). Wetter-Geräusche nur als Option, Standard aus.
-- **Bestellfrist, Rest:** `jarvis-lage` um das Zahlungsdatum (`bezahlt_am`) und offene Bestellungen älter als 14 Tage erweitern (Werkstatt-Projekt); das HUD wertet `bezahlt` schon aus, sobald es kommt.
 
 ## Später
 

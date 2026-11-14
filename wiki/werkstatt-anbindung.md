@@ -11,6 +11,7 @@ Verwandt: [Morgen-Lage](morgenlage.md), [Dauer-HUD](dauer-hud.md), Recherche `re
 - Regeln in `jarvis-lage`: Karten in „Läuft im Hintergrund“ (system_key `hintergrund`) zählen nicht als Aufgabe, außer überfällig; automatisch bearbeitete „Amazon-Problem:“-Karten dort gelten nicht als Problem. Bewusste Abweichungen: Stückzahl ohne Set-Faktor; ein Shop ohne Zuordnung bekommt den Kanalnamen.
 - Bezeichnungen der Werkstatt (Menü 0.145.0): Freigaben stehen unter „Abarbeiten“, Zahlen unter „Auswertung“, Marketing heißt „Werbung“ – Lokis Sätze, Befehle und `GRUNDWORTE` folgen dem.
 - Werkstatt 0.230.0 (14.11.2026): Die Startseite heißt „Übersicht“ (Pfad `/` bleibt), das Wikinger-Dorf liegt unter `/dorf`; Lokis Befehl „öffne Übersicht/Dorf“ folgt dem. Die Antwort von `jarvis-lage` bleibt gleich.
+- `offeneBestellungen` (Werkstatt faaf16c, 14.11.2026): je Eintrag `bezahlt` (ISO oder null), alle offenen Status ohne 14-Tage-Grenze, aber nicht älter als 90 Tage (`OFFEN_HOECHSTENS_TAGE`), älteste zuerst, höchstens 30; Grundlage der Bestellfrist im [Dauer-HUD](dauer-hud.md).
 - Loki darf alles laut sagen, auch Umsatz in Euro. Jetzt nur lesen; Schreiben später als eigene, eng begrenzte Funktion mit Bestätigung per Sprache.
 - Veröffentlichen der Werkstatt-Dienste: `node scripts/dienst-veroeffentlichen.mjs jarvis-lage` im Werkstatt-Projekt – Claude darf das dauerhaft selbst (Freigabe 04.11.2026).
 - **Regel 05.11.2026:** Jede Werkstatt-Änderung, die Loki betrifft (Titel, Meldungen, Struktur), sofort hier übernehmen.
