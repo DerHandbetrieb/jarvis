@@ -80,7 +80,7 @@ function spektrumTeil(x, y, w, h, start, versatz) {
 }
 
 // ---------- echte Werte (Etappe L3) ----------
-// Vor aufbauen() setzen: echt = Ergebnis von startsequenz/lageDaten.js sequenzDaten() oder null (dann Beispieldaten mit
+// Vor aufbauen() setzen: echt = Ergebnis von dauerhud/lageDaten.js sequenzDaten() oder null (dann Beispieldaten mit
 // Hinweis „Beispiel“), datum/wetter als fertige Texte. Die Kleinteile (To-do-Liste, Lager) lesen DATEN aus zeichner.js.
 let ECHT = null, DATUM = 'DIENSTAG · 03.11.', WETTER = 'ÖHRINGEN · 9 °C · BEWÖLKT'
 export function setzeDaten({ echt = null, datum, wetter } = {}) {

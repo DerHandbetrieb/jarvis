@@ -1,5 +1,5 @@
 // Grundgerüst der Jarvis-Oberfläche (03.11.2026): Kopfzeile mit dem Jarvis-Ring und darunter die Einstellungen.
-// Bewusst schlicht – die eigentliche Gestaltung (Start-Sequenz, drei Bildschirme) folgt mit vier Entwürfen zur Wahl.
+// Bewusst schlicht – eine eigene Gestaltung des Fensters folgt mit vier Entwürfen zur Wahl (wiki/ideen.md).
 import JarvisKnopf from './jarvis/JarvisKnopf'
 import JarvisEinstellungen from './jarvis/JarvisEinstellungen'
 import { NachfrageHost } from './ui/Nachfrage'

@@ -8,7 +8,7 @@ import { B, H, ladeSzene, zeichneSzene } from '../hud5/szene.js'
 import { ausHud } from '../hud5/inhalte.js'
 import { lautRegelung, medienKnoepfe, erstelleTafeln, kameraGross, zeichneTafeln } from '../hud5/tafeln.js'
 import { erstelleFrost, frostStellen, frostGrad } from '../hud5/frost.js'
-import { sequenzDaten } from '../startsequenz/lageDaten.js'
+import { sequenzDaten } from './lageDaten.js'
 import { wetterAusCode } from '../src/jarvis/wetter.ts'
 
 const zugang = window.LOKI_HUD ?? { port: 47820, schluessel: '' }

@@ -4,7 +4,7 @@
 // (5173 gehört der Werkstatt-App, damit beide gleichzeitig laufen können).
 // Immer bereit (Entscheidung Auftraggeber 03.11.2026): startet mit Windows unsichtbar (Argument --autostart), lebt als
 // Symbol im Infobereich unten rechts; das X versteckt nur das Fenster, beendet wird über das Symbol.
-const { app, BrowserWindow, Menu, Tray, desktopCapturer, ipcMain, nativeImage, net, protocol, safeStorage, screen, shell, session } = require('electron')
+const { app, BrowserWindow, Menu, Tray, desktopCapturer, ipcMain, nativeImage, net, protocol, safeStorage, shell, session } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const { pathToFileURL } = require('node:url')
@@ -139,49 +139,7 @@ function fensterErstellen() {
   return fenster
 }
 
-// ---------- Start-Sequenz (03.11.2026) ----------
-// Ein randloses Fenster über alle drei Bildschirme (5760×1080), ganz oben – auch über der Taskleiste. So im Test über
-// drei Bildschirme gemessen: 60 Bilder/s. Hat der PC nicht genau drei Full-HD-Bildschirme nebeneinander, zeigt das Fenster
-// nur den mittleren Teil (Runen-Schild) auf dem Hauptbildschirm. Sicherheits-Ende: nach SEQUENZ_MAX ms wird es geschlossen.
-const SEQUENZ_MAX = 90_000 // Intro: Laden + bis 50 s auf Lokis Stimme warten + Gruß + Ausblenden
-let sequenzFenster = null
-let sequenzWartend = null // Nachrichten an die Sequenz, solange ihre Seite noch lädt (sonst gingen sie verloren)
-function anSequenz(kanal, daten) { const f = sequenzFenster; if (!f || f.isDestroyed()) return; if (sequenzWartend) sequenzWartend.push([kanal, daten]); else f.webContents.send(kanal, daten) }
-let hauptRef = null // Hauptfenster (getAllWindows()[0] könnte während der Sequenz deren Fenster sein)
-function sequenzStarten(lautstaerke) {
-  if (sequenzFenster && !sequenzFenster.isDestroyed()) return false
-  const alle = screen.getAllDisplays().map((d) => d.bounds).sort((a, b) => a.x - b.x)
-  const x = Math.min(...alle.map((b) => b.x)), y = Math.min(...alle.map((b) => b.y))
-  const breite = Math.max(...alle.map((b) => b.x + b.width)) - x, hoehe = Math.max(...alle.map((b) => b.y + b.height)) - y
-  const drei = alle.length === 3 && alle.every((b) => b.width === 1920 && b.height === 1080) && breite === 5760 && hoehe <= 1090
-  const flaeche = drei ? { x, y, width: breite, height: hoehe } : screen.getPrimaryDisplay().bounds
-  const f = new BrowserWindow({
-    ...flaeche, frame: false, show: false, backgroundColor: '#000000', skipTaskbar: true, resizable: false, movable: false, fullscreenable: false, hasShadow: false,
-    webPreferences: {
-      contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true,
-      preload: path.join(__dirname, 'preload-sequenz.cjs'),
-      backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required',
-    },
-  })
-  sequenzFenster = f
-  sequenzWartend = []
-  f.webContents.once('did-finish-load', () => { const w = sequenzWartend ?? []; sequenzWartend = null; for (const [k, d] of w) f.webContents.send(k, d) })
-  f.setAlwaysOnTop(true, 'screen-saver') // über der Taskleiste
-  f.setBounds(flaeche)
-  f.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-  f.webContents.on('will-navigate', (event) => event.preventDefault())
-  const sicherheit = setTimeout(() => { if (!f.isDestroyed()) f.close() }, SEQUENZ_MAX)
-  f.on('closed', () => {
-    clearTimeout(sicherheit)
-    if (sequenzFenster === f) sequenzFenster = null
-    // falls die Seite selbst nichts mehr melden konnte: Hauptfenster nicht warten lassen
-    if (hauptRef && !hauptRef.isDestroyed()) hauptRef.webContents.send('sequenz-meldung', 'ende')
-  })
-  f.once('ready-to-show', () => { f.show(); f.focus() })
-  const par = `?lautstaerke=${Math.max(0, Math.min(1, Number(lautstaerke) || 0)).toFixed(2)}${drei ? '' : '&ausschnitt=mitte'}`
-  f.loadURL((istEntwicklung ? DEV_URL : APP_URL) + 'start-sequenz.html' + par)
-  return true
-}
+let hauptRef = null // Hauptfenster (für Infobereich und „zeigen“)
 
 function zeigen() {
   const fenster = hauptRef
@@ -302,7 +260,7 @@ if (!app.requestSingleInstanceLock()) {
     // Anwesenheit für die Neuigkeiten (04.11.2026): wie lange Maus/Tastatur unbenutzt sind, und ob ein Spiel läuft
     // ohne frische Messung (Programm gerade gestartet, PowerShell hängt) gilt er als abwesend – nie in den leeren Raum reden (Prüf-Agent)
     const anwesenheit = { ruhe: 0, gemessen: 0, spiel: false }
-    const vollbildAus = ueberwachen((an) => { if (an && sequenzFenster && !sequenzFenster.isDestroyed()) return; anwesenheit.spiel = an; void jarvis.spielLaeuft(an) }, { beiRuhe: (s) => { anwesenheit.ruhe = s; anwesenheit.gemessen = Date.now(); jarvis.ruheMelden(s) } })
+    const vollbildAus = ueberwachen((an) => { anwesenheit.spiel = an; void jarvis.spielLaeuft(an) }, { beiRuhe: (s) => { anwesenheit.ruhe = s; anwesenheit.gemessen = Date.now(); jarvis.ruheMelden(s) } })
     app.on('will-quit', () => vollbildAus())
     const whatsappAus = whatsappHinweis.ueberwachen((n) => { whatsappNeu = n })
     app.on('will-quit', () => whatsappAus())
@@ -488,7 +446,6 @@ if (!app.requestSingleInstanceLock()) {
       const k = kamera.status()
       return { zeit: new Date().toISOString(), werkstatt: l && Date.now() - l.geholt < 60 * 60_000 ? hudAuswahl(l) : null, wetter: hudWetter(), eis: wettertage.eis(), station: stationAnzeige(), pv: pvAnzeige(), kamera: k.eingerichtet ? { name: k.name, alarm: Date.now() - kameraAlarm < 25_000 ? kameraAlarm : null, alarmArt: kameraAlarmArt, alarmKanal: kameraAlarmKanal, gross: kameraGross() } : null, loki: { ...trayZustand, whatsapp: whatsappNeu } }
     }
-    ipcMain.handle('sequenz-hud', (e) => (sequenzFenster && !sequenzFenster.isDestroyed() && e.sender === sequenzFenster.webContents ? hudDatenJetzt() : null))
     // Medientasten fürs Audiofeld (07.11.2026): Pause/Weiter, vor, zurück – L.O.K.I. drückt die Windows-Medientaste
     const medientasten = erstelleMedientasten({ protokoll: kameraLog })
     app.on('will-quit', () => medientasten.beenden())
@@ -543,28 +500,6 @@ if (!app.requestSingleInstanceLock()) {
       } catch (f) { console.error('Dauer-HUD einrichten:', f); return { ok: false, meldung: 'Einrichten hat nicht geklappt (Details im Protokoll).' } }
     })
 
-    // Start-Sequenz holt die Werkstatt-Lage für ihre Anzeigen (nur das Sequenzfenster; höchstens 1 Stunde alt, sonst frisch)
-    ipcMain.handle('sequenz-lage', async (e) => (sequenzFenster && !sequenzFenster.isDestroyed() && e.sender === sequenzFenster.webContents ? werkstatt.aktuelleLage(60 * 60_000) : null))
-    // Start-Sequenz: nur das Hauptfenster darf sie starten und ihr Lokis Spruch schicken; Meldungen der Sequenz gehen ans Hauptfenster
-    ipcMain.handle('sequenz-starten', (e, lautstaerke) => (vonFenster(e) ? sequenzStarten(lautstaerke) : false))
-    ipcMain.on('sequenz-gruss', (e, d) => {
-      if (!vonFenster(e) || !(d?.samples instanceof Float32Array)) return
-      anSequenz('sequenz-gruss', { samples: d.samples, sampleRate: Number(d.sampleRate) || 24000 })
-    })
-    ipcMain.on('sequenz-kein-gruss', (e) => { if (vonFenster(e)) anSequenz('sequenz-kein-gruss') })
-    ipcMain.on('sequenz-meldung', (e, art) => {
-      const f = sequenzFenster
-      if (!f || e.sender !== f.webContents) return
-      const a = String(art)
-      console.log(`Start-Sequenz: ${a}`)
-      if (['gruss', 'ohne-gruss', 'abgebrochen'].includes(a)) hauptfenster.webContents.send('sequenz-meldung', a)
-      if (a === 'ende' && !f.isDestroyed()) f.close() // „ende“ meldet dann das closed-Ereignis
-      // Intro auf der Szene des Wallpapers (05.11.2026): Fenster weich ausblenden – dahinter steht bildgleich das Wallpaper
-      if (a === 'ausblenden' && !f.isDestroyed()) {
-        const start = Date.now(), DAUER = 1400
-        const schritt = setInterval(() => { if (f.isDestroyed()) return clearInterval(schritt); const p = Math.min(1, (Date.now() - start) / DAUER); f.setOpacity(1 - p * p * (3 - 2 * p)); if (p >= 1) { clearInterval(schritt); f.close() } }, 16)
-      }
-    })
     ipcMain.handle('autostart-lesen', (e) => (vonFenster(e) ? { verfuegbar: autostart.verfuegbar(), an: autostart.lesen() } : null))
     ipcMain.handle('autostart-setzen', (e, an) => {
       if (!vonFenster(e)) return null

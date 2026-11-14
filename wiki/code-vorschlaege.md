@@ -2,7 +2,7 @@
 
 Stand: 2026-11-14
 
-Verbesserungen aus der Code-Durchsicht beim Umbau (14.11.2026). **Nur nach Freigabe umsetzen.** Verwandt: [Projekt](projekt.md), [Technik](technik.md).
+Verbesserungen aus der Code-Durchsicht beim Umbau (14.11.2026). **Nur nach Freigabe umsetzen.** Erledigt: 1–4 (14.11.2026, Version 0.33.1). Verwandt: [Projekt](projekt.md), [Technik](technik.md).
 
 | Nr. | Vorschlag | Fundstelle | Problem → Vorschlag | Aufwand | Nutzen |
 |---|---|---|---|---|---|

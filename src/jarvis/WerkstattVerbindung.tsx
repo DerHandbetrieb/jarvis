@@ -32,7 +32,7 @@ export default function WerkstattVerbindung() {
   const stand = s.stand ? new Date(s.stand).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : null
   return (
     <div className="space-y-2 rounded-lg border border-neutral-200 p-3">
-      <p className="font-medium text-neutral-700">Werkstatt-Verbindung (echte Zahlen für Morgen-Lage und Start-Sequenz)</p>
+      <p className="font-medium text-neutral-700">Werkstatt-Verbindung (echte Zahlen für Morgen-Lage, Fragen und Dauer-HUD)</p>
       {!s.verfuegbar && <p className="text-neutral-500">In diesem Programm fehlen die Zugangsdaten der Werkstatt (.env.werkstatt).</p>}
       {s.verfuegbar && s.zustand === 'verbunden' && (
         <div className="flex flex-wrap items-center gap-3">

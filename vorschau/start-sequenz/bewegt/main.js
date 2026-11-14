@@ -5,7 +5,7 @@
 // ein- und ausgeblendet. Neu gezeichnet werden nur kleine Teile (Tonwellen, Spektrum, Uhr, Globus-Punkte, Radar).
 // Die Bildrate wird gemessen (window.startSequenz.messung(), Anzeige mit ?fps). Alle Werkstatt-Zahlen sind Beispiele.
 import { aufbauen, zeichne, verbinde, setzeDaten, tonDaten, TON } from './szene.js'
-import { datumText, sequenzDaten } from '../../../startsequenz/lageDaten.js'
+import { datumText, sequenzDaten } from '../../../dauerhud/lageDaten.js'
 import { ZEIT, vorbereiten, starten, jetzt, verzoegerung } from '../ton/tongerueste.js'
 const Z = ZEIT
 const buehne = document.getElementById('buehne'), c = document.getElementById('flaeche')

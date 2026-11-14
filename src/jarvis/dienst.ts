@@ -8,7 +8,7 @@ import { ziehe } from './fundus'
 import { BAUSTEINE, LAGE_STAND, lageSchluessel, morgenLage, SPITZEN, SPRUECHE, type BausteinSchluessel, type LageEingabe } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
-import { BEGRUESSUNGEN, naechsteBegruessung, sequenzGruss } from './begruessung'
+import { BEGRUESSUNGEN, naechsteBegruessung, rechnerGruss } from './begruessung'
 import { waehle, stand } from './rotation'
 import { nachrichtenSaetze } from './nachrichten'
 import { nachschub } from './nachschub'
@@ -631,7 +631,7 @@ const warten = (ms: number) => new Promise((w) => setTimeout(w, ms))
 let gestartet = false
 
 // ---------- Rechnerstart ----------
-// Start-Intro entfernt (Entscheidung Auftraggeber 06.11.2026 – Dateien bleiben in startsequenz/, hud5/intro*.js liegen).
+// Start-Intro entfernt (Entscheidung Auftraggeber 06.11.2026); Reste aufgeräumt am 14.11.2026.
 const STIMME_WARTEN_S = 180
 
 /**
@@ -674,7 +674,7 @@ export async function rechnerStart() {
     const nr = naechsteBegruessung(e.letzteBegruessung)
     meldeSpruchStand()
     setzeJarvis({ letzteBegruessung: nr })
-    if (!await sprechen([sequenzGruss(nr, e.anrede, e.humor)])) return
+    if (!await sprechen([rechnerGruss(nr, e.anrede, e.humor)])) return
     if (jarvisEinstellungen().zuletztLage !== heute()) {
       const lageBeginn = Date.now()
       await morgenLageVortragen()

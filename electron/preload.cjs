@@ -47,17 +47,6 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
   },
   /** Dauer-HUD: als lokales Wallpaper in Wallpaper Engine anlegen */
   hud: { einrichten: () => ipcRenderer.invoke('hud-einrichten') },
-  /** Start-Sequenz über alle Bildschirme (Lokis Spruch kommt live aus seiner Stimme ins Finale) */
-  sequenz: {
-    starten: (lautstaerke) => ipcRenderer.invoke('sequenz-starten', Number(lautstaerke)),
-    gruss: (samples, sampleRate) => { if (samples instanceof Float32Array) ipcRenderer.send('sequenz-gruss', { samples, sampleRate: Number(sampleRate) }) },
-    keinGruss: () => ipcRenderer.send('sequenz-kein-gruss'),
-    beiMeldung: (fn) => {
-      const h = (_e, art) => fn(String(art))
-      ipcRenderer.on('sequenz-meldung', h)
-      return () => ipcRenderer.removeListener('sequenz-meldung', h)
-    },
-  },
   jarvis: {
     /** Zustand an das Symbol im Infobereich melden */
     meldeZustand: (zustand, mikrofon) => ipcRenderer.send('jarvis-zustand', { zustand: String(zustand), mikrofon: !!mikrofon }),

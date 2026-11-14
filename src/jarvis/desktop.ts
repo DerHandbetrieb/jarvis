@@ -119,15 +119,6 @@ export type StationBruecke = {
 export const stationBruecke = (): StationBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.station ?? null : null)
 export const pvBruecke = (): PvBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.pv ?? null : null)
 
-/** Start-Sequenz über alle Bildschirme; Meldungen: gruss (Loki hat dort gesprochen), ohne-gruss, abgebrochen, ende */
-export type SequenzBruecke = {
-  starten: (lautstaerke: number) => Promise<boolean>
-  gruss: (samples: Float32Array, sampleRate: number) => void
-  keinGruss: () => void
-  beiMeldung: (fn: (art: string) => void) => () => void
-}
-export const sequenzBruecke = (): SequenzBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.sequenz ?? null : null)
-
 export const bruecke = (): JarvisBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.jarvis ?? null : null)
 
 export type JarvisEinstellungen = {
@@ -164,14 +155,10 @@ export type JarvisEinstellungen = {
   zuletztLage: string
   /** Nummer der letzten Begrüßung beim Rechnerstart (-1 = noch keine) – damit nie zweimal dieselbe kommt */
   letzteBegruessung: number
-  /** Start-Sequenz über alle Bildschirme beim Rechnerstart (Lokis Spruch im Finale) */
-  startSequenz: boolean
-  /** Lautstärke der Start-Sequenz (0 bis 1) – Lokis Stimme bleibt dabei verständlich */
-  sequenzLautstaerke: number
 }
 
 const STANDARD: JarvisEinstellungen = {
-  an: false, anrede: 'Sir', humor: true, stimme: 'loki', hoeren: 'turbo', mikrofonStufe: 'normal', wortliste: '', neuigkeiten: true, neuGruppen: NEU_GRUPPEN.map((g) => g.schluessel), kameraMelden: true, tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, startSequenz: true, sequenzLautstaerke: 0.8, nachrichten: true, zuletztNachrichten: '',
+  an: false, anrede: 'Sir', humor: true, stimme: 'loki', hoeren: 'turbo', mikrofonStufe: 'normal', wortliste: '', neuigkeiten: true, neuGruppen: NEU_GRUPPEN.map((g) => g.schluessel), kameraMelden: true, tempo: 0.88, bausteine: BAUSTEINE.map((b) => b.schluessel), aussprache: '', modell: 'qwen3:8b', zuletztModellPruefung: '', zuletztLage: '', letzteBegruessung: -1, nachrichten: true, zuletztNachrichten: '',
 }
 const SCHLUESSEL = 'jarvis.einstellungen'
 const zuhoerer = new Set<() => void>()

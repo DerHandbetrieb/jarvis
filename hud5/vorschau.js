@@ -3,10 +3,9 @@ import { B, H, ladeSzene, zeichneSzene } from './szene.js'
 import { ausHud } from './inhalte.js'
 import { erstelleTafeln, kameraGross, zeichneTafeln, SPIEGEL, PROBE_AUFTEILUNG } from './tafeln.js'
 import { erstelleFrost, frostStellen, frostGrad } from './frost.js'
-import { erstelleScheibe, scheibeZeichnen } from './scheibe.js'
 import { beispielTag } from './pv-tag.js'
 import { KANTE } from './rahmen.js'
-import { sequenzDaten } from '../startsequenz/lageDaten.js'
+import { sequenzDaten } from '../dauerhud/lageDaten.js'
 
 const c = document.getElementById('flaeche'), g = c.getContext('2d', { alpha: false }), info = document.getElementById('info')
 const s = await ladeSzene('./ebenen/', { ring: new URLSearchParams(location.search).get('ring') ?? undefined, knoten: new URLSearchParams(location.search).get('knoten') ?? undefined, schrift: new URLSearchParams(location.search).get('schrift') ?? undefined, name: new URLSearchParams(location.search).get('name') ?? undefined, rand: new URLSearchParams(location.search).get('rand') ?? undefined, praegung: new URLSearchParams(location.search).get('praegung') ?? undefined, loki: new URLSearchParams(location.search).get('loki-stil') ?? undefined })
@@ -69,9 +68,6 @@ function schleife(ms) {
   // Inhalte mit Beispieldaten (in der Vorschau gibt es keine Gegenstelle); Ton: Kunstwerte
   const ton = Array.from({ length: 128 }, (_, i) => Math.max(0, Math.sin(ms / 300 + i * 0.3) * Math.exp(-((i % 64) / 20)) * 0.8))
   const fv = s.wetter?.sichtbar?.frost ?? 0; if (fv > 0 && !window.frostE) { const d = document.createElement('div'); c.parentElement.appendChild(d); window.frostE = erstelleFrost(d, zoom ? 1920 : 0) } if (window.frostE) { frostStellen(window.frostE, fv); frostGrad(window.frostE, Number(new URLSearchParams(location.search).get('grad') ?? -4)) }
-  // Prüfhilfe ?tropfen=a|b|c|d (Regentropfen auf der Scheibe, Entwürfe 11.11.2026), ?regen=0..1 Stärke
-  const tropfenArt = new URLSearchParams(location.search).get('tropfen')
-  if (tropfenArt) { if (!window.scheibe) { const d = document.createElement('div'); c.parentElement.appendChild(d); window.scheibe = erstelleScheibe(d, zoom ? 1920 : 0, tropfenArt, c) } scheibeZeichnen(window.scheibe, Number(new URLSearchParams(location.search).get('regen') ?? s.wetter?.sichtbar?.regen ?? 0.8), ms / 1000) }
   if (new URLSearchParams(location.search).has('kamgross')) kameraGross(tafeln, 0)
   zeichneTafeln(tafeln, { ...beispiel, ton, loki: { zustand: { hoert: 'bereit', denkt: 'denkt', spricht: 'spricht', aus: 'aus' }[loki], mikrofon: loki !== 'aus', whatsapp: Number(new URLSearchParams(location.search).get('wa') ?? 0) }, medien: probeLied }, ms / 1000)
   const dauer = performance.now() - a
