@@ -40,7 +40,7 @@ export const SPIEGEL = { abstand: 70, deckkraft: 0.45, unschaerfe: 1.5, auslauf:
 const AUFLOESUNG = 2
 const GROSS = { b: 1560, h: 878, dreh: 'perspective(2600px) rotateY(-5deg)' } // großes Kamerabild, leicht in der Schräge der Fenster
 // höchstens alle n Sekunden neu zeichnen (14.11.2026: links bewegt sich nur noch wenig – spart Rechenzeit ohne sichtbaren Unterschied)
-const LANGSAM = new Map([['abarbeiten', 0.4], ['nachproduzieren', 0.4], ['statHeute', 0.4], ['statKanaele', 0.4], ['statVerlauf', 0.15], ['bestellungen2', 1]])
+const LANGSAM = new Map([['abarbeiten', 0.4], ['nachproduzieren', 0.4], ['statHeute', 0.4], ['statVerlauf', 2], ['bestellungen2', 1]]) // statKanaele jedes Bild: der Kreis soll weich drehen (14.11.2026)
 const BEWEGT = new Set(['statHeute', 'statVerlauf', 'statKanaele', 'abarbeiten', 'nachproduzieren', 'bestellungen2', 'ton', 'tonSystemOben', 'tonSystemUnten', 'tonSystemKopf', 'kamera1', 'kamera2', 'energie', 'wetter']) // energie: laufende Lichtpunkte
 
 /** Tafeln anlegen. huelle = Element über der Szenen-Leinwand (gleiche Größe); faktor = Bildschirm-Pixel je Szenen-Pixel.

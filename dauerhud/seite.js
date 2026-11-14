@@ -142,7 +142,7 @@ const reaktorZustand = (l) => (!l || !l.mikrofon || ['aus', 'fehler'].includes(l
 // Die Einstellung „25 B/s“ in Wallpaper Engine bremst die Web-Seite nicht – sie zeichnete 60-mal je Sekunde. Die Last
 // hängt an der Bildrate (in Electron gemessen: 60 B/s ≈ 21 %, 30 ≈ 11 %, 20 ≈ 7 %). In Wallpaper Engine selbst kommt eine
 // feste Last je angezeigtem Bild dazu (Kopie der ganzen Fläche auf den Desktop): gemessen 25 B/s ≈ 19 %, 10 ≈ 14 %, 1 ≈ 3 %.
-const BILDRATE = 25
+const BILDRATE = 30 // 14.11.2026 (Wahl Auftraggeber): 30 statt 25 – bei 60 Hz genau jedes zweite Bild, gleichmäßig statt 33/50 ms im Wechsel (Runen wirkten ruckelig)
 let letztesBild = -1e9
 function schleife(ms, meine = lauf) {
   if (pausiert || meine !== lauf) return

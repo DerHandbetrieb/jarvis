@@ -583,10 +583,8 @@ function statVerlauf(g, b, h, d, t) {
   const v = g.createLinearGradient(0, y0, 0, y1); v.addColorStop(0, 'rgba(95,246,255,0.42)'); v.addColorStop(1, 'rgba(95,246,255,0)')
   g.beginPath(); g.moveTo(x0, y1); p.forEach(([x, y]) => g.lineTo(x, y)); g.lineTo(x1, y1); g.closePath(); g.fillStyle = v; g.fill()
   g.beginPath(); p.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.strokeStyle = CYAN; g.lineWidth = 1.5; g.stroke()
-  // Lichtpunkt läuft die Kurve entlang, der heutige Tag pulsiert golden (14.11.2026 gedämpft: Wunsch Auftraggeber „nur ganz dezent im Hintergrund“)
-  const f = (t * 0.03) % 1, i = Math.min(p.length - 2, Math.floor(f * (p.length - 1))), w = f * (p.length - 1) - i
-  g.save(); g.shadowColor = CYAN; g.shadowBlur = 6; g.globalAlpha = 0.45; g.fillStyle = HELL; g.beginPath(); g.arc(p[i][0] + (p[i + 1][0] - p[i][0]) * w, p[i][1] + (p[i + 1][1] - p[i][1]) * w, 3, 0, Math.PI * 2); g.fill(); g.restore()
-  const [ex, ey] = p.at(-1); g.fillStyle = GOLD; g.beginPath(); g.arc(ex, ey, 3.5 + 0.6 * welleZ(t, 0.6), 0, Math.PI * 2); g.fill()
+  // 14.11.2026 (Wunsch Auftraggeber): kein laufender Lichtpunkt mehr, der heutige Tag steht still als goldener Punkt
+  const [ex, ey] = p.at(-1); g.fillStyle = GOLD; g.beginPath(); g.arc(ex, ey, 4, 0, Math.PI * 2); g.fill()
   // Höchstwert als feine Linie mit Betrag – die Kurve wächst mit dem stärksten Tag mit
   g.strokeStyle = 'rgba(95,246,255,0.18)'; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(x0, y0 + 0.5); g.lineTo(x1, y0 + 0.5); g.stroke(); g.setLineDash([])
   text(g, `MAX ${euro(m)}`, x0, y0 - 4, 9, BLASS, 'left', 600)
@@ -599,7 +597,7 @@ function statKanaele(g, b, h, d, t) {
   const r = Math.min((h - 70) / 2, b * 0.2), cx = 26 + r, cy = 34 + (h - 34) / 2
   let a = -Math.PI / 2
   k.forEach((x, i) => { const dd = (x.anteil || 0) * Math.PI * 2; if (dd > 0.09) { g.beginPath(); g.arc(cx, cy, r, a + 0.04, a + dd - 0.04); g.strokeStyle = farben[i]; g.lineWidth = r * 0.3; g.stroke() } a += dd })
-  g.save(); g.strokeStyle = 'rgba(95,246,255,0.35)'; g.lineWidth = 1; g.setLineDash([3, 5]); g.lineDashOffset = -t * 1.5; g.beginPath(); g.arc(cx, cy, r * 0.62, 0, Math.PI * 2); g.stroke(); g.restore()
+  g.save(); g.strokeStyle = 'rgba(95,246,255,0.35)'; g.lineWidth = 1; g.setLineDash([3, 5]); g.lineDashOffset = -t * 3; g.beginPath(); g.arc(cx, cy, r * 0.62, 0, Math.PI * 2); g.stroke(); g.restore()
   const zeile = Math.min(30, (h - 50) / 3)
   k.forEach((x, i) => {
     const y = cy - zeile + i * zeile + 5

@@ -468,22 +468,39 @@ function runenBilder(hoehe) {
   }))
 }
 
-/** gemessene Bahn (Punkte von oben nach unten) mit aufsummierter Länge, für gleichmäßigen Lauf */
+/**
+ * gemessene Bahn (Punkte von oben nach unten) für gleichmäßigen Lauf. 14.11.2026 (Rückmeldung Auftraggeber: Runen laufen
+ * ruckelig): Die Messpunkte liegen 3–18 px auseinander, die Ausrichtung sprang beim Wechsel des Abschnitts um bis zu 1,9°.
+ * Jetzt wird die Bahn geglättet und in festen Schritten von 2 px neu abgetastet; Ort und Winkel werden dazwischen weich
+ * verrechnet – keine Sprünge mehr.
+ */
+const BAHN_SCHRITT = 2
 function bahnVorbereiten(punkte, links) {
+  let q = punkte.map((x) => [x[0], x[1]])
+  for (let runde = 0; runde < 3; runde++) q = q.map((x, i) => { if (i === 0 || i === q.length - 1) return x; const a = q[i - 1], c = q[i + 1]; return [(a[0] + 2 * x[0] + c[0]) / 4, (a[1] + 2 * x[1] + c[1]) / 4] })
   const l = [0]
-  for (let i = 1; i < punkte.length; i++) l.push(l[i - 1] + Math.hypot(punkte[i][0] - punkte[i - 1][0], punkte[i][1] - punkte[i - 1][1]))
-  return { punkte, laenge: l, gesamt: l[l.length - 1], links }
+  for (let i = 1; i < q.length; i++) l.push(l[i - 1] + Math.hypot(q[i][0] - q[i - 1][0], q[i][1] - q[i - 1][1]))
+  const gesamt = l[l.length - 1], orte = []
+  for (let s = 0, i = 1; s <= gesamt; s += BAHN_SCHRITT) {
+    while (i < l.length - 1 && l[i] < s) i++
+    const f = (s - l[i - 1]) / (l[i] - l[i - 1] || 1)
+    orte.push([q[i - 1][0] + (q[i][0] - q[i - 1][0]) * f, q[i - 1][1] + (q[i][1] - q[i - 1][1]) * f])
+  }
+  // Richtung über ±12 px, danach noch einmal gemittelt; Winkel fortlaufend (ohne Sprung bei ±180°)
+  const w = orte.map((_, i) => {
+    const a = orte[Math.max(0, i - 6)], z = orte[Math.min(orte.length - 1, i + 6)], dx = z[0] - a[0], dy = z[1] - a[1], n = Math.hypot(dx, dy) || 1
+    const nx = (links ? -dy : dy) / n, ny = (links ? dx : -dx) / n
+    return Math.atan2(nx, -ny)
+  })
+  for (let i = 1; i < w.length; i++) { while (w[i] - w[i - 1] > Math.PI) w[i] -= 2 * Math.PI; while (w[i - 1] - w[i] > Math.PI) w[i] += 2 * Math.PI }
+  const wg = w.map((_, i) => { let s = 0, n = 0; for (let k = -5; k <= 5; k++) { const j = i + k; if (j >= 0 && j < w.length) { s += w[j]; n++ } } return s / n })
+  return { orte, winkel: wg, gesamt: (orte.length - 1) * BAHN_SCHRITT, links }
 }
 /** Ort und Ausrichtung auf der Bahn bei Weg s (Rune zeigt mit dem Kopf nach außen) */
 function aufBahn(b, s) {
-  let i = 1
-  while (i < b.laenge.length - 1 && b.laenge[i] < s) i++
-  const [x0, y0] = b.punkte[i - 1], [x1, y1] = b.punkte[i], f = (s - b.laenge[i - 1]) / (b.laenge[i] - b.laenge[i - 1] || 1)
-  // Richtung über ein paar Punkte gemittelt – ruhige Ausrichtung ohne Kippeln
-  const a = b.punkte[Math.max(0, i - 3)], z = b.punkte[Math.min(b.punkte.length - 1, i + 2)]
-  const dx = z[0] - a[0], dy = z[1] - a[1], n = Math.hypot(dx, dy) || 1
-  const nx = (b.links ? -dy : dy) / n, ny = (b.links ? dx : -dx) / n // nach außen
-  return { x: x0 + (x1 - x0) * f, y: y0 + (y1 - y0) * f, w: Math.atan2(nx, -ny) }
+  const k = Math.max(0, Math.min(b.orte.length - 1.001, s / BAHN_SCHRITT)), i = Math.floor(k), f = k - i
+  const a = b.orte[i], z = b.orte[i + 1]
+  return { x: a[0] + (z[0] - a[0]) * f, y: a[1] + (z[1] - a[1]) * f, w: b.winkel[i] + (b.winkel[i + 1] - b.winkel[i]) * f }
 }
 
 /** Gold-Knoten in den vier äußeren Bildschirmecken (Teil des Grundbilds) umfärben – Rückmeldung Auftraggeber 05.11.2026:
