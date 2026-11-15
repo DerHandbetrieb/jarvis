@@ -48,8 +48,23 @@ const loki = erstelleLoki({
   // der Grafikspeicher belegt (Prüf-Agent 03.11.2026)
   // nur solange das Programm noch läuft – eine frei gewordene Prozessnummer könnte Windows sonst neu vergeben haben
   toeten: (p) => { if (p.exitCode !== null || p.signalCode !== null) return; if (p.pid) spawn(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'taskkill.exe'), ['/T', '/F', '/PID', String(p.pid)], { windowsHide: true }).on('error', () => p.kill()); else p.kill() },
-  log: (...a) => console.log(...a),
+  log: (...a) => dienstLog(...a),
 })
+/** Meldungen von Stimme und Gehör auch ins Gesprächs-Protokoll (15.11.2026: Loki sprach stundenlang mit der PC-Stimme,
+ *  die Ursache stand nirgends) – eine Zeile, Fehlertext des Programms auf die letzten Zeilen gekürzt */
+function dienstLog(...a) {
+  console.log(...a)
+  einmalProtokoll(a.map((x) => String(x).split(/\r?\n/).filter(Boolean).slice(-4).join(' | ')).join(' ').slice(0, 600))
+}
+/** gleiche Zeile höchstens alle 6 Stunden – eine Dauerstörung füllt sonst alle 15 min das Protokoll (Prüf-Agent 15.11.2026) */
+const zuletztGeschrieben = new Map()
+function einmalProtokoll(zeile) {
+  const jetzt = Date.now(), vorher = zuletztGeschrieben.get(zeile)
+  if (vorher && jetzt - vorher < 6 * 3_600_000) return
+  zuletztGeschrieben.set(zeile, jetzt)
+  if (zuletztGeschrieben.size > 50) zuletztGeschrieben.delete(zuletztGeschrieben.keys().next().value)
+  protokoll(zeile)
+}
 // Lokis Gehör (04.11.2026, Rückmeldung Auftraggeber „versteht mich oft schlecht“, Entscheidung „Ja, einbauen“):
 // Whisper large-v3-turbo auf der Grafikkarte (faster-whisper, gehoer/loki_gehoer.py) mit Wortliste – gemessen ca. ein
 // Drittel der Fehler von small und 0,11 s je Satz, ca. 1,2 GB Grafikspeicher. Eigene Python-Umgebung aus
@@ -65,7 +80,7 @@ const gehoer = erstelleLoki({
   get argumente() { return [gehoerModelle()] },
   starten: spawn,
   toeten: (p) => { if (p.exitCode !== null || p.signalCode !== null) return; if (p.pid) spawn(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'taskkill.exe'), ['/T', '/F', '/PID', String(p.pid)], { windowsHide: true }).on('error', () => p.kill()); else p.kill() },
-  log: (...a) => console.log(...a),
+  log: (...a) => dienstLog(...a),
 })
 /** Sprachmodell: Stichproben-Werte laut Qwen3-Modellkarte (Modus ohne Nachdenken), presence_penalty gegen Wiederholungen.
  *  num_ctx 4096 (04.11.2026): Anweisung + Daten + Verlauf sind ca. 2.500 Token; gemessen 5,2 statt 5,9 GB Grafikspeicher –
@@ -237,15 +252,25 @@ async function erkennen(samples) {
 // Abwesenheits-Modus (04.11.2026, Wunsch Auftraggeber: Speicher sparen ohne Qualitätsverlust; 20 min ohne Maus/Tastatur
 // und ohne dass er L.O.K.I. angesprochen hat → gemessen 4,9 GB Grafik-, ca. 3 GB Arbeitsspeicher frei). Was dabei aus-
 // geschaltet wurde, lädt wieder, sobald weder Spiel noch Abwesenheit gilt – ein gemeinsamer Weg, damit nichts hängen
-// bleibt (Prüf-Agent). Nur was lief (bereit/lädt), wird gemerkt – eine gestörte Stimme startet so nicht ungefragt neu.
+// bleibt (Prüf-Agent). Gemerkt wird, was lief oder gestört war (15.11.2026); bewusst Ausgeschaltetes bleibt aus.
 // Kamera-Wache und Neuigkeiten laufen im Hauptprozess weiter; Whisper small hört weiter zu, Piper spricht solange.
 let weg = false
 let lokiZurueck = false, gehoerZurueck = false
 const laeuft = (z) => z === 'bereit' || z === 'laedt'
+// 15.11.2026: auch eine gestörte Stimme bzw. ein gestörtes Gehör wird danach neu versucht (vorher blieb Loki bis zum
+// Neustart bei der PC-Stimme Piper)
+const lohntNeu = (z) => laeuft(z) || z === 'fehler'
 function vorlaeufigAus() {
-  if (laeuft(loki.status().zustand)) { lokiZurueck = true; loki.beenden() }
-  if (laeuft(gehoer.status().zustand)) { gehoerZurueck = true; gehoer.beenden() }
+  if (lohntNeu(loki.status().zustand)) { lokiZurueck = true; loki.beenden() }
+  if (lohntNeu(gehoer.status().zustand)) { gehoerZurueck = true; gehoer.beenden() }
 }
+// Gestört geblieben (auch der eine automatische Neustart half nicht)? Alle 15 Minuten ein neuer Versuch, solange weder
+// Spiel noch Abwesenheit gilt – kein Dauerkreisel, aber Loki bleibt nicht stundenlang bei der PC-Stimme (15.11.2026)
+setInterval(() => {
+  if (spielAktiv || weg) return
+  if (loki.status().zustand === 'fehler') { einmalProtokoll('Stimme gestört – neuer Versuch alle 15 Minuten'); loki.beenden(); loki.starten() }
+  if (hoerArt === 'turbo' && gehoer.status().zustand === 'fehler') { einmalProtokoll('Gehör gestört – neuer Versuch alle 15 Minuten'); gehoer.beenden(); gehoer.starten() }
+}, 15 * 60_000).unref?.()
 function wiederLaden() {
   if (spielAktiv || weg) return
   if (lokiZurueck) { lokiZurueck = false; loki.starten() }

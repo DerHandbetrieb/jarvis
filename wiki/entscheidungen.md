@@ -6,6 +6,7 @@ Wichtige Entscheidungen des Auftraggebers mit Datum und Grund, neueste oben. Ver
 
 ## Gültig
 
+- **15.11.2026** Gestörte Stimme nicht bis zum Neustart bei Piper lassen: neuer Versuch alle 15 min und nach Abwesenheit (0.34.2).
 - **14.11.2026** Wallpaper 30 B/s statt 25 (gleichmäßig bei 60 Hz, Runen ruckelten); Lichtpunkt bei „Verkäufe 14 Tage“ entfernt.
 - **14.11.2026** Dauer-HUD links (0.34.0): Bestellfrist im Bestellfeld nach Entwurf A „Drei Abschnitte“, PC-Status-Balken unten nach Entwurf 3 „Verlaufslinien“, Felder darüber gestaucht; Bewegungen links nur noch dezent (Wunsch Auftraggeber).
 - **14.11.2026** Code-Vorschläge 1–4 freigegeben und umgesetzt (0.33.1): Reste der Start-Sequenz (Fenster, IPC, Einstellungen) und alte Entwurfsdateien entfernt.

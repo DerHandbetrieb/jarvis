@@ -457,8 +457,7 @@ if (!app.requestSingleInstanceLock()) {
     const lautstaerke = erstelleLautstaerke({ protokoll: kameraLog })
     // PC-Status-Balken unten links (14.11.2026): Hilfsprogramme laufen nur, solange das Wallpaper fragt
     const pcStatus = erstellePcStatus({ protokoll: kameraLog })
-    app.on('will-quit', () => pcStatus.beenden())
-    app.on('will-quit', () => lautstaerke.beenden())
+    app.on('will-quit', () => { try { pcStatus.beenden() } catch { /* egal beim Beenden */ } lautstaerke.beenden() }) // ein Eintrag: mehr als 10 will-quit-Anmeldungen meldet Node als mögliches Leck
     setTimeout(() => lautstaerke.vorwaermen(), 15_000)
     const hudServer = erstelleHudServer({
       medien: async (aktion) => medientasten.druecken(aktion),

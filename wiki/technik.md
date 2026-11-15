@@ -1,6 +1,6 @@
 # Technik
 
-Stand: 2026-11-14
+Stand: 2026-11-15
 
 Verwandt: [Projekt](projekt.md), [Charakter und Stimme](charakter-und-stimme.md), [Gespräch und Befehle](gespraech-und-befehle.md), [Installieren](skills/installieren.md).
 
@@ -16,7 +16,7 @@ Verwandt: [Projekt](projekt.md), [Charakter und Stimme](charakter-und-stimme.md)
 
 - **sherpa-onnx-node 1.13.8** (Apache-2.0) im Hauptprozess (`electron/jarvis.cjs`): Piper Thorsten high (Ersatzstimme; Piper GPL-3.0, Stimme MIT bzw. CC0 – vor einer Weitergabe Modellkarte prüfen), Silero-VAD (MIT), Whisper small int8 (MIT, Ersatz-Erkenner). Modelle (~760 MB) beim ersten Einschalten aus den offiziellen sherpa-onnx-Releases nach `%APPDATA%\Jarvis\jarvis`.
 - In Electron immer `enableExternalBuffer: false`. An erkannte Stücke 0,5 s Stille anhängen. Während Loki spricht, hört er nicht zu.
-- **Lokis Stimme:** `stimme/loki_stimme.py` als Hintergrund-Programm über `electron/loki.cjs`, nur stdin/stdout (JSON-Zeilen, Ton Base64-float32, 24 kHz), kein Netzwerk, `HF_HUB_OFFLINE=1`. Laden 10–33 s, ca. 2,8 GB Grafikspeicher in Ruhe (räumt 20 s nach dem letzten Satz auf). Hängt ein Satz zu lange (5 s + 60 ms je Zeichen, höchstens 60 s), gilt sie als gestört und startet höchstens einmal je Einschalten neu; Piper springt ein. Umgebung `%APPDATA%\Jarvis\loki-python` (`stimme/einrichten.ps1`, Fassungen in `stimme/anforderungen.txt`, braucht `uv`). Python-stdin ausdrücklich als UTF-8 lesen.
+- **Lokis Stimme:** `stimme/loki_stimme.py` als Hintergrund-Programm über `electron/loki.cjs`, nur stdin/stdout (JSON-Zeilen, Ton Base64-float32, 24 kHz), kein Netzwerk, `HF_HUB_OFFLINE=1`. Laden 10–33 s, ca. 2,8 GB Grafikspeicher in Ruhe (räumt 20 s nach dem letzten Satz auf). Hängt ein Satz zu lange (5 s + 60 ms je Zeichen, höchstens 60 s), gilt sie als gestört und startet höchstens einmal je Einschalten neu; Piper springt ein. Seit 0.34.2: Bleibt sie gestört, versucht L.O.K.I. es alle 15 Minuten neu (nicht bei Spiel oder Abwesenheit), und nach Abwesenheit/Spiel wird auch eine gestörte Stimme neu geladen. Meldungen von Stimme und Gehör (bereit, Störung, Fehlertext) stehen auch in `gespraech.log`, gleiche Zeile höchstens alle 6 Stunden. Anlass 15.11.2026: Loki sprach stundenlang mit Piper, nachdem die Stimme vor einer Abwesenheit gestört war. Umgebung `%APPDATA%\Jarvis\loki-python` (`stimme/einrichten.ps1`, Fassungen in `stimme/anforderungen.txt`, braucht `uv`). Python-stdin ausdrücklich als UTF-8 lesen.
 - **Lokis Gehör** (0.8.0): `gehoer/loki_gehoer.py` mit faster-whisper 1.2.1 und large-v3-turbo (MIT), int8_float16 auf der Grafikkarte, ca. 1,2 GB, 0,11 s je Satz; Umgebung `%APPDATA%\Jarvis\gehoer-python` (`gehoer\einrichten.ps1`). Gemessen mit Wortliste 5,9 % Wortfehler (small: 20,9 %). Wortliste `GRUNDWORTE` in `jarvis.cjs` + eigene Wörter (initial_prompt, ≤ 400 Zeichen); Befehlswörter dort nicht in natürlicher Reihenfolge, sonst verwirft `ist_wortliste` echte Sätze.
 - **Untertitel-Floskeln:** Whisper erfindet bei Lärm „Untertitelung des ZDF …“ → Filter `EINBILDUNG`, Abschnitte mit avg_logprob < −1 weg, Wortlisten-Echo verwerfen. Whisper small springt ein, solange das Gehör lädt, bei Störung, Zeitüberschreitung, Spiel oder Wahl „Klein“.
 - Ungenutzte Stellschrauben, falls kurze Befehle schlecht ankommen: Rauschunterdrückung/Echofilter in `getUserMedia` (dienst.ts) abschalten, large-v3.
