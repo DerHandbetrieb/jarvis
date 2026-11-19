@@ -30,6 +30,12 @@ describe('Start-Sequenz: echte Werte', () => {
     expect(sequenzDaten({ ...LAGE, aufgaben: { ...LAGE.aufgaben, offen: 7, wichtigste: [{ titel: 'Lampe produzieren', faellig: null, art: 'nachproduzieren' }] } }, JETZT)).toMatchObject({ abarbeitenOffen: 6, karten: [['Lampe produzieren', 'AUFGABE', null, '', 'nachproduzieren']] }) // 08.11.2026: Kartenart
     expect(d.lager).toEqual([['Tasse Emma', 1, 10], ['Lampe', 0, 2]])
   })
+  it('zeigt auch den vierten Kanal (19.11.2026: Kasuwa fehlte)', () => {
+    const vier = [['Amazon', 40000], ['Etsy', 30000], ['Eigener Shop', 10000], ['Kasuwa', 5000]].map(([kanal, umsatzCent]) => ({ kanal, bestellungen: 2, stueck: 2, umsatzCent }))
+    const d = sequenzDaten({ ...LAGE, verkauf: { ...LAGE.verkauf, kanaele14: vier } }, JETZT)
+    expect(d.kanaele).toHaveLength(4)
+    expect(d.kanaele[3].name.toUpperCase()).toContain('KASUWA')
+  })
   it('ohne Verbindung, veraltet oder unvollständig: null (dann Beispieldaten mit Hinweis)', () => {
     expect(sequenzDaten(null, JETZT)).toBeNull()
     expect(sequenzDaten({ ...LAGE, geholt: JETZT.getTime() - 61 * 60_000 }, JETZT)).toBeNull()

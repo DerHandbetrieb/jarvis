@@ -1,6 +1,6 @@
 # Dauer-HUD (Wallpaper)
 
-Stand: 2026-11-14
+Stand: 2026-11-19
 
 Verwandt: [Kameras](kameras.md), [Wetter](wetter.md), [Wallpaper einspielen](skills/wallpaper-einspielen.md), Recherche `recherche/wallpaper-engine-2026-11-03.md`, `recherche/grafik-v5-bestand-2026-11-05.md`, `recherche/hud-ideen-2026-11-05.md`.
 
@@ -25,6 +25,7 @@ Verwandt: [Kameras](kameras.md), [Wetter](wetter.md), [Wallpaper einspielen](ski
 
 - Schräg gestellte Tafeln mit echter Perspektive, Spiegelung im Wasser (Viertel-Auflösung, unscharf). Ohne Daten „BEISPIEL“, veraltete Daten „KEINE AKTUELLEN DATEN“.
 - **Links nur Arbeit** (Umbau 0.29.0): Statistik-Säule (Warenwert heute – alle heutigen Bestellungen, auch versendete; Verlauf mit Vorwoche; Kanäle), Abarbeiten (ohne Nachproduzieren-Karten, bei vielen Karten zwei Spalten), Nachproduzieren (Lager knapp mit Füllbalken), **Offene Bestellungen** (nur nicht Versendetes). Werte sind Warenwert ohne Versand. Keine „besten Artikel“, vorerst keine Termine.
+- **Kanäle 14 Tage** (0.34.3): alle Kanäle bis sechs mit eigener Farbe (vorher nur die drei größten – Kasuwa fehlte).
 - **Bestellfrist** (0.34.0, Entwurf A „Drei Abschnitte“): Offene Bestellungen nach Frist in Überfällig (rot) · Muss heute raus (orange) · Hat noch Zeit (türkis), dazu „Wartet auf Zahlung“ (eigener Shop). Regel aus der Werkstatt als Kopie in `hud5/frist.js` (2 Zähltage Mo–Sa, ohne Sonntag und Feiertage BW; Kopf: nächste DHL-Abholung Mo/Mi/Fr). Bei Platzmangel wird „Hat noch Zeit“ je Frist-Tag zusammengefasst. Seit Werkstatt-Commit faaf16c (14.11.2026) liefert `jarvis-lage` je offener Bestellung `bezahlt` und alle offenen ohne 14-Tage-Grenze, aber höchstens 90 Tage alt (alte Manuell-Importe von 2023 bleiben weg, Entscheidung Auftraggeber). Vorschau: `vorschau.html?bestellungen=12`.
 - **PC-Status-Balken** (0.34.0, Entwurf 3 „Verlaufslinien“): unten links über die ganze Breite (Felder darüber auf 700 px gestaucht). CPU, GPU mit Temperatur, Grafikspeicher, Arbeitsspeicher je mit Linie der letzten ca. 3 Minuten, rechts „GERADE: <Programm> n % CPU“. `electron/pcstatus.cjs`: CPU/RAM aus Node, GPU aus `nvidia-smi` (RTX 4080), Spitzenreiter aus einem PowerShell-Programm; beide laufen nur, solange das Wallpaper fragt (30 s Ruhe → beendet). CPU-Temperatur liefert Windows nicht zuverlässig, deshalb nicht dabei.
 - **Runen links/rechts** (0.34.1): Bahn geglättet und in 2-px-Schritten abgetastet, Ausrichtung springt nicht mehr (vorher bis 1,9° je Bild).

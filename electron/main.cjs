@@ -56,7 +56,7 @@ function hudAuswahl(l) {
     verkauf: {
       gestern: { bestellungen: zahl(l.verkauf?.gestern?.bestellungen), stueck: zahl(l.verkauf?.gestern?.stueck), umsatzCent: zahl(l.verkauf?.gestern?.umsatzCent) },
       tage: (l.verkauf?.tage ?? []).map((t) => ({ tag: String(t.tag ?? ''), bestellungen: zahl(t.bestellungen), umsatzCent: zahl(t.umsatzCent) })),
-      kanaele14: (l.verkauf?.kanaele14 ?? []).slice(0, 3).map((k) => ({ kanal: String(k.kanal ?? ''), bestellungen: zahl(k.bestellungen), umsatzCent: zahl(k.umsatzCent) })),
+      kanaele14: (l.verkauf?.kanaele14 ?? []).slice(0, 6).map((k) => ({ kanal: String(k.kanal ?? ''), bestellungen: zahl(k.bestellungen), umsatzCent: zahl(k.umsatzCent) })),
     },
     freigaben: zahl(l.freigaben),
     selbsttest: l.selbsttest ? { am: l.selbsttest.am, rot: zahl(l.selbsttest.rot) } : null,

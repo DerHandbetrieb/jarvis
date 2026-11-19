@@ -591,16 +591,17 @@ function statVerlauf(g, b, h, d, t) {
   ;[[0, 'left'], [Math.floor((tage.length - 1) / 2), 'center'], [tage.length - 1, 'right']].forEach(([k, a]) => text(g, tage[k]?.tag ?? '', x0 + ((x1 - x0) * k) / (tage.length - 1), h - 10, 10, BLASS, a))
 }
 function statKanaele(g, b, h, d, t) {
-  const k = d.kanaele ?? [], farben = [CYAN, GOLD, '#9b8cff'], n = k.reduce((a, x) => a + (x.bestellungen || 0), 0)
+  const k = (d.kanaele ?? []).slice(0, 6), farben = [CYAN, GOLD, '#9b8cff', GRUEN, '#ff7ab6', '#c8d6dc'], n = k.reduce((a, x) => a + (x.bestellungen || 0), 0)
   kopf(g, 'KANÄLE · 14 TAGE', `${n} BEST.`, b)
   if (!k.length) { text(g, 'Keine Verkäufe', 22, 70, 13, BLASS); return }
   const r = Math.min((h - 70) / 2, b * 0.2), cx = 26 + r, cy = 34 + (h - 34) / 2
   let a = -Math.PI / 2
   k.forEach((x, i) => { const dd = (x.anteil || 0) * Math.PI * 2; if (dd > 0.09) { g.beginPath(); g.arc(cx, cy, r, a + 0.04, a + dd - 0.04); g.strokeStyle = farben[i]; g.lineWidth = r * 0.3; g.stroke() } a += dd })
   g.save(); g.strokeStyle = 'rgba(95,246,255,0.35)'; g.lineWidth = 1; g.setLineDash([3, 5]); g.lineDashOffset = -t * 3; g.beginPath(); g.arc(cx, cy, r * 0.62, 0, Math.PI * 2); g.stroke(); g.restore()
-  const zeile = Math.min(30, (h - 50) / 3)
+  // 19.11.2026 (Rückmeldung Auftraggeber: Kasuwa fehlte): alle Kanäle bis sechs, Zeilen mittig um den Ring verteilt
+  const zeile = Math.min(30, (h - 50) / Math.max(3, k.length))
   k.forEach((x, i) => {
-    const y = cy - zeile + i * zeile + 5
+    const y = cy + (i - (k.length - 1) / 2) * zeile + 5
     g.fillStyle = farben[i]; g.fillRect(cx + r + 20, y - 9, 9, 9)
     g.font = `600 13px ${SCHRIFT}`; text(g, kuerzen(g, String(x.name).toUpperCase(), b - cx - r - 110), cx + r + 36, y, 13, HELL, 'left', 600)
     text(g, `${Math.round((x.anteil || 0) * 100)} % · ${x.bestellungen}`, b - 14, y, 12, farben[i], 'right', 600)

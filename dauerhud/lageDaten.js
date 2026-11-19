@@ -51,7 +51,7 @@ export function sequenzDaten(lage, jetzt) {
     selbsttestRot: !!rot,
     gestern: { bestellungen: g.bestellungen, stueck: g.stueck, umsatz: Math.round(g.umsatzCent) / 100 },
     // die drei umsatzstärksten Kanäle der letzten 14 Tage: Zahl = Bestellungen, Ring = Anteil am Umsatz
-    kanaele: (lage.verkauf.kanaele14 ?? []).slice(0, 3).map((k) => ({ name: kurz(k.kanal), bestellungen: k.bestellungen, anteil: umsatzSumme14 > 0 ? k.umsatzCent / umsatzSumme14 : 0 })),
+    kanaele: (lage.verkauf.kanaele14 ?? []).slice(0, 6).map((k) => ({ name: kurz(k.kanal), bestellungen: k.bestellungen, anteil: umsatzSumme14 > 0 ? k.umsatzCent / umsatzSumme14 : 0 })),
     umsatz14,
     // Bestellungen je Tag der letzten 9 Tage für die Kästchen am rechten Rand (Kopf „TT.MM“)
     tage9: tage.slice(-9).map((t) => ({ tag: /^\d{4}-\d{2}-\d{2}/.test(String(t.tag)) ? `${t.tag.slice(8, 10)}.${t.tag.slice(5, 7)}` : '', bestellungen: zahl(t.bestellungen) })),
