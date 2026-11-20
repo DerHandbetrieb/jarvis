@@ -32,7 +32,7 @@ export function ausWerkstatt(l: WerkstattLage | null, jetzt: Date): WerkstattTei
     lager: { namen: l.lagerKnapp.map((k) => (k.variante ? `${k.name} ${k.variante}` : k.name)) },
     verkauf: { bestellungen: l.verkauf.gestern.bestellungen, stueck: l.verkauf.gestern.stueck, umsatzCent: l.verkauf.gestern.umsatzCent },
     freigaben: l.freigaben,
-    offen: l.offeneBestellungen ? { anzahl: Number(l.offeneBestellungen.anzahl) || 0, liste: (l.offeneBestellungen.liste ?? []).map((b) => ({ id: b.id, kanal: b.kanal, artikel: (b.artikel ?? []).map(artikelGesprochen) })) } : null,
+    offen: l.offeneBestellungen ? { anzahl: Number(l.offeneBestellungen.anzahl) || 0, liste: (l.offeneBestellungen.liste ?? []).map((b) => ({ id: b.id, am: b.am, ...('bezahlt' in b ? { bezahlt: b.bezahlt ?? null } : {}), kanal: b.kanal, artikel: (b.artikel ?? []).map(artikelGesprochen) })) } : null,
   }
 }
 

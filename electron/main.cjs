@@ -256,6 +256,15 @@ if (!app.requestSingleInstanceLock()) {
       callback({ cancel: !erlaubt })
     })
 
+    // Originalton der Nachrichten (20.11.2026): Antworten der Podcast-Server mit „no-store“ versehen, damit Chromium die
+    // Tonspur nicht im Zwischenspeicher auf der Festplatte ablegt (DLF-Nutzungsbedingungen: keine Speicherung, Prüf-Agent)
+    session.defaultSession.webRequest.onHeadersReceived({ urls: ['https://podcast-mp3.dradio.de/*', 'https://*.deutschlandfunk.de/*', 'https://*.deutschlandradio.de/*'] }, (details, callback) => {
+      const kopf = { ...details.responseHeaders }
+      for (const k of Object.keys(kopf)) if (/^(cache-control|expires|etag|last-modified)$/i.test(k)) delete kopf[k]
+      kopf['Cache-Control'] = ['no-store']
+      callback({ responseHeaders: kopf })
+    })
+
     const hauptfenster = fensterErstellen()
     hauptRef = hauptfenster
     jarvis.einrichten(hauptfenster, istAppAdresse)
@@ -399,6 +408,7 @@ if (!app.requestSingleInstanceLock()) {
     // Deutschlandfunk-Nachrichten (10.11.2026): nur auf Nachfrage der Oberfläche, nichts wird gespeichert
     const dlf = erstelleDlfNachrichten({ protokoll: (...a) => console.error(...a) })
     ipcMain.handle('dlf-nachrichten', (e) => (vonFenster(e) ? dlf.holen() : null))
+    ipcMain.handle('dlf-sendung', (e) => (vonFenster(e) ? dlf.sendung() : null))
     // Wetter für Lokis Sätze, allein aus der Station (himmel.cjs)
     ipcMain.handle('station-wetter', (e) => (vonFenster(e) ? wetterAusStation(station.anzeige()) : null))
     ipcMain.handle('station-einrichten', async (e, d) => (vonFenster(e) ? station.einrichten({ appKey: d?.appKey, apiKey: d?.apiKey, mac: d?.mac }) : null))

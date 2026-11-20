@@ -40,6 +40,8 @@ export type JarvisBruecke = {
   nutzerAktiv?: () => void
   /** Deutschlandfunk-Nachrichten (10.11.2026) */
   nachrichten?: () => Promise<import('./nachrichten').NachrichtenAntwort | null>
+  /** neueste Folge der gesprochenen Nachrichten-Sendung (Podcast) zum Abspielen */
+  nachrichtenSendung?: () => Promise<{ url: string; titel: string; stand: string | null } | { fehler: string } | null>
   /** Modell-Prüfung (monatlich, 04.11.2026): stand aktuell | neuer | fehlt | unbekannt */
   modellPruefen?: (modell: string) => Promise<{ stand: 'aktuell' | 'neuer' | 'fehlt' | 'unbekannt'; text: string } | null>
   /** neue Fassung über Ollama herunterladen (kann einige Minuten dauern) */
@@ -83,7 +85,7 @@ export type WerkstattLage = {
   }
   freigaben: number
   selbsttest: { am: string; rot: number } | null
-  offeneBestellungen?: { anzahl: number; liste: { id?: number; kanal: string; artikel: string[] }[] }
+  offeneBestellungen?: { anzahl: number; liste: { id?: number; am?: string; bezahlt?: string | null; kanal: string; artikel: string[] }[] }
 }
 export const werkstattBruecke = (): WerkstattBruecke | null => (typeof window !== 'undefined' ? window.jarvisDesktop?.werkstatt ?? null : null)
 

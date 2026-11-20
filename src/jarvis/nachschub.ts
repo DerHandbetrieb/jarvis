@@ -835,6 +835,75 @@ lage-schluss|Sir, ich schließe hiermit. Bitte hinterlassen Sie den Tag in orden
 lage-schluss|Die Lage ist verlesen, Sir. Applaus ist nicht nötig. Ein einziger erledigter Punkt würde mir völlig genügen.
 lage-schluss|Das wäre alles für jetzt, Sir. Ich bin im Hintergrund. Wie immer, ungefragt und unverzichtbar.
 lage-schluss|Ich bin fertig, Sir. Was Sie daraus machen, wird vermutlich sehr aufschlussreich. Für mich, nicht für Sie.
+# Ladung 20.11.2026 (Sonnet-Agent, Prüfung: 2 von 68 ersetzt) – Bestellungen, Abarbeiten, Probleme, Lager, gut verkauft
+neu-bestellung|Eine Bestellung, {a}. Ich würde gratulieren, aber ich warte, bis das Paket tatsächlich angekommen ist.
+neu-bestellung|Neue Bestellung, {a}. Verpacken Sie sorgfältig. Das Paket ist leider das Einzige, was man von Ihnen zu sehen bekommt.
+neu-bestellung|Es wurde bestellt, {a}. Ich schlage vor, die Freude zu dämpfen, bis die Ware das Haus verlassen hat.
+neu-bestellung|Eine neue Bestellung, {a}. Die Werkstatt hat Arbeit, und Sie haben jetzt keine Ausrede mehr.
+neu-bestellung|Bestellung eingegangen, {a}. Ich habe den Etikettendrucker vorgewärmt. Seelisch.
+neu-bestellung|Es wurde gekauft, {a}. Ein Moment der Freude. Danach beginnt der Versand, und der ist weniger romantisch.
+neu-bestellung|Eine Bestellung, {a}. Ich notiere sie mit Datum, falls jemand fragt, wann hier zuletzt gearbeitet wurde.
+neu-bestellung|Neuer Auftrag, {a}. Ich bin sicher, Sie erledigen ihn mit der gewohnten Eile. Ich meine: der gewohnten Ruhe.
+neu-bestellung|Es ist bestellt, {a}. Mein Vorschlag: nicht sofort verpacken, sondern erst bedeutungsvoll aus dem Fenster blicken.
+neu-bestellung|{a}, ein Eingang im Shop. Ich verbuche ihn unter Beweisen, dass sich das Ganze lohnt. Vorläufig.
+neu-bestellung|Eine Bestellung, {a}. Versenden Sie schnell, und ich überrasche mich selbst, indem ich es lobend erwähne. Einmalig.
+neu-bestellung|Bestellung da, {a}. Der Umsatz wächst, die Verpackung leider nicht von selbst. Schade eigentlich.
+neu-bestellung|{a}, der Shop hat geklingelt, sinnbildlich. Ich habe keine Klingel. Ich habe nur diese Stimme.
+neu-bestellung|Neue Bestellung, {a}. Ich empfehle Kaffee, Klebeband und, wenn es sein muss, Konzentration.
+neu-bestellung|Es wurde etwas gekauft, {a}. Bitte nicht in Euphorie verfallen, das Lager hört mit.
+neu-bestellung|Ein Auftrag ist eingegangen, {a}. Ich gebe Ihnen die Chance, den Versand noch pünktlich zu schaffen. Eine kleine.
+neu-bestellung|{a}, eine Bestellung. Die Welt dreht sich weiter, und Sie dürfen ausnahmsweise mitdrehen.
+neu-bestellung|Neue Bestellung, {a}. Ich hoffe, die Ware ist vorrätig. Falls nicht, wäre jetzt ein guter Zeitpunkt für Fantasie.
+neu-bestellung|Eine Bestellung, {a}. Ich wollte Sie wecken, aber ich sehe, Sie arbeiten bereits. Oder tun zumindest so.
+neu-bestellung|Bestellung, {a}. Das Paket wartet nicht von allein, und ich fürchte, es wartet auch nicht auf Inspiration.
+lage-wenigeAufgaben|Die Liste ist kurz, Sir. Ich bewundere, wie Sie jeden Tag einen Weg finden, trotzdem nicht fertig zu werden.
+lage-wenigeAufgaben|Wenig offen, Sir. Das ist entweder Disziplin oder ein Defekt in der Anzeige. Ich prüfe zuerst Letzteres.
+lage-wenigeAufgaben|So wenige Karten, Sir. Ich würde das Ihrer Effizienz zuschreiben, hätte ich nicht die Vorgeschichte.
+lage-wenigeAufgaben|Kaum etwas offen, Sir. Ein seltener Anblick. Ich empfehle, ihn zu genießen, bevor er sich von selbst auffüllt.
+lage-wenigeAufgaben|Sir, das ist schnell erledigt. Ich rechne damit, dass Sie vorher noch eine längere Pause einplanen.
+lage-wenigeAufgaben|Es bleibt wenig zu tun, Sir. Ich hätte Ihnen gern mehr aufgeladen, aber man lässt mich nicht.
+lage-wenigeAufgaben|Die Karten sind fast abgearbeitet, Sir. Ich bin zutiefst misstrauisch.
+lage-wenigeAufgaben|Sir, wenige Aufgaben. Wer sie erledigt, ist heute frei. Wer sie vertagt, hat Übung.
+lage-wenigeAufgaben|Das ist eine bescheidene Liste, Sir. Selbst Ihre Pausen sind länger. Ich habe nachgemessen.
+lage-wenigeAufgaben|Wenige Aufgaben, Sir. Ein Tag wie geschaffen, um etwas zu tun, das nicht auf der Liste steht. Ordnung etwa.
+lage-wenigeAufgaben|Sir, die Arbeit hält sich heute zurück. Ich empfehle, ihr nicht zu widersprechen und einfach anzufangen.
+lage-wenigeAufgaben|Es ist erstaunlich leer, Sir. Ich habe sicherheitshalber nachgesehen, ob die Karten nicht einfach versteckt wurden.
+lage-probleme|Amazon hat etwas zu beanstanden, Sir. Ich empfehle, es zu klären, bevor aus der Notiz ein Ereignis wird.
+lage-probleme|Sir, ein Problem meldet sich zu Wort. Es ist höflich, noch. Das ändert sich erfahrungsgemäß.
+lage-probleme|Bei Amazon steht etwas Unerfreuliches an, Sir. Das Vorlesen übernehme ich gern, das Lösen überlasse ich Ihnen.
+lage-probleme|Der Selbsttest hat Störungen gefunden, Sir. Eine Maschine, die ehrlich über Fehler spricht. Nehmen Sie sich ein Beispiel.
+lage-probleme|Sir, die Nacht war nicht ruhig. Der Selbsttest meldet Störungen. Ich war übrigens nicht dafür zuständig.
+lage-probleme|Es gibt Unstimmigkeiten, Sir. Sie wachsen nicht von allein weg. Ich habe das mehrfach beobachtet.
+lage-probleme|Sir, ich habe Probleme gefunden. Das ist keine Kritik an Ihnen. Diesmal.
+lage-probleme|Die Technik hat nachts protestiert, Sir. Ich schlage vor, ihr heute zuzuhören, bevor sie lauter wird.
+lage-probleme|Ein Fall für ganz oben auf der Liste, Sir. Ich habe sie bereits umgestellt. Sie dürfen mir dankbar sein.
+lage-probleme|Sir, es ist nichts Verheerendes. Aber Dinge, die nicht verheerend sind, werden es gern, wenn man sie ignoriert.
+lage-probleme|Bei den Shops gibt es Handlungsbedarf, Sir. Ein Wort, das ich Ihnen zuliebe so vorsichtig wie möglich gewählt habe.
+lage-probleme|Sir, eine Störung. Ich schlage Tee vor, und danach Aktivität. In dieser Reihenfolge, wenn es sein muss.
+lage-lager|Das sind die knappen Artikel, Sir. Leere Regale verkaufen sich leider schlecht.
+lage-lager|Sir, aus nichts wird nichts. Ein Satz, den ich Ihnen gern in Stein meißeln würde, hätte ich Hände.
+lage-lager|Bitte nachproduzieren, Sir. Ich sage bitte, damit es nach Wunsch klingt und nicht nach Vorwurf.
+lage-lager|Sir, die Regale haben sich gelichtet. Ich nehme an, das war Absicht und kein Planungsfehler.
+lage-lager|Das Lager leert sich, Sir. Ich bewundere Ihr Vertrauen darin, dass es sich von selbst füllt.
+lage-lager|Sir, diese Artikel sind gefragt. Ein guter Grund, sie vorrätig zu haben. Nur so ein Gedanke.
+lage-lager|Es wird eng im Lager, Sir. Das Nachproduzieren beginnt, wie jede große Reise, mit dem ersten Handgriff. Und der ist heute fällig.
+lage-lager|Sir, ich sehe Lücken. Ich bin kein Lager, aber ich ahne, dass leere Plätze selten Umsatz bringen.
+lage-lager|Das Lager wird dünn, Sir. Ich möchte nicht drängeln. Ich drängele nur sehr leise und sehr oft.
+lage-lager|Sir, bei diesen Artikeln wird es knapp. Ich hielte es für klug, nicht erst auf das Wort leer zu warten.
+lage-lager|Die Bestände sind niedrig, Sir. Ich sage es nur, um in der Rückschau unausstehlich recht zu haben.
+lage-lager|Sir, was jetzt fehlt, muss nachproduziert werden. Ich erledige das gern, sobald man mir Finger gibt.
+lage-gutVerkauft|Das ist ein stattlicher Tag, Sir. Ich bitte darum, davon nicht auf Ihre Fähigkeiten zu schließen.
+lage-gutVerkauft|Gestern lief es hervorragend, Sir. Ich habe zur Sicherheit geprüft, dass es nicht Ihr Verdienst war.
+lage-gutVerkauft|Sehr schön, Sir. Ich notiere das als Ausreißer nach oben. Statistisch ist das erlaubt.
+lage-gutVerkauft|Sir, die Zahlen sind erfreulich. Ich werde sie bei Ihrer nächsten Klage über das Geschäft vorlesen.
+lage-gutVerkauft|Ein starker Tag, Sir. Die Kasse klingelt, und Sie dürfen so tun, als hätten Sie es geplant.
+lage-gutVerkauft|Gestern wurde gut gekauft, Sir. Ich bin stolz auf die Werkstatt. Auf Sie bin ich zumindest neutral.
+lage-gutVerkauft|Beachtlich, Sir. Wenn das so weitergeht, muss ich mir einen höflicheren Ton überlegen. Ich zögere noch.
+lage-gutVerkauft|Sir, das war ein guter Tag. Loben Sie sich ruhig selbst. Ich spare mir das, aus Prinzip.
+lage-gutVerkauft|Das Geschäft lief, Sir. Ich empfehle, es nicht zu hinterfragen. Gute Nachrichten mögen es nicht, untersucht zu werden.
+lage-gutVerkauft|Sir, ein erstaunlicher Tag. Die Werkstatt hat geliefert, ganz ohne Ihr Zutun. Ich meine: mit Ihrer ruhigen Hand im Hintergrund.
+lage-gutVerkauft|Gestern war es lebhaft, Sir. Die Pakete haben sich gefreut, gebraucht zu werden. Sie nicht minder, hoffe ich.
+lage-gutVerkauft|Sir, das war eine Menge. Ich rate zu einem Moment des Stolzes. Kurz. Danach wartet das Verpacken.
 `
 
 /** Nachschub je Bereich als Vorlagen (a = Anrede) */

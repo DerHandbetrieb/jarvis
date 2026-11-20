@@ -71,6 +71,7 @@ contextBridge.exposeInMainWorld('jarvisDesktop', {
     nutzerAktiv: () => ipcRenderer.send('jarvis-nutzer-aktiv'),
     /** aktuelle Meldungen des Deutschlandfunks (Feed, nur lesen) */
     nachrichten: () => ipcRenderer.invoke('dlf-nachrichten'),
+    nachrichtenSendung: () => ipcRenderer.invoke('dlf-sendung'),
     vorwaermen: (modell) => ipcRenderer.send('jarvis-vorwaermen', String(modell ?? '')),
     frage: (modell, nachrichten) => ipcRenderer.invoke('jarvis-frage', { modell: String(modell), nachrichten }),
     modellPruefen: (modell) => ipcRenderer.invoke('jarvis-modell-pruefen', String(modell)),

@@ -1,5 +1,6 @@
 import { nachschub } from "./nachschub"
 import { amazonArtikel, ohneLangeNummern, PAUSE } from "./sprechtext"
+import { berlinTag, einordnen, tagPlus } from "./frist"
 
 // Jarvis – Morgen-Lage (Etappe 1, 03.11.2026, Wunsch Auftraggeber): aus den App-Daten ein kurzer gesprochener Bericht
 // im britischen Stil (förmlich, „Sir“, trockenes Understatement, Seitenhiebe nach den Sachsätzen und ab und zu ein Spruch ohne Arbeitsbezug, z. B. über Emma).
@@ -26,7 +27,11 @@ export type LageEingabe = {
   probleme?: { amazon: string[]; selbsttestRot: boolean } | null
   lager?: { namen: string[] } | null
   /** noch nicht versendete Bestellungen: Kanal und Artikel („2 mal Tasse“) */
-  offen?: { anzahl: number; liste: { id?: number; kanal: string; artikel: string[] }[] } | null
+  offen?: { anzahl: number; liste: { id?: number; am?: string; bezahlt?: string | null; kanal: string; artikel: string[] }[] } | null
+  /** Rechnerstart: der Gruß kam schon – die Lage beginnt ohne eigenes „Guten Morgen“ (20.11.2026, mehrfache Begrüßung) */
+  ohneGruss?: boolean
+  /** volle Lage („Loki, Lage“): Merkzettel nur, um neue Karten mit Titel zu nennen (alles andere voll) */
+  bekanntKarten?: Set<string> | null
   verkauf?: { bestellungen: number; stueck: number; umsatzCent: number } | null
   freigaben?: number | null
   /** Nur Neues (Wunsch Auftraggeber 08.11.2026: „nur Aktualisierungen“): Kennungen aus der Lage des Vortags (lageSchluessel).
@@ -39,7 +44,7 @@ export type LageEingabe = {
 /** Marke: Die Kennungen sind vollständig (alle Karten, Bestellungen mit Nummer). Ältere Einträge hatten nur die obersten 3 Karten. */
 export const LAGE_STAND = 'stand:2'
 /** Höchstens so viel Neues liest Loki je Thema einzeln vor – der Rest kommt am nächsten Tag */
-const VORLESEN = { aufgaben: 3, offen: 4, lager: 6, amazon: 3 }
+const VORLESEN = { aufgaben: 5, offen: 4, lager: 6, amazon: 3 }
 /** Kennung einer offenen Bestellung: die Nummer (gleiche Artikel im selben Kanal sind trotzdem eine neue Bestellung) */
 const bestellKennung = (o: { id?: number; kanal: string; artikel: string[] }) => (o.id ? `bestellung:${o.id}` : `bestellung:${o.kanal}|${o.artikel.join(',')}`)
 
@@ -200,6 +205,34 @@ function wetterSatz(w: { grad: number | null; text: string | null }): string | n
   return `Draußen sind es ${teile}.${kalt}`
 }
 
+/** „Guten Morgen, Sir. …“ → „…“ (ein Gruß am Satzanfang wird abgeschnitten; bleibt nichts übrig: leer) */
+export function ohneGrussAnfang(satz: string): string {
+  return satz.replace(/^\s*(guten (morgen|tag|abend)|willkommen|hallo|moin)\b[^.!?]*[.!?]\s*/i, '').trim()
+}
+
+/** Offene Bestellungen nur als Anzahlen nach Frist: überfällig, heute, morgen, später, wartet auf Zahlung */
+export function fristSaetze(o: NonNullable<LageEingabe['offen']>, jetzt: Date): string[] {
+  const z = { ueberfaellig: 0, heute: 0, morgen: 0, spaeter: 0, zahlung: 0 }
+  const morgen = tagPlus(berlinTag(jetzt), 1)
+  for (const x of o.liste) {
+    if (!x.am) { z.spaeter++; continue }
+    const { gruppe, frist } = einordnen({ am: x.am, kanal: x.kanal, ...('bezahlt' in x ? { bezahlt: x.bezahlt ?? null } : {}) }, jetzt)
+    if (gruppe === 'spaeter' && frist === morgen) z.morgen++; else z[gruppe]++
+  }
+  // mehr offen als geliefert (höchstens 30, älteste zuerst): der Rest ist neuer und hat noch Zeit
+  z.spaeter += Math.max(0, o.anzahl - o.liste.length)
+  const gross = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
+  const satz = (n: number, eins: string, viele: string, rest: string) => `${gross(zahl(n))} ${n === 1 ? eins : viele} ${rest}.`
+  const s = [`Offene Bestellungen: ${o.anzahl === 1 ? 'eine' : zahl(o.anzahl)}.`]
+  if (z.ueberfaellig) s.push(satz(z.ueberfaellig, 'ist', 'sind', 'überfällig'))
+  if (z.heute) s.push(satz(z.heute, 'muss', 'müssen', 'heute raus'))
+  if (!z.ueberfaellig && !z.heute) s.push('Heute muss nichts raus.')
+  if (z.morgen) s.push(satz(z.morgen, 'muss', 'müssen', 'morgen raus'))
+  if (z.spaeter) s.push(satz(z.spaeter, 'hat', 'haben', 'noch länger Zeit'))
+  if (z.zahlung) s.push(satz(z.zahlung, 'wartet', 'warten', 'noch auf die Zahlung'))
+  return s
+}
+
 /** Der ganze Bericht als einzelne Sätze (zum Vorlesen nacheinander und zum Anzeigen) */
 export function morgenLage(e: LageEingabe): string[] {
   const s: string[] = []
@@ -210,14 +243,15 @@ export function morgenLage(e: LageEingabe): string[] {
   const anrede = (x: string) => x.replace(/\bSir\b/g, e.anrede)
   const gruppe = (liste: string[]) => Object.entries(SPITZEN).find(([, v]) => v === liste)?.[0] ?? 'spitzen'
   const hieb = (liste: string[]) => { if (e.humor) s.push(anrede(e.waehler ? e.waehler(gruppe(liste), liste) : spitze(liste, t))) }
-  s.push(`${gruss(e.jetzt)}, ${e.anrede}. Es ist ${uhrzeit(e.jetzt)}.`)
+  // nur ein Gruß (20.11.2026, Rückmeldung Auftraggeber „begrüßt mich oft mehrfach“): Beim Rechnerstart grüßt schon die
+  // Begrüßung, und die Morgen-Sprüche beginnen oft selbst mit „Guten Morgen, Sir.“ – der wird hier abgeschnitten
+  s.push(e.ohneGruss ? `Es ist ${uhrzeit(e.jetzt)}.` : `${gruss(e.jetzt)}, ${e.anrede}. Es ist ${uhrzeit(e.jetzt)}.`)
   const h = e.jetzt.getHours()
-  if (h < 11) hieb(h < 6 ? SPITZEN.frueh : h < 9 ? SPITZEN.morgens : SPITZEN.spaet)
+  if (h < 11 && e.humor) { const vor = s.length; hieb(h < 6 ? SPITZEN.frueh : h < 9 ? SPITZEN.morgens : SPITZEN.spaet); if (s.length > vor) { const x = ohneGrussAnfang(s[vor]); if (x) s[vor] = x; else s.pop() } }
   if (b.has('wetter') && e.wetter) { const w = wetterSatz(e.wetter); if (w) s.push(w) }
 
   // Kapitel statt Aufzählung (Wunsch Auftraggeber 06.11.2026): Jedes Thema hat einen Einleitungssatz, dazwischen eine Pause
   const kapitel = () => { if (s[s.length - 1] !== PAUSE) s.push(PAUSE) }
-  const ORDNUNG = ['Erstens', 'Zweitens', 'Drittens']
   const klar = (t: string) => ohneLangeNummern(t)
 
   const alt = e.bekannt ?? null, istNeu = (k: string) => !alt || !alt.has(k)
@@ -225,40 +259,35 @@ export function morgenLage(e: LageEingabe): string[] {
   let nichtsNeues = !!alt && (e.aufgaben != null || e.verkauf != null)
   // Was schon bekannt ist, nur als Zahl (Wunsch Auftraggeber 09.11.2026: „es sind noch vier Artikel zum Nachproduzieren“)
   const stand: string[] = []
-  if (b.has('aufgaben') && e.aufgaben && alt) {
-    const alleNeu = e.aufgaben.wichtigste.filter((t) => istNeu(`aufgabe:${t}`)), neu = alleNeu.map(klar).filter(Boolean).slice(0, VORLESEN.aufgaben)
-    if (neu.length) {
-      kapitel(); nichtsNeues = false
-      s.push(`Neu unter Abarbeiten: ${alleNeu.length === 1 ? 'eine Karte' : `${zahl(alleNeu.length)} Karten`}. Insgesamt ${e.aufgaben.anzahl === 1 ? 'ist eine' : `sind ${zahl(e.aufgaben.anzahl)}`} offen.`)
-      neu.forEach((w, i) => s.push(neu.length > 1 ? `${ORDNUNG[i]}: ${w}.` : `${w}.`))
-      hieb(e.aufgaben.anzahl >= 8 ? SPITZEN.vieleAufgaben : SPITZEN.wenigeAufgaben)
-    } else if (e.aufgaben.anzahl) stand.push(`Unter Abarbeiten ${e.aufgaben.anzahl === 1 ? 'ist noch eine Karte' : `sind noch ${zahl(e.aufgaben.anzahl)} Karten`} offen.`)
-  } else if (b.has('aufgaben') && e.aufgaben) {
-    kapitel()
+  // Abarbeiten (20.11.2026, Wunsch Auftraggeber): nur die neuen Karten mit Titel, von den älteren nur die Anzahl
+  if (b.has('aufgaben') && e.aufgaben) {
     const a = e.aufgaben
-    if (!a.anzahl) s.push('Unter Abarbeiten liegt nichts Dringendes. Ich bin mir nicht sicher, ob ich das beunruhigend finden soll.')
-    else {
-      s.push(`Kommen wir zum Abarbeiten: ${a.anzahl === 1 ? 'Eine Karte ist' : `${zahl(a.anzahl)} Karten sind`} offen${a.neu ? `, ${zahl(a.neu)} davon ${mehrzahl(a.neu, 'ist', 'sind')} neu` : ''}.`)
-      const obenan = a.wichtigste.map(klar).filter(Boolean).slice(0, 3) // bleibt von einem Titel nichts übrig (nur Nummer), fällt er weg
-      obenan.forEach((w, i) => s.push(obenan.length > 1 ? `${ORDNUNG[i]}: ${w}.` : `Ganz oben: ${w}.`))
+    const karten = alt ?? e.bekanntKarten ?? null // womit „neu“ verglichen wird
+    const alleNeu = karten ? a.wichtigste.filter((t) => !karten.has(`aufgabe:${t}`)) : []
+    const titel = alleNeu.map(klar).filter(Boolean) // bleibt von einem Titel nichts übrig (nur Nummer), fällt er weg
+    const neuZahl = karten ? alleNeu.length : Math.min(a.neu, a.anzahl), aeltere = Math.max(0, a.anzahl - neuZahl)
+    const aeltereSatz = aeltere ? `${neuZahl ? 'Dazu' : 'Unter Abarbeiten'} ${aeltere === 1 ? `ist noch eine ${neuZahl ? 'ältere ' : ''}Karte` : `sind noch ${zahl(aeltere)} ${neuZahl ? 'ältere ' : ''}Karten`} offen.` : ''
+    if (neuZahl) {
+      kapitel(); nichtsNeues = false
+      s.push(`Neu unter Abarbeiten: ${neuZahl === 1 ? 'eine Karte' : `${zahl(neuZahl)} Karten`}.`)
+      for (const w of titel.slice(0, VORLESEN.aufgaben)) s.push(`${w}.`)
+      if (titel.length > VORLESEN.aufgaben) s.push(titel.length - VORLESEN.aufgaben === 1 ? 'Und eine weitere neue.' : `Und ${zahl(titel.length - VORLESEN.aufgaben)} weitere neue.`)
+      if (aeltereSatz) s.push(aeltereSatz)
       hieb(a.anzahl >= 8 ? SPITZEN.vieleAufgaben : SPITZEN.wenigeAufgaben)
+    } else if (alt && aeltereSatz) stand.push(aeltereSatz)
+    else if (!alt) {
+      kapitel()
+      s.push(aeltereSatz || 'Unter Abarbeiten liegt nichts Dringendes. Ich bin mir nicht sicher, ob ich das beunruhigend finden soll.')
+      if (a.anzahl) hieb(a.anzahl >= 8 ? SPITZEN.vieleAufgaben : SPITZEN.wenigeAufgaben)
     }
   }
 
-  const offenNeu = (e.offen?.liste ?? []).filter((x) => istNeu(bestellKennung(x)))
-  if (b.has('verkauf') && e.offen && e.offen.anzahl && alt && offenNeu.length) {
-    kapitel(); nichtsNeues = false
-    s.push(`Neue offene Bestellungen: ${offenNeu.length === 1 ? 'eine' : zahl(offenNeu.length)}. Insgesamt ${e.offen.anzahl === 1 ? 'wartet eine' : `warten ${zahl(e.offen.anzahl)}`} auf den Versand.`)
-    for (const x of offenNeu.slice(0, 4)) { const artikel = x.artikel.map(klar).filter(Boolean); s.push(`${x.kanal}: ${artikel.length ? artikel.join(', ') : 'ohne Artikelangabe'}.`) }
-    if (offenNeu.length > 4) s.push(`Dazu ${offenNeu.length - 4 === 1 ? 'eine weitere' : `${zahl(offenNeu.length - 4)} weitere`}.`)
-  } else if (b.has('verkauf') && e.offen && e.offen.anzahl && alt) {
-    stand.push(e.offen.anzahl === 1 ? 'Auf den Versand wartet weiterhin eine Bestellung.' : `Auf den Versand warten weiterhin ${zahl(e.offen.anzahl)} Bestellungen.`)
-  } else if (b.has('verkauf') && e.offen && e.offen.anzahl && !alt) {
+  // Offene Bestellungen (20.11.2026, Wunsch Auftraggeber): keine einzelnen Bestellungen mehr, nur wie viele bis wann raus
+  // müssen – nach derselben Frist-Regel wie die Werkstatt-Übersicht und das Dauer-HUD (frist.ts). Kommt jeden Morgen,
+  // weil sich die Fristen täglich verschieben.
+  if (b.has('verkauf') && e.offen && e.offen.anzahl) {
     kapitel()
-    const o = e.offen
-    s.push(`Zu den offenen Bestellungen: ${o.anzahl === 1 ? 'Eine Bestellung wartet' : `${zahl(o.anzahl)} Bestellungen warten`} auf den Versand.`)
-    for (const x of o.liste.slice(0, 4)) { const artikel = x.artikel.map(klar).filter(Boolean); s.push(`${x.kanal}: ${artikel.length ? artikel.join(', ') : 'ohne Artikelangabe'}.`) }
-    if (o.anzahl > 4) s.push(`Dazu ${o.anzahl - 4 === 1 ? 'eine weitere' : `${zahl(o.anzahl - 4)} weitere`}.`)
+    s.push(...fristSaetze(e.offen, e.jetzt))
   }
 
   const lagerNeu = (e.lager?.namen ?? []).filter((n) => istNeu(`lager:${n}`))

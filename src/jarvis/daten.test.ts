@@ -43,7 +43,7 @@ describe('Werkstatt-Daten für die Morgen-Lage', () => {
   })
   it('die Morgen-Lage nennt die echten Zahlen (Aufgaben, Lager, Umsatz)', () => {
     const text = morgenLage({ jetzt: JETZT, anrede: 'Sir', humor: false, bausteine: new Set(['aufgaben', 'probleme', 'lager', 'verkauf', 'freigaben']), wetter: null, ...ausWerkstatt(LAGE, JETZT) }).join(' ')
-    expect(text).toMatch(/elf/i)
+    expect(text).toMatch(/neun ältere Karten/i)
     expect(text).toContain('Tasse Emma')
     expect(text).toMatch(/123/)
   })

@@ -5,12 +5,12 @@ import { useSyncExternalStore } from 'react'
 import { bruecke, jarvisEinstellungen, kameraBruecke, MIKROFON_SCHWELLE, setzeJarvis, stationBruecke, werkstattBruecke, type MikrofonStufe, type JarvisEinstellungen, type Stimme } from './desktop'
 import { befehl, codewort, istNachfrage, istWiederholung, type Befehl } from './befehle'
 import { ziehe } from './fundus'
-import { BAUSTEINE, LAGE_STAND, lageSchluessel, morgenLage, SPITZEN, SPRUECHE, type BausteinSchluessel, type LageEingabe } from './morgenlage'
+import { BAUSTEINE, LAGE_STAND, lageSchluessel, morgenLage, ohneGrussAnfang, SPITZEN, SPRUECHE, type BausteinSchluessel, type LageEingabe } from './morgenlage'
 import { fuerStimme, leseEigene } from './aussprache'
 import { ladeLageDaten } from './daten'
 import { BEGRUESSUNGEN, naechsteBegruessung, rechnerGruss } from './begruessung'
 import { waehle, stand } from './rotation'
-import { nachrichtenSaetze } from './nachrichten'
+import { nachrichtenSaetze, standSatz } from './nachrichten'
 import { nachschub } from './nachschub'
 import { ALLE as FUNDUS_ALLE } from './fundus'
 import { ansage, auswaehlen, type Neuigkeit, type Spitzenbereich, lageKennungen } from './neuigkeiten'
@@ -114,6 +114,7 @@ let laeuft: AudioBufferSourceNode | null = null
 let stoppZeit = 0 // letzter Stopp – ein Stopp während des Abrufs der Nachrichten soll auch danach gelten
 export function stopp() {
   abbrechen = true; stoppZeit = Date.now()
+  sendungStoppen?.()
   try { laeuft?.stop() } catch { /* schon zu Ende */ }
 }
 
@@ -228,14 +229,14 @@ function lageNachtragen(e: LageEingabe) {
 }
 
 /** voll = ausdrücklich verlangt („Loki, Lage“, Knopf): alles; sonst (Guten Morgen, Rechnerstart) nur Neues seit dem Vortag */
-export async function morgenLageVortragen(voll = false) {
-  if (lage.zustand === 'spricht' || lage.zustand === 'denkt') return
+export async function morgenLageVortragen(voll = false, ohneGruss = false) {
+  if (lage.zustand === 'spricht' || lage.zustand === 'denkt') { protokoll('Morgen-Lage: übersprungen, Loki spricht oder denkt gerade'); return }
   vortrag++
-  try { await lageUndNachrichten(voll) } finally { vortrag-- }
+  try { await lageUndNachrichten(voll, ohneGruss) } finally { vortrag-- }
 }
 /** läuft gerade Lage oder Nachrichten (Neuigkeiten warten) */
 let vortrag = 0
-async function lageUndNachrichten(voll: boolean) {
+async function lageUndNachrichten(voll: boolean, ohneGruss = false) {
   const e = jarvisEinstellungen()
   const bausteine = new Set(e.bausteine as BausteinSchluessel[])
   setze({ zustand: 'denkt' })
@@ -245,13 +246,17 @@ async function lageUndNachrichten(voll: boolean) {
   const [daten, modell] = await Promise.all([ladeLageDaten(bausteine), pruefen])
   if (modell && modell.stand !== 'unbekannt') setzeJarvis({ zuletztModellPruefung: heute() })
   // nur Neues gegenüber der Lage eines früheren Tages (Wunsch Auftraggeber 08.11.2026); höchstens 7 Tage zurück, sonst volle Lage
-  const eingabe = { jetzt: new Date(), anrede: e.anrede || 'Sir', humor: e.humor, bausteine, ...daten, waehler: lageWaehler }
+  const eingabe = { jetzt: new Date(), anrede: e.anrede || 'Sir', humor: e.humor, bausteine, ...daten, waehler: lageWaehler, ohneGruss }
   lageNachtragen(eingabe)
   const bekannt = voll ? null : lageBekannt()
-  const saetze = morgenLage({ ...eingabe, bekannt })
+  const bekanntKarten = voll ? lageBekannt() : null
+  const saetze = morgenLage({ ...eingabe, bekannt, bekanntKarten })
+  letzterGruss = Date.now()
   if (modell?.stand === 'neuer') saetze.push(`Für mein Sprachmodell gibt es eine neuere Fassung. In den Einstellungen genügt ein Klick auf „Sprachmodell aktualisieren“.${e.humor ? ' Ein Klick, Sir. Ich traue Ihnen das zu. Beinahe.' : ''}`)
   // erst nach vollständigem Vortrag als „heute erledigt“ merken (Prüf-Agent)
-  if (await sprechen(saetze)) {
+  const fertig = await sprechen(saetze)
+  protokoll(`Morgen-Lage: ${fertig ? 'vorgetragen' : 'abgebrochen oder nicht gesprochen'}${voll ? ' (voll)' : ''}`)
+  if (fertig) {
     setzeJarvis({ zuletztLage: heute() }); if (daten.aufgaben != null || daten.verkauf != null) lageMerken(lageSchluessel(eingabe, bekannt)) // ohne Werkstatt-Daten nichts merken (Prüf-Agent)
     // danach einmal am Tag die Deutschlandfunk-Nachrichten (Wunsch Auftraggeber 10.11.2026); nicht bei „Loki, Lage“
     if (!voll && jarvisEinstellungen().nachrichten && jarvisEinstellungen().zuletztNachrichten !== heute()) await nachrichtenVortragen(true)
@@ -267,21 +272,78 @@ export async function nachrichtenVortragen(nachLage = false) {
   vortrag++
   try { await nachrichtenLesen(b.nachrichten, e, a, nachLage) } finally { vortrag-- }
 }
+/** bissiger Einleitungsspruch vor den Nachrichten (Nachschub-Bereich „nachrichten“), nur mit Humor; auf Zuruf ohne Lage-Bezug */
+function nachrichtenEinleitung(e: JarvisEinstellungen, a: string, nachLage: boolean): string | null {
+  const vorlagen = NACHSCHUB.nachrichten ?? []
+  if (!e.humor || !vorlagen.length) return null
+  const liste = vorlagen.map((f) => f(a)).filter((t) => nachLage || !NACH_LAGE.test(t))
+  if (!liste.length) return null
+  const [i] = waehle(nachLage ? 'nachrichten' : 'nachrichten-zuruf', liste); meldeSpruchStand()
+  return liste[i ?? 0]
+}
+
+/**
+ * Original-Tonspur der Nachrichten-Sendung abspielen (20.11.2026, Wunsch Auftraggeber: „die Original-Audiospur abspielen,
+ * nicht mehr vorlesen lassen“). Mikrofon ist währenddessen zu (sonst hält Loki die Sprecherin für Befehle), „Stopp“ und
+ * Reaktor-Klick halten an. Lädt die Folge nicht binnen 20 s oder bricht sie ab: 'fehler' – dann liest Loki wie bisher vor.
+ */
+let sendungStoppen: (() => void) | null = null
+async function sendungAbspielen(url: string): Promise<'ok' | 'stopp' | 'fehler' | 'abgerissen'> {
+  const b = bruecke()
+  if (!b || stumm || lage.zustand === 'spricht' || lage.zustand === 'aus' || lage.zustand === 'fehler') return 'stopp'
+  abbrechen = false
+  setze({ zustand: 'spricht', gesagt: 'Deutschlandfunk, Nachrichten (Originalton)' })
+  await b.zuhoeren(false)
+  const ton = new Audio(url)
+  try {
+    // Stopp/Stumm, während das Mikrofon zuging (Prüf-Agent): gar nicht erst anfangen
+    if (abbrechen || stumm) return 'stopp'
+    return await new Promise<'ok' | 'stopp' | 'fehler' | 'abgerissen'>((fertig) => {
+      const wecker = setTimeout(() => { if (ton.currentTime === 0) fertigMit('fehler') }, 20_000)
+      const ende = setTimeout(() => fertigMit('ok'), 20 * 60_000) // Sicherung: eine Nachrichten-Sendung dauert wenige Minuten
+      function fertigMit(x: 'ok' | 'stopp' | 'fehler' | 'abgerissen') { clearTimeout(wecker); clearTimeout(ende); fertig(x) }
+      sendungStoppen = () => fertigMit('stopp')
+      ton.onended = () => fertigMit('ok')
+      // reißt die Verbindung mitten in der Sendung ab, nicht alles noch einmal vorlesen (Prüf-Agent)
+      ton.onerror = () => fertigMit(ton.currentTime > 5 ? 'abgerissen' : 'fehler')
+      ton.play().catch(() => fertigMit('fehler'))
+    })
+  } finally {
+    sendungStoppen = null
+    ton.pause(); ton.removeAttribute('src'); ton.load() // Verbindung schließen, nichts bleibt im Speicher
+    if ((lage.zustand as Zustand) === 'spricht') setze({ zustand: 'bereit' })
+    await new Promise((w) => setTimeout(w, 400))
+    if (lage.mikrofon) await b.zuhoeren(true)
+  }
+}
+
 async function nachrichtenLesen(holen: NonNullable<ReturnType<typeof bruecke>>['nachrichten'] & {}, e: JarvisEinstellungen, a: string, nachLage: boolean) {
   const beginn = Date.now()
+  let eingeleitet = false // Einleitung schon gesprochen (Originalton ging nicht) – beim Vorlesen keine zweite (Prüf-Agent)
   setze({ zustand: 'denkt' })
+  // zuerst die gesprochene Sendung im Originalton; nur wenn das nicht geht, die Meldungen vorlesen
+  const folge = await bruecke()?.nachrichtenSendung?.().catch(() => null)
+  if (folge && 'url' in folge) {
+    if (lage.zustand !== 'denkt') return
+    setze({ zustand: 'bereit' })
+    if (stumm || stoppZeit >= beginn) { protokoll('Nachrichten: abgebrochen, bevor sie kamen'); return }
+    const vorweg = [nachrichtenEinleitung(e, a, nachLage) ?? 'Die Nachrichten des Deutschlandfunks.', ...standSatz(folge.stand, new Date())]
+    if (!await sprechen(vorweg)) return
+    const erg = await sendungAbspielen(folge.url)
+    protokoll(`Nachrichten: Originalton ${erg === 'ok' ? 'abgespielt' : erg === 'stopp' ? 'angehalten' : erg === 'abgerissen' ? 'mittendrin abgerissen' : 'nicht abspielbar, lese vor'}${nachLage ? ' (nach der Lage)' : ''}`)
+    if (erg === 'ok' && nachLage) setzeJarvis({ zuletztNachrichten: heute() })
+    if (erg === 'abgerissen') { await sprechen([`Die Verbindung zum Deutschlandfunk ist abgerissen, ${a}. Der Rest der Sendung bleibt Ihnen erspart.`]); return }
+    if (erg !== 'fehler') return
+    eingeleitet = true
+    setze({ zustand: 'denkt' })
+  } else if (folge && 'fehler' in folge) protokoll(`Nachrichten: Originalton nicht verfügbar (${folge.fehler.slice(0, 120)}), lese vor`)
   const antwort = await holen().catch(() => null)
   if (lage.zustand !== 'denkt') return // inzwischen aus oder eingeschaltet neu
   setze({ zustand: 'bereit' }) // auch bei Stumm/Stopp, sonst bleibt er in „denkt“ hängen und hört nie wieder hin (Prüf-Agent)
   if (stumm || stoppZeit >= beginn) { protokoll('Nachrichten: abgebrochen, bevor sie kamen'); return }
   const ok = !!antwort && 'meldungen' in antwort && antwort.meldungen.length > 0
-  let einleitung: string | null = null
-  const vorlagen = NACHSCHUB.nachrichten ?? []
-  if (ok && e.humor && vorlagen.length) {
-    const liste = vorlagen.map((f) => f(a)).filter((t) => nachLage || !NACH_LAGE.test(t))
-    const [i] = waehle(nachLage ? 'nachrichten' : 'nachrichten-zuruf', liste); einleitung = liste[i ?? 0]; meldeSpruchStand()
-  }
-  const saetze = nachrichtenSaetze(antwort ?? { fehler: 'keine Antwort' }, { jetzt: new Date(), anrede: a, einleitung })
+  const einleitung = ok && !eingeleitet ? nachrichtenEinleitung(e, a, nachLage) : null
+  const saetze = nachrichtenSaetze(antwort ?? { fehler: 'keine Antwort' }, { jetzt: new Date(), anrede: a, einleitung, ohneEinleitung: eingeleitet })
   protokoll(`Nachrichten: ${antwort && 'meldungen' in antwort ? `${antwort.meldungen.length} Meldungen` : 'nicht abrufbar'}${nachLage ? ' (nach der Lage)' : ''}`)
   if (await sprechen(saetze) && nachLage && ok) setzeJarvis({ zuletztNachrichten: heute() })
 }
@@ -445,7 +507,10 @@ async function behandeln(text: string, c: ReturnType<typeof codewort>, begonnen:
   try {
     if (c?.art === 'morgen') {
       if (jarvisEinstellungen().zuletztLage === heute()) return sprechen([jarvisEinstellungen().humor ? zweitesMal() : 'Guten Morgen, noch einmal. Die Lage habe ich Ihnen heute bereits vorgetragen. Für eine Wiederholung sagen Sie: Loki, Lage.'])
-      return morgenLageVortragen()
+      const lageBeginn = Date.now()
+      await morgenLageVortragen()
+      if (jarvisEinstellungen().zuletztLage === heute()) neuSchlange = neuSchlange.filter((x) => istKamera(x.n) || x.zeit >= lageBeginn) // Prüf-Agent 20.11.2026
+      return
     }
     if (c?.art === 'hey') { setze({ wartetBis: 0 }); ohneCodewort = 0; if (befehl(c.rest).art === 'frage') bruecke()?.vorwaermen?.(jarvisEinstellungen().modell); return await ausfuehren(befehl(c.rest)) }
     // nach „Hey Loki“ allein bzw. nach einer Antwort im Gespräch: der nächste Satz gilt auch ohne Codewort
@@ -520,6 +585,7 @@ function neuigkeitenStarten(): (() => void)[] {
 }
 
 let neuLaeuft = false
+let letzterGruss = 0 // zuletzt begrüßt (Rechnerstart, Morgen-Lage) – danach keine Grüße in den Neuigkeiten
 let startphase = false // Begrüßung und Morgen-Lage laufen: Neuigkeiten warten (nie zwei Stimmen, 06.11.2026)
 async function neuAnsagen() {
   const b = bruecke(), e = jarvisEinstellungen()
@@ -548,7 +614,9 @@ async function neuAnsagen() {
     const jetzt = neuSchlange.splice(0)
     // eine Person „nähert sich“ nur, wenn es frisch ist (≤ 90 s) – sonst Zusammenfassung „war jemand vor der Kamera“ (Prüf-Agent)
     const weg = jetzt.some((x) => x.verpasst || Date.now() - x.zeit > (istKamera(x.n) ? 90_000 : VERPASST_MS))
-    const saetze = ansage(jetzt.map((x) => x.n), { anrede: e.anrede || 'Sir', humor: e.humor, weg, spitze: neuSpitze })
+    const roh = ansage(jetzt.map((x) => x.n), { anrede: e.anrede || 'Sir', humor: e.humor, weg, spitze: neuSpitze })
+    // binnen einer Stunde nach Begrüßung/Lage kein zweiter Gruß (20.11.2026, „begrüßt mich oft mehrfach“)
+    const saetze = Date.now() - letzterGruss < 60 * 60_000 ? roh.map((x) => ohneGrussAnfang(x) || '').filter(Boolean) : roh
     if (!saetze.length) return
     protokoll(`Neuigkeiten angesagt (${jetzt.length}${weg ? ', Zusammenfassung' : ''})`)
     // bei einem Fehler wieder einreihen; abgebrochen („Loki, stopp“, stumm) = bewusst nicht hören wollen → nicht wiederholen
@@ -674,10 +742,12 @@ export async function rechnerStart() {
     const nr = naechsteBegruessung(e.letzteBegruessung)
     meldeSpruchStand()
     setzeJarvis({ letzteBegruessung: nr })
-    if (!await sprechen([rechnerGruss(nr, e.anrede, e.humor)])) return
+    if (!await sprechen([rechnerGruss(nr, e.anrede, e.humor)])) { protokoll('Rechnerstart: Begrüßung abgebrochen'); return }
+    protokoll('Rechnerstart: begrüßt')
+    letzterGruss = Date.now()
     if (jarvisEinstellungen().zuletztLage !== heute()) {
       const lageBeginn = Date.now()
-      await morgenLageVortragen()
+      await morgenLageVortragen(false, true)
       // Was vor der Lage aufgelaufen ist, stand in ihr – eine Person und alles, was währenddessen neu kam, wird noch gemeldet
       if (jarvisEinstellungen().zuletztLage === heute()) neuSchlange = neuSchlange.filter((x) => istKamera(x.n) || x.zeit >= lageBeginn)
     } else { // heute schon vorgetragen (Neustart): Merkzettel gleich vervollständigen statt erst morgen früh

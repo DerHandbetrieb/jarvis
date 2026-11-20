@@ -16,7 +16,8 @@ function sicherheitsRegel(): Plugin {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     "connect-src 'self'",
-    "media-src 'self' blob:",
+    // Originalton der Deutschlandfunk-Nachrichten (20.11.2026): Tonspuren liegen auf podcast-mp3.dradio.de (Prüf-Agent)
+    "media-src 'self' blob: https://podcast-mp3.dradio.de https://*.deutschlandfunk.de https://*.deutschlandradio.de",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

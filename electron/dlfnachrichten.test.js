@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { createRequire } from 'node:module'
 
-const { erstelleDlfNachrichten, lesen } = createRequire(import.meta.url)('./dlfnachrichten.cjs')
+const { erstelleDlfNachrichten, lesen, sendungLesen, erlaubteTonAdresse } = createRequire(import.meta.url)('./dlfnachrichten.cjs')
 
 const ITEM = (titel, text, datum) => `<item>
   <title>${titel}</title>
@@ -39,5 +39,17 @@ describe('Deutschlandfunk-Nachrichten', () => {
     expect(await kaputt.holen()).toEqual({ fehler: 'Antwort 404' })
     const leer = erstelleDlfNachrichten({ abruf: async () => ({ ok: true, status: 200, text: async () => '<rss></rss>' }) })
     expect((await leer.holen()).fehler).toBe('keine Meldungen im Feed')
+  })
+})
+
+describe('Originalton der Nachrichten-Sendung (20.11.2026)', () => {
+  it('nimmt die neueste Folge mit Tonspur vom Deutschlandfunk, fremde Adressen nie', () => {
+    const xml = '<rss><item><title>Nachrichten 05:00</title><pubDate>Fri, 20 Nov 2026 05:00:00 +0100</pubDate><enclosure url="https://download.deutschlandfunk.de/a.mp3" type="audio/mpeg"/></item>'
+      + '<item><title>Nachrichten 06:00</title><pubDate>Fri, 20 Nov 2026 06:00:00 +0100</pubDate><enclosure url="https://download.deutschlandfunk.de/b.mp3?x=1&amp;y=2" type="audio/mpeg"/></item>'
+      + '<item><title>fremd</title><pubDate>Fri, 20 Nov 2026 07:00:00 +0100</pubDate><enclosure url="https://boese.example/c.mp3" type="audio/mpeg"/></item></rss>'
+    expect(sendungLesen(xml)).toEqual({ url: 'https://download.deutschlandfunk.de/b.mp3?x=1&y=2', titel: 'Nachrichten 06:00', stand: '2026-11-20T05:00:00.000Z' })
+    expect(sendungLesen('<rss></rss>')).toBeNull()
+    expect(erlaubteTonAdresse('http://download.deutschlandfunk.de/a.mp3')).toBe(false)
+    expect(erlaubteTonAdresse('https://deutschlandfunk.de.boese.example/a.mp3')).toBe(false)
   })
 })

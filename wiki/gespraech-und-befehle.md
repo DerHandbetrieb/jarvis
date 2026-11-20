@@ -26,9 +26,10 @@ Verwandt: [Morgen-Lage](morgenlage.md), [Werkstatt-Anbindung](werkstatt-anbindun
 ## Deutschlandfunk-Nachrichten (0.31.0)
 
 - Einmal am Tag nach der Morgen-Lage und auf Zuruf („Nachrichten“, „lies die Nachrichten“, „Deutschlandfunk“, „was gibt es Neues in der Welt“; nie bei „eine Nachricht“, WhatsApp, Kunde, Etsy). „Loki, Lage“ löst keine Nachrichten aus.
-- Quelle: Feed `https://www.deutschlandfunk.de/nachrichten-100.rss` (20 Meldungen). Keine offizielle Feed-Übersicht gefunden – die Adresse kann sich ändern. Die gesprochene Sendung (Podcast `nachrichten-108.xml`) wurde nicht gewählt.
+- Quelle: Feed `https://www.deutschlandfunk.de/nachrichten-100.rss` (20 Meldungen). Keine offizielle Feed-Übersicht gefunden – die Adresse kann sich ändern. Die gesprochene Sendung (Podcast `nachrichten-108.xml`) ist seit 0.35.0 der erste Weg, der Text-Feed der Ersatz.
 - **Nutzungsbedingungen** (deutschlandfunk.de/nutzungsbedingungen-102.html): nur privat; keine Änderung, Neuzusammenstellung, Speicherung → wortgetreu vorlesen, kein Sprachmodell, kein Spott zwischen oder nach den Meldungen, nur 5 min im Arbeitsspeicher. DLF-Wetterbericht entfällt (Wetter nur Station).
 - Ein bissiger Einleitungsspruch davor (Nachschub-Bereich `nachrichten`, auf Zuruf ohne Werkstatt-Bezug). Stand nur, wenn älter als 3 h. Unterbrechen per Reaktor-Klick oder Stopp-Knopf.
+- **Originalton (0.35.0, Wunsch Auftraggeber 20.11.2026):** L.O.K.I. spielt die neueste Folge der gesprochenen Nachrichten-Sendung aus dem Podcast-Feed `https://www.deutschlandfunk.de/nachrichten-108.xml` ab (nur https-Adressen von deutschlandfunk.de/deutschlandradio.de/dradio.de, nichts gespeichert). Davor Lokis Einleitungsspruch und ggf. der Stand. Mikrofon währenddessen zu, „Stopp“/Reaktor-Klick hält an. Geht der Originalton nicht (Feed, Laden > 20 s, Abbruch), liest Loki wie bisher die Meldungen vor. Feed geprüft 20.11.2026 (Prüf-Agent): 10 Folgen, Tonspuren unter `https://podcast-mp3.dradio.de/…` als audio/mpeg. Dafür steht der Server in `media-src` (vite.config.ts); die Antworten bekommen „no-store“, damit nichts auf der Festplatte landet. Reißt die Verbindung mittendrin ab, liest Loki nicht alles noch einmal vor.
 - Code: `electron/dlfnachrichten.cjs`, `src/jarvis/nachrichten.ts`, `nachrichtenVortragen` in `dienst.ts`.
 
 ## Protokoll

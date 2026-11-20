@@ -1,3 +1,4 @@
+import { ohneGrussAnfang } from './morgenlage'
 // Begrüßung beim Rechnerstart (03.11.2026, Wunsch Auftraggeber): Loki sagt jedes Mal etwas anderes. Maßstab nach der
 // zweiten Korrektur des Auftraggebers (03.11.2026, „davon sehr gerne mehr … ich möchte schon beinahe beleidigt werden“):
 // tiefschwarz und böse wie „Sie leben noch … ich hatte mich gerade an die Ruhe gewöhnt“ – gespielt herablassend,
@@ -88,5 +89,6 @@ export function begruessung(nummer: number, anrede: string, humor: boolean): str
  */
 export function rechnerGruss(nummer: number, anrede: string, humor: boolean): string {
   const a = anrede || 'Sir', satz = begruessung(nummer, a, humor)
-  return satz.startsWith('Willkommen zurück') ? satz : `Willkommen zurück, ${a}. ${satz}`
+  // nur ein Gruß (20.11.2026): „Willkommen zurück, Sir. Guten Tag, Sir. …“ war doppelt – den zweiten Gruß abschneiden
+  return satz.startsWith('Willkommen zurück') ? satz : `Willkommen zurück, ${a}. ${ohneGrussAnfang(satz) || ''}`.trim()
 }

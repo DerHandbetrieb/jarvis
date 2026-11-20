@@ -5,6 +5,27 @@
 // Änderung, Neuzusammenstellung und Speicherung brauchen eine Zustimmung. Darum: nur für den Auftraggeber vorlesen, Text
 // wortgetreu (nur HTML und Zeichen-Codes entfernt), nichts auf die Festplatte, nur kurz im Arbeitsspeicher.
 const ADRESSE = 'https://www.deutschlandfunk.de/nachrichten-100.rss'
+// Gesprochene Sendung (20.11.2026, Wunsch Auftraggeber: „die Original-Audiospur abspielen, nicht mehr vorlesen lassen“):
+// Podcast-Feed der Nachrichten-Sendung; L.O.K.I. spielt die neueste Folge direkt aus dem Netz ab (Anhören, nichts gespeichert –
+// so bleibt es bei der privaten Nutzung ohne Änderung). Klappt das nicht, liest Loki wie bisher die Meldungen vor.
+const PODCAST = 'https://www.deutschlandfunk.de/nachrichten-108.xml'
+/** nur Tonspuren vom Deutschlandfunk/Deutschlandradio über https */
+function erlaubteTonAdresse(u) {
+  try { const a = new URL(u); return a.protocol === 'https:' && /(^|\.)(deutschlandfunk\.de|deutschlandradio\.de|dradio\.de)$/i.test(a.hostname) } catch { return false }
+}
+/** Podcast-Feed → neueste Folge { url, titel, stand } oder null */
+function sendungLesen(xml) {
+  let beste = null
+  for (const m of String(xml ?? '').matchAll(/<item>([\s\S]*?)<\/item>/g)) {
+    const e = m[1].match(/<enclosure\b[^>]*>/i)?.[0] ?? ''
+    const url = entschluesseln(e.match(/\burl="([^"]+)"/i)?.[1] ?? ''), typ = e.match(/\btype="([^"]+)"/i)?.[1] ?? ''
+    if (!url || (typ && !/^audio\//i.test(typ)) || !erlaubteTonAdresse(url)) continue
+    const d = new Date(reinerText(feld(m[1], 'pubDate')))
+    const folge = { url, titel: reinerText(feld(m[1], 'title')), stand: Number.isNaN(d.getTime()) ? null : d }
+    if (!beste || (folge.stand && (!beste.stand || folge.stand > beste.stand))) beste = folge
+  }
+  return beste ? { ...beste, stand: beste.stand ? beste.stand.toISOString() : null } : null
+}
 
 const ZEICHEN = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' }
 function entschluesseln(s) {
@@ -48,7 +69,23 @@ function erstelleDlfNachrichten({ abruf = fetch, protokoll = () => {}, jetzt = (
       return { fehler: String(f?.message ?? f) }
     }
   }
-  return { holen }
+  let zuletztSendung = null
+  /** sendung(): { url, titel, stand } oder { fehler } – 10 s Zeitgrenze, 5 Minuten im Arbeitsspeicher */
+  async function sendung() {
+    if (zuletztSendung && jetzt() - zuletztSendung.zeit < 5 * 60_000) return zuletztSendung.daten
+    try {
+      const r = await abruf(PODCAST, { headers: { 'user-agent': 'LOKI-Sprachassistent' }, signal: AbortSignal.timeout(10_000) })
+      if (!r.ok) throw new Error(`Antwort ${r.status}`)
+      const daten = sendungLesen(await r.text())
+      if (!daten) throw new Error('keine abspielbare Folge im Podcast-Feed')
+      zuletztSendung = { zeit: jetzt(), daten }
+      return daten
+    } catch (f) {
+      protokoll('Deutschlandfunk-Sendung:', f?.message ?? f)
+      return { fehler: String(f?.message ?? f) }
+    }
+  }
+  return { holen, sendung }
 }
 
-module.exports = { erstelleDlfNachrichten, lesen, ADRESSE }
+module.exports = { erstelleDlfNachrichten, lesen, sendungLesen, erlaubteTonAdresse, ADRESSE, PODCAST }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { lageKennungen } from './neuigkeiten'
-import { lageSchluessel, morgenLage, uhrzeit, zahl, euro, type LageEingabe, BAUSTEINE, SPITZEN, spitze, tagNummer } from './morgenlage'
+import { fristSaetze, ohneGrussAnfang, lageSchluessel, morgenLage, uhrzeit, zahl, euro, type LageEingabe, BAUSTEINE, SPITZEN, spitze, tagNummer } from './morgenlage'
+import { BEGRUESSUNGEN, rechnerGruss } from './begruessung'
 import { fuerStimme, leseEigene } from './aussprache'
 import { befehl, codewort, istNachfrage, istWiederholung, vereinfachen } from './befehle'
 import { verstaerkung } from './dienst'
@@ -23,12 +24,14 @@ describe('Morgen-Lage', () => {
       verkauf: { bestellungen: 1, stueck: 1, umsatzCent: 2000 },
     })
     const s = morgenLage({ ...heute, bekannt: new Set(lageSchluessel(gestern)) }).join(' ')
-    expect(s).toContain('Neu unter Abarbeiten: eine Karte. Insgesamt sind zehn offen.')
+    expect(s).toContain('Neu unter Abarbeiten: eine Karte.')
+    expect(s).toContain('Dazu sind noch neun ältere Karten offen.')
     expect(s).toContain('Uhr reparieren.')
     expect(s).not.toContain('Kerzenständer')
-    expect(s).toContain('Neue offene Bestellungen: eine.')
-    expect(s).toContain('Amazon: Lampe.')
+    // Bestellungen nur als Anzahl nach Frist, nie einzeln (20.11.2026)
+    expect(s).toContain('Offene Bestellungen: zwei.')
     expect(s).not.toContain('Etsy')
+    expect(s).not.toContain('Amazon: Lampe')
     expect(s).not.toContain('Neu zum Nachproduzieren')
     expect(s).toContain('Zum Nachproduzieren steht immer noch ein Artikel an.')
     expect(s).not.toContain('Kuh-Kucks-Uhr')
@@ -41,7 +44,7 @@ describe('Morgen-Lage', () => {
     expect(nichts).toContain('Seit gestern gibt es nichts Neues.')
     expect(nichts).toContain('Unter Abarbeiten sind noch neun Karten offen.')
     expect(nichts).not.toContain('Kerzenständer')
-    expect(nichts).toContain('Auf den Versand wartet weiterhin eine Bestellung.')
+    expect(nichts).toContain('Offene Bestellungen: eine.')
     expect(nichts).not.toContain('Lampe')
     // Freigaben nur, wenn es mehr wurden; ohne Werkstatt-Daten kein „nichts Neues“
     expect(morgenLage({ ...gestern, freigaben: 1, bekannt: new Set(lageSchluessel(gestern)) }).join(' ')).not.toContain('Zu den Freigaben')
@@ -49,25 +52,51 @@ describe('Morgen-Lage', () => {
     expect(morgenLage({ ...basis(), bekannt: new Set(lageSchluessel(gestern)) }).join(' ')).not.toContain('nichts Neues')
   })
   it('nur Neues: nicht Vorgelesenes kommt am nächsten Tag, Bestellungen zählen nach Nummer (09.11.2026)', () => {
-    const karten = ['A', 'B', 'C', 'D', 'E']
+    const karten = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
     const alt = new Set(['aufgabe:A'])
-    const e = basis({ aufgaben: { anzahl: 5, wichtigste: karten, neu: 0 } })
+    const e = basis({ aufgaben: { anzahl: 7, wichtigste: karten, neu: 0 } })
     const s = morgenLage({ ...e, bekannt: alt }).join(' ')
-    expect(s).toContain('Neu unter Abarbeiten: vier Karten.')
-    expect(s).toContain('Drittens: D.')
-    expect(s).not.toContain('E.')
+    expect(s).toContain('Neu unter Abarbeiten: sechs Karten.')
+    expect(s).toContain('F.')
+    expect(s).not.toContain('G.')
+    expect(s).toContain('Und eine weitere neue.')
+    expect(s).toContain('Dazu ist noch eine ältere Karte offen.')
     const gemerkt = lageSchluessel(e, alt)
-    expect(gemerkt).toContain('aufgabe:D')
-    expect(gemerkt).not.toContain('aufgabe:E')
+    expect(gemerkt).toContain('aufgabe:F')
+    expect(gemerkt).not.toContain('aufgabe:G')
     const morgen = morgenLage({ ...e, bekannt: new Set(gemerkt) }).join(' ')
     expect(morgen).toContain('Neu unter Abarbeiten: eine Karte.')
-    expect(morgen).toContain('E.')
+    expect(morgen).toContain('G.')
     // gleicher Artikel, andere Nummer = neue Bestellung
-    const b1 = basis({ offen: { anzahl: 1, liste: [{ id: 1, kanal: 'Etsy', artikel: ['Tasse'] }] } })
-    const b2 = basis({ offen: { anzahl: 2, liste: [{ id: 1, kanal: 'Etsy', artikel: ['Tasse'] }, { id: 2, kanal: 'Etsy', artikel: ['Tasse'] }] } })
-    expect(morgenLage({ ...b2, bekannt: new Set(lageSchluessel(b1)) }).join(' ')).toContain('Neue offene Bestellungen: eine.')
     expect(lageKennungen({ art: 'bestellung', id: 2, kanal: 'Etsy', stueck: 1, cent: 100, artikel: [] })).toEqual(['bestellung:2'])
     expect(lageKennungen({ art: 'knapp', name: 'Uhr', variante: 'Braun', bestand: 1 })).toEqual(['lager:Uhr Braun'])
+  })
+  it('Bestellungen nur als Anzahl nach Frist (20.11.2026)', () => {
+    const jetzt = new Date('2026-11-18T09:30:00+01:00') // Mittwoch
+    const am = (tag: string) => new Date(`${tag}T10:00:00+01:00`).toISOString()
+    const s = fristSaetze({ anzahl: 6, liste: [
+      { am: am('2026-11-13'), kanal: 'Etsy', artikel: [] }, // Fr → Mo: überfällig
+      { am: am('2026-11-16'), kanal: 'Amazon', artikel: [] }, // Mo → Mi: heute
+      { am: am('2026-11-16'), kanal: 'Etsy', artikel: [] },
+      { am: am('2026-11-17'), kanal: 'Etsy', artikel: [] }, // Di → Do: morgen
+      { am: am('2026-11-18'), kanal: 'Eigener Shop', bezahlt: null, artikel: [] }, // wartet auf Zahlung
+    ] }, jetzt)
+    expect(s).toEqual(['Offene Bestellungen: sechs.', 'Eine ist überfällig.', 'Zwei müssen heute raus.', 'Eine muss morgen raus.', 'Eine hat noch länger Zeit.', 'Eine wartet noch auf die Zahlung.'])
+    expect(fristSaetze({ anzahl: 1, liste: [{ am: am('2026-11-18'), kanal: 'Etsy', artikel: [] }] }, jetzt)).toEqual(['Offene Bestellungen: eine.', 'Heute muss nichts raus.', 'Eine hat noch länger Zeit.'])
+  })
+  it('nur ein Gruß: nach der Begrüßung beginnt die Lage mit der Uhrzeit, Morgen-Sprüche ohne „Guten Morgen“', () => {
+    const s = morgenLage(basis({ ohneGruss: true, humor: true }))
+    expect(s[0]).toBe('Es ist 7 Uhr 30.')
+    expect(s.filter((x) => /guten (morgen|tag|abend)/i.test(x))).toEqual([])
+    expect(ohneGrussAnfang('Guten Morgen, Sir. Der Kaffee ist Ihre Sache.')).toBe('Der Kaffee ist Ihre Sache.')
+    expect(ohneGrussAnfang('Guten Morgen, Sir.')).toBe('')
+    expect(ohneGrussAnfang('Willkommen im Tag, Sir. Er hat schon begonnen.')).toBe('Er hat schon begonnen.')
+    // jede Begrüßung des Rechnerstarts hat genau einen Gruß am Anfang
+    for (let i = 0; i < BEGRUESSUNGEN.length; i++) {
+      const g = rechnerGruss(i, 'Sir', true)
+      expect(g.startsWith('Willkommen zurück, Sir.'), g).toBe(true)
+      expect(/^\s*(guten (morgen|tag|abend)|willkommen|hallo|moin)\b/i.test(g.replace(/^Willkommen zurück, Sir\.\s*/, '')), g).toBe(false)
+    }
   })
   it('begrüßt mit Uhrzeit und endet mit dem Schlusssatz', () => {
     const s = morgenLage(basis())
@@ -84,9 +113,9 @@ describe('Morgen-Lage', () => {
       freigaben: 1,
     })).join(' ')
     expect(s).toContain('Draußen sind es 4 Grad und Nieselregen.')
-    expect(s).toContain('Kommen wir zum Abarbeiten: elf Karten sind offen, zwei davon sind neu.')
-    expect(s).toContain('Erstens: Kerzenständer produzieren.')
-    expect(s).toContain('Zweitens: Tassen schließen.')
+    expect(s).toContain('Neu unter Abarbeiten: zwei Karten.')
+    expect(s).toContain('Dazu sind noch neun ältere Karten offen.')
+    expect(s).not.toContain('Kerzenständer produzieren')
     expect(s).toContain('Bei Amazon ist ein Fall offen.')
     expect(s).toContain('Es geht um Kuh-Kucks-Uhr.')
     expect(s).toContain('Zum Nachproduzieren haben wir folgende Artikel.')
