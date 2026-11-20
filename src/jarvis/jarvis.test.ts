@@ -83,6 +83,10 @@ describe('Morgen-Lage', () => {
     ] }, jetzt)
     expect(s).toEqual(['Offene Bestellungen: sechs.', 'Eine ist überfällig.', 'Zwei müssen heute raus.', 'Eine muss morgen raus.', 'Eine hat noch länger Zeit.', 'Eine wartet noch auf die Zahlung.'])
     expect(fristSaetze({ anzahl: 1, liste: [{ am: am('2026-11-18'), kanal: 'Etsy', artikel: [] }] }, jetzt)).toEqual(['Offene Bestellungen: eine.', 'Heute muss nichts raus.', 'Eine hat noch länger Zeit.'])
+    // Samstag: Frist Montag ist der nächste Versandtag (Wunsch Auftraggeber 20.11.2026)
+    const samstag = new Date('2026-11-21T09:00:00+01:00')
+    expect(fristSaetze({ anzahl: 2, liste: [{ am: am('2026-11-20'), kanal: 'Etsy', artikel: [] }, { am: am('2026-11-21'), kanal: 'Etsy', artikel: [] }] }, samstag))
+      .toEqual(['Offene Bestellungen: zwei.', 'Heute muss nichts raus.', 'Eine muss am Montag raus.', 'Eine hat noch länger Zeit.'])
   })
   it('nur ein Gruß: nach der Begrüßung beginnt die Lage mit der Uhrzeit, Morgen-Sprüche ohne „Guten Morgen“', () => {
     const s = morgenLage(basis({ ohneGruss: true, humor: true }))

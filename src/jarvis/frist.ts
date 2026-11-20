@@ -37,6 +37,13 @@ export function istFeiertag(t: string): boolean {
 }
 const zaehlt = (t: string) => wochentag(t) !== 0 && !istFeiertag(t)
 
+/** nächster Versandtag nach Tag t: der nächste Tag, der zählt (Mo–Sa, kein Feiertag BW) – Samstag → Montag (20.11.2026) */
+export function naechsterVersandtag(t: string): string {
+  let x = tagPlus(t, 1)
+  while (!zaehlt(x)) x = tagPlus(x, 1)
+  return x
+}
+
 /** Frist: 2 Zähltage nach dem Tag des Fristbeginns (deutsche Zeit) */
 export function fristFuer(beginn: string | Date): string {
   let t = berlinTag(new Date(beginn)), n = 0

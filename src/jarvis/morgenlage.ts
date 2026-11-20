@@ -1,6 +1,6 @@
 import { nachschub } from "./nachschub"
 import { amazonArtikel, ohneLangeNummern, PAUSE } from "./sprechtext"
-import { berlinTag, einordnen, tagPlus } from "./frist"
+import { berlinTag, einordnen, naechsterVersandtag, tagPlus, wochentag } from "./frist"
 
 // Jarvis – Morgen-Lage (Etappe 1, 03.11.2026, Wunsch Auftraggeber): aus den App-Daten ein kurzer gesprochener Bericht
 // im britischen Stil (förmlich, „Sir“, trockenes Understatement, Seitenhiebe nach den Sachsätzen und ab und zu ein Spruch ohne Arbeitsbezug, z. B. über Emma).
@@ -213,7 +213,9 @@ export function ohneGrussAnfang(satz: string): string {
 /** Offene Bestellungen nur als Anzahlen nach Frist: überfällig, heute, morgen, später, wartet auf Zahlung */
 export function fristSaetze(o: NonNullable<LageEingabe['offen']>, jetzt: Date): string[] {
   const z = { ueberfaellig: 0, heute: 0, morgen: 0, spaeter: 0, zahlung: 0 }
-  const morgen = tagPlus(berlinTag(jetzt), 1)
+  // „morgen“ = nächster Versandtag (Wunsch Auftraggeber 20.11.2026): am Samstag ist das der Montag
+  const heuteTag = berlinTag(jetzt), morgen = naechsterVersandtag(heuteTag)
+  const morgenWort = morgen === tagPlus(heuteTag, 1) ? 'morgen' : `am ${['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'][wochentag(morgen)]}`
   for (const x of o.liste) {
     if (!x.am) { z.spaeter++; continue }
     const { gruppe, frist } = einordnen({ am: x.am, kanal: x.kanal, ...('bezahlt' in x ? { bezahlt: x.bezahlt ?? null } : {}) }, jetzt)
@@ -227,7 +229,7 @@ export function fristSaetze(o: NonNullable<LageEingabe['offen']>, jetzt: Date): 
   if (z.ueberfaellig) s.push(satz(z.ueberfaellig, 'ist', 'sind', 'überfällig'))
   if (z.heute) s.push(satz(z.heute, 'muss', 'müssen', 'heute raus'))
   if (!z.ueberfaellig && !z.heute) s.push('Heute muss nichts raus.')
-  if (z.morgen) s.push(satz(z.morgen, 'muss', 'müssen', 'morgen raus'))
+  if (z.morgen) s.push(satz(z.morgen, 'muss', 'müssen', `${morgenWort} raus`))
   if (z.spaeter) s.push(satz(z.spaeter, 'hat', 'haben', 'noch länger Zeit'))
   if (z.zahlung) s.push(satz(z.zahlung, 'wartet', 'warten', 'noch auf die Zahlung'))
   return s
