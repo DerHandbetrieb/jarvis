@@ -47,6 +47,7 @@ Britischer Butler, Anrede „Sir“, tiefschwarzer, gespielt herablassender Humo
 - **Wallpaper:** nie im Workshop veröffentlichen; macht nie Ton; alles Sichtbare unten über der Taskleiste (48 px); Testfenster nach Tests sofort schließen.
 - **Runen:** selbst gesetzte Runen ohne ᛋ, ᛟ, ᛉ, ᛦ, Wolfsangel, Schwarze Sonne. Die Runen im privaten Grafikpaket V5 bleiben unverändert – nicht wieder ansprechen.
 - **Werkstatt:** Jede Werkstatt-Änderung, die Loki betrifft (Titel, Meldungen, Struktur), sofort hier übernehmen. Claude darf Werkstatt-Dienste über `scripts/dienst-veroeffentlichen.mjs` (im Werkstatt-Projekt) selbst veröffentlichen.
+- **Bestellfrist (feste Regel, 20.11.2026):** nächster DHL-Abholtag (Mo/Mi/Fr) nach dem Bestelltag – Mo → Mi, Di → Mi, Mi → Fr, Do → Fr, Fr/Sa/So → Mo; Feiertage bewusst nicht berücksichtigt. Gilt genauso in der Werkstatt-App.
 - **Verworfenes nicht von selbst wieder vorschlagen:** siehe `wiki/entscheidungen.md`, Abschnitt „Verworfen“.
 - **%APPDATA% ist für Claudes Shell abgeschottet:** echte Daten nur über explorer.exe lesen/schreiben, L.O.K.I. nach Installationen mit `--autostart` über explorer.exe starten (`wiki/skills/appdata-zugriff.md`, `wiki/skills/installieren.md`).
 

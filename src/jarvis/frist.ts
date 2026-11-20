@@ -1,7 +1,8 @@
-// Bestellfrist fürs Dauer-HUD und die Morgen-Lage (14.11.2026, eine Quelle seit 20.11.2026; hud5/frist.js reicht nur weiter): dieselbe Regel wie die Werkstatt-Übersicht
-// (Werkstatt-App src/startseite/frist.ts, Stand Werkstatt 0.230.0). Frist = 2 Zähltage nach dem Bestelltag; es zählen
-// Montag bis Samstag, Sonntag und gesetzliche Feiertage in Baden-Württemberg nicht. Im eigenen Shop läuft die Frist ab
-// Zahlung. Ändert sich die Regel in der Werkstatt, hier nachziehen (Tests in frist.test.js mit den Beispielen der Werkstatt).
+// Bestellfrist fürs Dauer-HUD und die Morgen-Lage (eine Quelle seit 20.11.2026; hud5/frist.js reicht nur weiter).
+// Feste Regel (Vorgabe Auftraggeber 20.11.2026, gilt genauso für die Werkstatt-App): Frist = nächster DHL-Abholtag
+// (Montag, Mittwoch, Freitag) NACH dem Bestelltag – Mo → Mi, Di → Mi, Mi → Fr, Do → Fr, Fr/Sa/So → Mo. Das ganze Jahr
+// gleich, Feiertage werden bewusst nicht berücksichtigt. (Vorher: „2 Zähltage“ mit Feiertagen BW – verworfen.)
+// Im eigenen Shop läuft die Frist ab Zahlung.
 
 /** Kalendertag in deutscher Zeit (JJJJ-MM-TT) */
 export function berlinTag(d: Date): string {
@@ -15,47 +16,25 @@ export function tagPlus(t: string, n: number): string {
 /** 0 = Sonntag … 6 = Samstag */
 export function wochentag(t: string): number { return new Date(`${t}T12:00:00Z`).getUTCDay() }
 
-export function ostersonntag(jahr: number): string {
-  const a = jahr % 19, b = Math.floor(jahr / 100), c = jahr % 100
-  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3)
-  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4
-  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451)
-  const monat = Math.floor((h + l - 7 * m + 114) / 31), tag = ((h + l - 7 * m + 114) % 31) + 1
-  return `${jahr}-${String(monat).padStart(2, '0')}-${String(tag).padStart(2, '0')}`
-}
-/** gesetzliche Feiertage in Baden-Württemberg */
-export function feiertageBW(jahr: number): string[] {
-  const o = ostersonntag(jahr)
-  const fest = ['01-01', '01-06', '05-01', '10-03', '11-01', '12-25', '12-26'].map((md) => `${jahr}-${md}`)
-  return [...fest, ...[-2, 1, 39, 50, 60].map((n) => tagPlus(o, n))].sort()
-}
-const speicher = new Map<number, Set<string>>()
-export function istFeiertag(t: string): boolean {
-  const jahr = Number(t.slice(0, 4))
-  if (!speicher.has(jahr)) speicher.set(jahr, new Set(feiertageBW(jahr)))
-  return speicher.get(jahr)!.has(t)
-}
-const zaehlt = (t: string) => wochentag(t) !== 0 && !istFeiertag(t)
-
-/** nächster Versandtag nach Tag t: der nächste Tag, der zählt (Mo–Sa, kein Feiertag BW) – Samstag → Montag (20.11.2026) */
+/** Abholtag: Montag, Mittwoch oder Freitag */
+const istAbholtag = (t: string) => [1, 3, 5].includes(wochentag(t))
+/** nächster Versandtag (DHL-Abholung Mo/Mi/Fr) NACH Tag t – Samstag → Montag, Montag → Mittwoch */
 export function naechsterVersandtag(t: string): string {
   let x = tagPlus(t, 1)
-  while (!zaehlt(x)) x = tagPlus(x, 1)
+  while (!istAbholtag(x)) x = tagPlus(x, 1)
   return x
 }
 
-/** Frist: 2 Zähltage nach dem Tag des Fristbeginns (deutsche Zeit) */
+/** Frist: nächster Abholtag nach dem Tag des Fristbeginns (deutsche Zeit) */
 export function fristFuer(beginn: string | Date): string {
-  let t = berlinTag(new Date(beginn)), n = 0
-  while (n < 2) { t = tagPlus(t, 1); if (zaehlt(t)) n++ }
-  return t
+  return naechsterVersandtag(berlinTag(new Date(beginn)))
 }
 /** eigener Shop (PrestaShop) – dort wird auf die Zahlung gewartet (wie Werkstatt _geteilt/kanal.ts istEigenerShop) */
 export const istEigenerShop = (kanal: unknown) => /eigen|presta/i.test(String(kanal ?? ''))
 
 /**
  * Einordnung einer offenen Bestellung: 'ueberfaellig' | 'heute' | 'spaeter' | 'zahlung' (eigener Shop, noch nicht bezahlt).
- * bezahlt fehlt ganz (undefined), solange jarvis-lage das Zahlungsdatum nicht liefert – dann gilt der Bestelltag.
+ * bezahlt fehlt ganz (undefined), wenn jarvis-lage kein Zahlungsdatum liefert – dann gilt der Bestelltag.
  */
 export type FristGruppe = 'ueberfaellig' | 'heute' | 'spaeter' | 'zahlung'
 export type FristBestellung = { am: string; kanal: string; bezahlt?: string | null }
@@ -70,11 +49,10 @@ export function einordnen(b: FristBestellung, jetzt: Date): { gruppe: FristGrupp
   return { gruppe: frist < heute ? 'ueberfaellig' : frist === heute ? 'heute' : 'spaeter', frist }
 }
 
-/** nächster DHL-Abholtag (Mo, Mi, Fr; nicht an Feiertagen) ab heute, heute eingeschlossen */
+/** nächster DHL-Abholtag (Mo, Mi, Fr) ab heute, heute eingeschlossen */
 export function naechsteAbholung(jetzt: Date): string {
-  let t = berlinTag(jetzt)
-  for (let i = 0; i < 14; i++) { if ([1, 3, 5].includes(wochentag(t)) && !istFeiertag(t)) return t; t = tagPlus(t, 1) }
-  return t
+  const t = berlinTag(jetzt)
+  return istAbholtag(t) ? t : naechsterVersandtag(t)
 }
 
 const WT = ['SO', 'MO', 'DI', 'MI', 'DO', 'FR', 'SA']

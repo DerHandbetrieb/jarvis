@@ -6,7 +6,7 @@ Wichtige Entscheidungen des Auftraggebers mit Datum und Grund, neueste oben. Ver
 
 ## Gültig
 
-- **20.11.2026** In der Morgen-Lage zählt „morgen“ als nächster Versandtag (Samstag → Montag), 0.35.1.
+- **20.11.2026** Bestellfrist = nächster DHL-Abholtag (Mo/Mi/Fr) nach dem Bestelltag: Mo → Mi, Di → Mi, Mi → Fr, Do → Fr, Fr/Sa/So → Mo; Feiertage nicht berücksichtigt, das ganze Jahr gleich. Ersetzt „2 Zähltage“ (Di → Do, Sa → Di war falsch). Gilt für Loki, HUD und Werkstatt (Auftrag an die Werkstatt-Sitzung gegeben), 0.35.2.
 - **20.11.2026** Morgen-Lage (0.35.0): nur ein Gruß; Bestellungen nur als Anzahl nach Frist; Abarbeiten nur neue Karten + Zahl der älteren; Nachrichten als Original-Tonspur statt Vorlesen.
 - **15.11.2026** Gestörte Stimme nicht bis zum Neustart bei Piper lassen: neuer Versuch alle 15 min und nach Abwesenheit (0.34.2).
 - **14.11.2026** Wallpaper 30 B/s statt 25 (gleichmäßig bei 60 Hz, Runen ruckelten); Lichtpunkt bei „Verkäufe 14 Tage“ entfernt.
